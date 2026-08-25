@@ -44,7 +44,8 @@ data class Tenant(
     val phone: String,
     val defaultBaseRent: Double,
     val electricityRatePerUnit: Double,
-    val lastMeterReading: Double = 0.0
+    val lastMeterReading: Double = 0.0,
+    val isOccupied: Boolean = true
 )
 
 @Entity(
@@ -91,6 +92,9 @@ interface AppDao {
     @Query("SELECT * FROM rent_bills WHERE tenantId = :tenantId ORDER BY id DESC")
     fun getBillsForTenant(tenantId: Long): Flow<List<RentBill>>
 
+    @Query("SELECT * FROM rent_bills ORDER BY id DESC")
+    fun getAllBills(): Flow<List<RentBill>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBill(bill: RentBill)
 
@@ -127,11 +131,14 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     val allTenants: StateFlow<List<Tenant>> = dao.getAllTenants()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allBills: StateFlow<List<RentBill>> = dao.getAllBills()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun getBillsForTenant(tenantId: Long): Flow<List<RentBill>> = dao.getBillsForTenant(tenantId)
 
-    fun addTenant(name: String, room: String, phone: String, rent: Double, rate: Double, reading: Double) {
+    fun addTenant(name: String, room: String, phone: String, rent: Double, rate: Double, reading: Double, isOccupied: Boolean) {
         viewModelScope.launch {
-            dao.insertTenant(Tenant(0, name, room, phone, rent, rate, reading))
+            dao.insertTenant(Tenant(0, name, room, phone, rent, rate, reading, isOccupied))
         }
     }
 
@@ -154,12 +161,12 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 units, tenant.electricityRatePerUnit, elecAmount, total, amountPaid, due, curDate, mode
             )
             dao.insertBill(bill)
-            dao.updateTenant(tenant.copy(lastMeterReading = currReading))
+            dao.updateTenant(tenant.copy(lastMeterReading = currReading, isOccupied = true))
         }
     }
 }
 
-// ---------------- MAIN ACTIVITY & UI ----------------
+// ---------------- MAIN ACTIVITY ----------------
 class MainActivity : ComponentActivity() {
     private val viewModel: RentViewModel by viewModels()
 
@@ -173,13 +180,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// ---------------- UI SCREENS ----------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: RentViewModel) {
     val tenants by viewModel.allTenants.collectAsState()
+    val allBills by viewModel.allBills.collectAsState()
+
     var showAddTenantDialog by remember { mutableStateOf(false) }
     var selectedTenantForBill by remember { mutableStateOf<Tenant?>(null) }
     var selectedTenantForLedger by remember { mutableStateOf<Tenant?>(null) }
+
+    val totalEarnings = allBills.sumOf { it.amountPaid }
+    val totalPendingDue = allBills.sumOf { it.dueAmount }
+    val occupiedRoomsCount = tenants.count { it.isOccupied }
+    val vacantRoomsCount = tenants.size - occupiedRoomsCount
 
     Scaffold(
         topBar = {
@@ -197,15 +212,45 @@ fun MainScreen(viewModel: RentViewModel) {
             }
         }
     ) { padding ->
-        if (tenants.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No tenants found.\nTap + to add a room.", color = Color.Gray)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Revenue & Occupancy Overview Card
+            item {
+                RevenueSummaryCard(
+                    totalEarnings = totalEarnings,
+                    totalDue = totalPendingDue,
+                    totalRooms = tenants.size,
+                    occupied = occupiedRoomsCount,
+                    vacant = vacantRoomsCount
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+
+            item {
+                Text(
+                    text = "Rooms & Tenants (${tenants.size})",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            if (tenants.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No rooms configured.\nTap + to add a room or tenant.", color = Color.Gray)
+                    }
+                }
+            } else {
                 items(tenants) { tenant ->
                     TenantCard(
                         tenant = tenant,
@@ -221,8 +266,8 @@ fun MainScreen(viewModel: RentViewModel) {
     if (showAddTenantDialog) {
         AddTenantDialog(
             onDismiss = { showAddTenantDialog = false },
-            onSave = { name, room, phone, rent, rate, reading ->
-                viewModel.addTenant(name, room, phone, rent, rate, reading)
+            onSave = { name, room, phone, rent, rate, reading, isOccupied ->
+                viewModel.addTenant(name, room, phone, rent, rate, reading, isOccupied)
                 showAddTenantDialog = false
             }
         )
@@ -249,13 +294,86 @@ fun MainScreen(viewModel: RentViewModel) {
 }
 
 @Composable
-fun TenantCard(tenant: Tenant, onAddBillClick: () -> Unit, onViewHistoryClick: () -> Unit, onDeleteClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+fun RevenueSummaryCard(
+    totalEarnings: Double,
+    totalDue: Double,
+    totalRooms: Int,
+    occupied: Int,
+    vacant: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Financial & Property Summary",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Column {
-                    Text("Room ${tenant.roomNumber} - ${tenant.name}", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("Phone: ${tenant.phone}", fontSize = 13.sp, color = Color.DarkGray)
+                    Text("Total Collected", fontSize = 12.sp, color = Color.DarkGray)
+                    Text("₹${String.format(Locale.US, "%.2f", totalEarnings)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                }
+                Column {
+                    Text("Pending Due", fontSize = 12.sp, color = Color.DarkGray)
+                    Text("₹${String.format(Locale.US, "%.2f", totalDue)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Total Rooms: $totalRooms", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("Occupied: $occupied", fontSize = 13.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                Text("Vacant: $vacant", fontSize = 13.sp, color = if (vacant > 0) Color(0xFFE65100) else Color.DarkGray, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun TenantCard(
+    tenant: Tenant,
+    onAddBillClick: () -> Unit,
+    onViewHistoryClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Room ${tenant.roomNumber}",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SuggestionChip(
+                            onClick = {},
+                            label = { Text(if (tenant.isOccupied) "Occupied" else "Vacant", fontSize = 10.sp) }
+                        )
+                    }
+                    Text(
+                        text = if (tenant.isOccupied) "${tenant.name} (${tenant.phone})" else "No Active Tenant",
+                        fontSize = 13.sp,
+                        color = Color.DarkGray
+                    )
                 }
                 IconButton(onClick = onDeleteClick) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
@@ -263,16 +381,19 @@ fun TenantCard(tenant: Tenant, onAddBillClick: () -> Unit, onViewHistoryClick: (
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Rent: ₹${tenant.defaultBaseRent}", fontSize = 14.sp)
-                Text("Rate: ₹${tenant.electricityRatePerUnit}/unit", fontSize = 14.sp)
-                Text("Meter: ${tenant.lastMeterReading}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = "Rent: ₹${tenant.defaultBaseRent}", fontSize = 14.sp)
+                Text(text = "Rate: ₹${tenant.electricityRatePerUnit}/unit", fontSize = 14.sp)
+                Text(text = "Meter: ${tenant.lastMeterReading}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedButton(onClick = onViewHistoryClick, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("History")
+                    Text("Ledger")
                 }
                 Button(onClick = onAddBillClick, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -285,52 +406,104 @@ fun TenantCard(tenant: Tenant, onAddBillClick: () -> Unit, onViewHistoryClick: (
 }
 
 @Composable
-fun AddTenantDialog(onDismiss: () -> Unit, onSave: (String, String, String, Double, Double, Double) -> Unit) {
+fun AddTenantDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, String, String, Double, Double, Double, Boolean) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var roomNumber by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var baseRent by remember { mutableStateOf("") }
-    var ratePerUnit by remember { mutableStateOf("") }
-    var initialReading by remember { mutableStateOf("") }
+    var ratePerUnit by remember { mutableStateOf("10.0") }
+    var initialReading by remember { mutableStateOf("0.0") }
+    var isOccupied by remember { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Tenant Profile") },
+        title = { Text("Add Room / Tenant") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = roomNumber, onValueChange = { roomNumber = it }, label = { Text("Room / Flat No.") })
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tenant Name") })
-                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-                OutlinedTextField(value = baseRent, onValueChange = { baseRent = it }, label = { Text("Monthly Rent (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(value = ratePerUnit, onValueChange = { ratePerUnit = it }, label = { Text("Rate per Unit (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(value = initialReading, onValueChange = { initialReading = it }, label = { Text("Current Meter Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(
+                    value = roomNumber,
+                    onValueChange = { roomNumber = it },
+                    label = { Text("Room / Flat No.") }
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isOccupied, onCheckedChange = { isOccupied = it })
+                    Text("Room currently occupied?")
+                }
+                if (isOccupied) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Tenant Name") }
+                    )
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it },
+                        label = { Text("Phone Number") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                    )
+                }
+                OutlinedTextField(
+                    value = baseRent,
+                    onValueChange = { baseRent = it },
+                    label = { Text("Default Rent (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = ratePerUnit,
+                    onValueChange = { ratePerUnit = it },
+                    label = { Text("Rate per Unit (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = initialReading,
+                    onValueChange = { initialReading = it },
+                    label = { Text("Initial Meter Reading") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(name, roomNumber, phone, baseRent.toDoubleOrNull() ?: 0.0, ratePerUnit.toDoubleOrNull() ?: 0.0, initialReading.toDoubleOrNull() ?: 0.0)
+                    onSave(
+                        if (isOccupied) name else "Vacant",
+                        roomNumber,
+                        if (isOccupied) phone else "-",
+                        baseRent.toDoubleOrNull() ?: 0.0,
+                        ratePerUnit.toDoubleOrNull() ?: 0.0,
+                        initialReading.toDoubleOrNull() ?: 0.0,
+                        isOccupied
+                    )
                 },
-                enabled = name.isNotBlank() && roomNumber.isNotBlank()
-            ) { Text("Save") }
+                enabled = roomNumber.isNotBlank() && (!isOccupied || name.isNotBlank())
+            ) {
+                Text("Save")
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
 @Composable
-fun AddMonthlyBillDialog(tenant: Tenant, onDismiss: () -> Unit, onSave: (Double, Double, Double, String) -> Unit) {
+fun AddMonthlyBillDialog(
+    tenant: Tenant,
+    onDismiss: () -> Unit,
+    onSave: (Double, Double, Double, String) -> Unit
+) {
     var currReadingStr by remember { mutableStateOf("") }
     var baseRentStr by remember { mutableStateOf(tenant.defaultBaseRent.toString()) }
     var amountPaidStr by remember { mutableStateOf("") }
-    var paymentMode by remember { mutableStateOf("Cash") }
+    var paymentMode by remember { mutableStateOf("UPI") }
 
     val currReading = currReadingStr.toDoubleOrNull() ?: tenant.lastMeterReading
     val baseRent = baseRentStr.toDoubleOrNull() ?: 0.0
     val unitsConsumed = (currReading - tenant.lastMeterReading).coerceAtLeast(0.0)
     val elecAmount = unitsConsumed * tenant.electricityRatePerUnit
     val totalBill = baseRent + elecAmount
-    val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
+    val amountPaid = amountPaidStr.toDoubleOrNull() ?: totalBill
     val due = totalBill - amountPaid
 
     AlertDialog(
@@ -339,101 +512,5 @@ fun AddMonthlyBillDialog(tenant: Tenant, onDismiss: () -> Unit, onSave: (Double,
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Previous Meter: ${tenant.lastMeterReading}", fontWeight = FontWeight.Bold)
-                OutlinedTextField(value = currReadingStr, onValueChange = { currReadingStr = it }, label = { Text("Current Meter Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(value = baseRentStr, onValueChange = { baseRentStr = it }, label = { Text("Base Rent (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                HorizontalDivider()
-                Text("Units: $unitsConsumed ($unitsConsumed × ₹${tenant.electricityRatePerUnit} = ₹$elecAmount)")
-                Text("Total Payable: ₹$totalBill", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                HorizontalDivider()
-                OutlinedTextField(value = amountPaidStr, onValueChange = { amountPaidStr = it }, label = { Text("Amount Paid Now (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                Text("Remaining Due: ₹$due", color = if (due > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Cash", "UPI", "Bank").forEach { mode ->
-                        FilterChip(selected = paymentMode == mode, onClick = { paymentMode = mode }, label = { Text(mode) })
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onSave(currReading, baseRent, amountPaid, paymentMode) }, enabled = currReadingStr.isNotBlank()) { Text("Save Bill") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TenantHistoryBottomSheet(tenant: Tenant, viewModel: RentViewModel, onDismiss: () -> Unit) {
-    val bills by viewModel.getBillsForTenant(tenant.id).collectAsState(initial = emptyList())
-    val context = LocalContext.current
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("Ledger: Room ${tenant.roomNumber} (${tenant.name})", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (bills.isEmpty()) {
-                Text("No past billing records found.", color = Color.Gray, modifier = Modifier.padding(16.dp))
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(bills) { bill ->
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(bill.monthYear, fontWeight = FontWeight.Bold)
-                                    Text(bill.paymentDate, fontSize = 12.sp, color = Color.Gray)
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Rent: ₹${bill.baseRent} | Elec: ₹${bill.electricityAmount} (${bill.unitsConsumed} units)")
-                                Text("Total: ₹${bill.totalBillAmount} | Paid: ₹${bill.amountPaid} (${bill.paymentMode})")
-                                if (bill.dueAmount > 0) {
-                                    Text("Due: ₹${bill.dueAmount}", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedButton(
-                                    onClick = { shareReceiptOnWhatsApp(context, tenant, bill) },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Share WhatsApp Receipt")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fun shareReceiptOnWhatsApp(context: Context, tenant: Tenant, bill: RentBill) {
-    val message = """
-        *RENT & ELECTRICITY RECEIPT*
-        ----------------------------------
-        *Tenant:* ${tenant.name} (Room: ${tenant.roomNumber})
-        *Period:* ${bill.monthYear}
-        *Date:* ${bill.paymentDate}
-        
-        *Electricity Breakdown:*
-        - Prev Reading: ${bill.prevMeterReading}
-        - Curr Reading: ${bill.currMeterReading}
-        - Units Consumed: ${bill.unitsConsumed}
-        - Rate/Unit: ₹${bill.electricityRate}
-        - Total Elec Bill: ₹${bill.electricityAmount}
-        
-        *Base Rent:* ₹${bill.baseRent}
-        *Total Bill:* ₹${bill.totalBillAmount}
-        ----------------------------------
-        *Amount Paid:* ₹${bill.amountPaid} (${bill.paymentMode})
-        *Pending Due:* ₹${bill.dueAmount}
-        ----------------------------------
-        Thank you!
-    """.trimIndent()
-
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, message)
-    }
-    context.startActivity(Intent.createChooser(intent, "Share Receipt via"))
-}
+                OutlinedTextField(
+                 
