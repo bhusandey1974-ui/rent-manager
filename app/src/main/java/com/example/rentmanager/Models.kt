@@ -10,6 +10,7 @@ data class Tenant(
     val name: String,
     val roomNumber: String,
     val phone: String,
+    val aadhaarNumber: String = "",
     val defaultBaseRent: Double,
     val electricityRatePerUnit: Double,
     val initialMeterReading: Double = 0.0,
@@ -29,11 +30,13 @@ data class Tenant(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("tenantId")]
+    indices = [Index("tenantId"), Index("roomNumber")]
 )
 data class RentBill(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val tenantId: Long,
+    val roomNumber: String = "",
+    val tenantName: String = "",
     val monthYear: String,
     val baseRent: Double,
     val prevMeterReading: Double,
@@ -64,8 +67,8 @@ interface AppDao {
     @Update
     suspend fun updateTenant(tenant: Tenant)
 
-    @Query("SELECT * FROM rent_bills WHERE tenantId = :tenantId ORDER BY id DESC")
-    fun getBillsForTenant(tenantId: Long): Flow<List<RentBill>>
+    @Query("SELECT * FROM rent_bills WHERE roomNumber = :roomNumber ORDER BY id DESC")
+    fun getBillsForRoom(roomNumber: String): Flow<List<RentBill>>
 
     @Query("SELECT * FROM rent_bills ORDER BY id DESC")
     fun getAllBills(): Flow<List<RentBill>>
@@ -74,7 +77,7 @@ interface AppDao {
     suspend fun insertBill(bill: RentBill)
 }
 
-@Database(entities = [Tenant::class, RentBill::class], version = 2, exportSchema = false)
+@Database(entities = [Tenant::class, RentBill::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
 
@@ -97,4 +100,3 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
-
