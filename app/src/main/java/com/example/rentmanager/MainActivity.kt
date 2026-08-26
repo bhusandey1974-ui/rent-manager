@@ -196,8 +196,8 @@ fun PropertiesScreen(viewModel: RentViewModel) {
         AssignNewTenantDialog(
             room = room,
             onDismiss = { selectedRoomForNewTenant = null },
-            onSave = { name, phone, rent, rate, reading, entryDate ->
-                viewModel.occupyRoom(room, name, phone, rent, rate, reading, entryDate)
+            onSave = { name, phone, aadhaar, rent, rate, reading, entryDate ->
+                viewModel.occupyRoom(room, name, phone, aadhaar, rent, rate, reading, entryDate)
                 selectedRoomForNewTenant = null
             }
         )
@@ -295,7 +295,16 @@ fun EnhancedTenantCard(
                             }
                         }
                         Text(
-                            text = if (tenant.isOccupied) "📞 ${tenant.phone}" else "Ready for new tenant",
+                            text = buildString {
+                                if (tenant.isOccupied) {
+                                    append("📞 ${tenant.phone}")
+                                    if (tenant.aadhaarNumber.isNotBlank()) {
+                                        append(" • ID: ${tenant.aadhaarNumber}")
+                                    }
+                                } else {
+                                    append("Ready for new tenant")
+                                }
+                            },
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -335,7 +344,6 @@ fun EnhancedTenantCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons in a Single Line
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -417,7 +425,6 @@ fun EnhancedTenantCard(
 @Composable
 fun RevenueAnalyticsScreen(viewModel: RentViewModel) {
     val allBills by viewModel.allBills.collectAsState()
-    val tenants by viewModel.allTenants.collectAsState()
 
     val currentYear = Calendar.getInstance().get(Calendar.YEAR).coerceAtLeast(2026)
     var selectedYear by remember { mutableIntStateOf(currentYear) }
@@ -552,7 +559,6 @@ fun RevenueAnalyticsScreen(viewModel: RentViewModel) {
             }
         } else {
             items(yearBills, key = { it.id }) { bill ->
-                val tenant = tenants.find { it.id == bill.tenantId }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -565,7 +571,7 @@ fun RevenueAnalyticsScreen(viewModel: RentViewModel) {
                     ) {
                         Column {
                             Text(bill.monthYear, fontWeight = FontWeight.Bold, color = BrandDarkNavy)
-                            Text("Room ${tenant?.roomNumber ?: "-"} • ${tenant?.name ?: "Unknown"}", fontSize = 12.sp, color = Color.Gray)
+                            Text("Room ${bill.roomNumber} • ${bill.tenantName}", fontSize = 12.sp, color = Color.Gray)
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text("+ ${formatCurrency(bill.amountPaid)}", fontWeight = FontWeight.ExtraBold, color = SuccessGreen, fontSize = 14.sp)
@@ -703,10 +709,11 @@ fun AddNewRoomDialog(
 fun AssignNewTenantDialog(
     room: Tenant,
     onDismiss: () -> Unit,
-    onSave: (String, String, Double, Double, Double, String) -> Unit
+    onSave: (String, String, String, Double, Double, Double, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var aadhaarNumber by remember { mutableStateOf("") }
     var baseRent by remember { mutableStateOf(room.defaultBaseRent.toString()) }
     var ratePerUnit by remember { mutableStateOf(room.electricityRatePerUnit.toString()) }
     var initialReading by remember { mutableStateOf(room.lastMeterReading.toString()) }
@@ -718,12 +725,18 @@ fun AssignNewTenantDialog(
         title = { Text("New Tenant: Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tenant Name") })
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tenant Name *") })
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                OutlinedTextField(
+                    value = aadhaarNumber,
+                    onValueChange = { if (it.length <= 12) aadhaarNumber = it },
+                    label = { Text("Aadhaar Number (Optional)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
                 OutlinedTextField(
                     value = baseRent,
@@ -752,6 +765,7 @@ fun AssignNewTenantDialog(
                     onSave(
                         name,
                         phone,
+                        aadhaarNumber.trim(),
                         baseRent.toDoubleOrNull() ?: room.defaultBaseRent,
                         ratePerUnit.toDoubleOrNull() ?: room.electricityRatePerUnit,
                         initialReading.toDoubleOrNull() ?: room.lastMeterReading,
@@ -881,25 +895,40 @@ fun TenantHistoryBottomSheet(
     viewModel: RentViewModel,
     onDismiss: () -> Unit
 ) {
-    val bills by viewModel.getBillsForTenant(tenant.id).collectAsState(initial = emptyList())
+    val bills by viewModel.getBillsForRoom(tenant.roomNumber).collectAsState(initial = emptyList())
     val context = LocalContext.current
     val tenantTotalPaid = bills.sumOf { it.amountPaid }
     val tenantTotalDue = bills.sumOf { it.dueAmount }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = BrandBackground) {
         Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-            Text("Room ${tenant.roomNumber} - ${tenant.name}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BrandDarkNavy)
+            Text("Room ${tenant.roomNumber} - Lifetime Ledger", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BrandDarkNavy)
             Text("Total Paid: ${formatCurrency(tenantTotalPaid)} | Due: ${formatCurrency(tenantTotalDue)}", fontSize = 13.sp, color = BrandSecondary)
             Spacer(modifier = Modifier.height(12.dp))
 
             if (bills.isEmpty()) {
-                Text("No past billing records.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                Text("No past billing records for this room.", color = Color.Gray, modifier = Modifier.padding(16.dp))
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(bills, key = { it.id }) { bill ->
                         Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp)) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text(bill.monthYear, fontWeight = FontWeight.Bold)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(bill.monthYear, fontWeight = FontWeight.Bold)
+                                    Surface(color = Color(0xFFE3F2FD), shape = RoundedCornerShape(6.dp)) {
+                                        Text(
+                                            text = "Tenant: ${bill.tenantName}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = BrandPrimary,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text("Rent: ${formatCurrency(bill.baseRent)} | Elec: ${formatCurrency(bill.electricityAmount)} (${formatUnits(bill.unitsConsumed)} units)")
                                 Text("Paid: ${formatCurrency(bill.amountPaid)} (${bill.paymentMode}) on ${bill.paymentDate}")
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -924,7 +953,7 @@ fun shareReceiptOnWhatsApp(context: Context, tenant: Tenant, bill: RentBill) {
     val sb = StringBuilder()
     sb.append("🏠 *RENT & ELECTRICITY RECEIPT*\n")
     sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-    sb.append("👤 *Tenant:* ").append(tenant.name).append(" (Room ").append(tenant.roomNumber).append(")\n")
+    sb.append("👤 *Tenant:* ").append(bill.tenantName).append(" (Room ").append(bill.roomNumber).append(")\n")
     sb.append("📅 *Billing Period:* ").append(bill.monthYear).append("\n")
     sb.append("🗓️ *Date of Payment:* ").append(bill.paymentDate).append("\n\n")
     sb.append("⚡ *Electricity Details:*\n")
