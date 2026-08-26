@@ -35,9 +35,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// ==========================================
-// 1. DATABASE ENTITIES
-// ==========================================
 @Entity(tableName = "tenants")
 data class Tenant(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -79,9 +76,6 @@ data class RentBill(
     val paymentMode: String
 )
 
-// ==========================================
-// 2. ROOM DAO & DATABASE
-// ==========================================
 @Dao
 interface AppDao {
     @Query("SELECT * FROM tenants ORDER BY roomNumber ASC")
@@ -130,9 +124,6 @@ abstract class AppDatabase : RoomDatabase() {
     }
 }
 
-// ==========================================
-// 3. VIEWMODEL
-// ==========================================
 class RentViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.getDatabase(application).appDao()
 
@@ -192,9 +183,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-// ==========================================
-// 4. MAIN ACTIVITY
-// ==========================================
 class MainActivity : ComponentActivity() {
     private val viewModel: RentViewModel by viewModels()
 
@@ -213,9 +201,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ==========================================
-// 5. UI COMPOSABLES
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: RentViewModel) {
@@ -531,4 +516,16 @@ fun AddTenantDialog(
     )
 }
 
-@
+@Composable
+fun AddMonthlyBillDialog(
+    tenant: Tenant,
+    onDismiss: () -> Unit,
+    onSave: (Double, Double, Double, String, String) -> Unit
+) {
+    var currReadingStr by remember { mutableStateOf("") }
+    var baseRentStr by remember { mutableStateOf(tenant.defaultBaseRent.toString()) }
+    var amountPaidStr by remember { mutableStateOf("") }
+    var paymentMode by remember { mutableStateOf("UPI") }
+    
+    val todayFormatted = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
+    var paymentDate by remember { mutableStateOf
