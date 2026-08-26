@@ -9,12 +9,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
-// Icon Design System Palette
+// Design System Colors
 val BrandPrimary = Color(0xFF0D47A1)
 val BrandSecondary = Color(0xFF1976D2)
 val BrandAccent = Color(0xFF00B0FF)
@@ -37,21 +35,31 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getBillsForTenant(tenantId: Long): Flow<List<RentBill>> = dao.getBillsForTenant(tenantId)
 
-    fun addTenant(
-        name: String,
-        room: String,
-        phone: String,
-        rent: Double,
-        rate: Double,
-        reading: Double,
-        entryDate: String
-    ) {
+    fun createRoom(roomNumber: String, baseRent: Double, ratePerUnit: Double, initialReading: Double) {
         viewModelScope.launch {
             dao.insertTenant(
                 Tenant(
                     id = 0,
+                    name = "Vacant Room",
+                    roomNumber = roomNumber,
+                    phone = "-",
+                    defaultBaseRent = baseRent,
+                    electricityRatePerUnit = ratePerUnit,
+                    initialMeterReading = initialReading,
+                    lastMeterReading = initialReading,
+                    isOccupied = false,
+                    entryDate = "-",
+                    exitDate = null
+                )
+            )
+        }
+    }
+
+    fun occupyRoom(tenant: Tenant, name: String, phone: String, rent: Double, rate: Double, reading: Double, entryDate: String) {
+        viewModelScope.launch {
+            dao.updateTenant(
+                tenant.copy(
                     name = name,
-                    roomNumber = room,
                     phone = phone,
                     defaultBaseRent = rent,
                     electricityRatePerUnit = rate,
