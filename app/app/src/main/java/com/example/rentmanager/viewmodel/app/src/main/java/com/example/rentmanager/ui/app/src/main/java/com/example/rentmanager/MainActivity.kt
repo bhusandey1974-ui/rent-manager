@@ -35,7 +35,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// ---------------- DATABASE ENTITIES ----------------
+// ==========================================
+// 1. DATABASE ENTITIES
+// ==========================================
 @Entity(tableName = "tenants")
 data class Tenant(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -77,7 +79,9 @@ data class RentBill(
     val paymentMode: String
 )
 
-// ---------------- DAO & DATABASE ----------------
+// ==========================================
+// 2. ROOM DAO & DATABASE
+// ==========================================
 @Dao
 interface AppDao {
     @Query("SELECT * FROM tenants ORDER BY roomNumber ASC")
@@ -116,7 +120,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "rent_manager_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
@@ -124,7 +130,9 @@ abstract class AppDatabase : RoomDatabase() {
     }
 }
 
-// ---------------- VIEWMODEL ----------------
+// ==========================================
+// 3. VIEWMODEL
+// ==========================================
 class RentViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.getDatabase(application).appDao()
 
@@ -163,8 +171,20 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date())
 
             val bill = RentBill(
-                0, tenant.id, monthYear, baseRent, prevReading, currReading,
-                units, tenant.electricityRatePerUnit, elecAmount, total, amountPaid, due, paymentDate, mode
+                id = 0,
+                tenantId = tenant.id,
+                monthYear = monthYear,
+                baseRent = baseRent,
+                prevMeterReading = prevReading,
+                currMeterReading = currReading,
+                unitsConsumed = units,
+                electricityRate = tenant.electricityRatePerUnit,
+                electricityAmount = elecAmount,
+                totalBillAmount = total,
+                amountPaid = amountPaid,
+                dueAmount = due,
+                paymentDate = paymentDate,
+                paymentMode = mode
             )
             dao.insertBill(bill)
             dao.updateTenant(tenant.copy(lastMeterReading = currReading, isOccupied = true))
@@ -172,7 +192,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-// ---------------- MAIN ACTIVITY ----------------
+// ==========================================
+// 4. MAIN ACTIVITY
+// ==========================================
 class MainActivity : ComponentActivity() {
     private val viewModel: RentViewModel by viewModels()
 
@@ -180,13 +202,20 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                MainScreen(viewModel = viewModel)
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreen(viewModel = viewModel)
+                }
             }
         }
     }
 }
 
-// ---------------- UI SCREENS ----------------
+// ==========================================
+// 5. UI COMPOSABLES
+// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: RentViewModel) {
@@ -324,11 +353,21 @@ fun RevenueSummaryCard(
             ) {
                 Column {
                     Text("Total Collected", fontSize = 12.sp, color = Color.DarkGray)
-                    Text("₹" + String.format(Locale.US, "%.2f", totalEarnings), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                    Text(
+                        "₹" + String.format(Locale.US, "%.2f", totalEarnings),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B5E20)
+                    )
                 }
                 Column {
                     Text("Pending Due", fontSize = 12.sp, color = Color.DarkGray)
-                    Text("₹" + String.format(Locale.US, "%.2f", totalDue), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    Text(
+                        "₹" + String.format(Locale.US, "%.2f", totalDue),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -492,30 +531,4 @@ fun AddTenantDialog(
     )
 }
 
-@Composable
-fun AddMonthlyBillDialog(
-    tenant: Tenant,
-    onDismiss: () -> Unit,
-    onSave: (Double, Double, Double, String, String) -> Unit
-) {
-    var currReadingStr by remember { mutableStateOf("") }
-    var baseRentStr by remember { mutableStateOf(tenant.defaultBaseRent.toString()) }
-    var amountPaidStr by remember { mutableStateOf("") }
-    var paymentMode by remember { mutableStateOf("UPI") }
-    
-    val todayFormatted = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
-    var paymentDate by remember { mutableStateOf(todayFormatted) }
-
-    val currReading = currReadingStr.toDoubleOrNull() ?: tenant.lastMeterReading
-    val baseRent = baseRentStr.toDoubleOrNull() ?: 0.0
-    val unitsConsumed = (currReading - tenant.lastMeterReading).coerceAtLeast(0.0)
-    val elecAmount = unitsConsumed * tenant.electricityRatePerUnit
-    val totalBill = baseRent + elecAmount
-    val amountPaid = amountPaidStr.toDoubleOrNull() ?: totalBill
-    val due = totalBill - amountPaid
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Log Rent: Room " + tenant.roomNumber) },
-        text = {
-            Column(verticalArrangement = Arrangemen
+@
