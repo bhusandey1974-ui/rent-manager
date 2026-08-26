@@ -237,7 +237,7 @@ fun MainScreen(viewModel: RentViewModel) {
 
             item {
                 Text(
-                    text = "Rooms & Tenants (${tenants.size})",
+                    text = "Rooms & Tenants (" + tenants.size + ")",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp)
@@ -336,9 +336,9 @@ fun RevenueSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Total Rooms: $totalRooms", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text("Occupied: $occupied", fontSize = 13.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
-                Text("Vacant: $vacant", fontSize = 13.sp, color = if (vacant > 0) Color(0xFFE65100) else Color.DarkGray, fontWeight = FontWeight.Bold)
+                Text("Total Rooms: " + totalRooms, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("Occupied: " + occupied, fontSize = 13.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                Text("Vacant: " + vacant, fontSize = 13.sp, color = if (vacant > 0) Color(0xFFE65100) else Color.DarkGray, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -364,7 +364,7 @@ fun TenantCard(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Room ${tenant.roomNumber}",
+                            text = "Room " + tenant.roomNumber,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -375,7 +375,7 @@ fun TenantCard(
                         )
                     }
                     Text(
-                        text = if (tenant.isOccupied) "${tenant.name} (${tenant.phone})" else "No Active Tenant",
+                        text = if (tenant.isOccupied) tenant.name + " (" + tenant.phone + ")" else "No Active Tenant",
                         fontSize = 13.sp,
                         color = Color.DarkGray
                     )
@@ -386,9 +386,9 @@ fun TenantCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = "Rent: ₹${tenant.defaultBaseRent}", fontSize = 14.sp)
-                Text(text = "Rate: ₹${tenant.electricityRatePerUnit}/unit", fontSize = 14.sp)
-                Text(text = "Meter: ${tenant.lastMeterReading}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = "Rent: ₹" + tenant.defaultBaseRent, fontSize = 14.sp)
+                Text(text = "Rate: ₹" + tenant.electricityRatePerUnit + "/unit", fontSize = 14.sp)
+                Text(text = "Meter: " + tenant.lastMeterReading, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Row(
@@ -516,7 +516,6 @@ fun AddMonthlyBillDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log Rent: Room ${tenant.roomNumber}") },
+        title = { Text("Log Rent: Room " + tenant.roomNumber) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
- 
+            Column(verticalArrangement = Arrangemen
