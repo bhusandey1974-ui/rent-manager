@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
 
-// Design System Colors
 val BrandPrimary = Color(0xFF0D47A1)
 val BrandSecondary = Color(0xFF1976D2)
 val BrandAccent = Color(0xFF00B0FF)
@@ -33,7 +32,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     val allBills: StateFlow<List<RentBill>> = dao.getAllBills()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun getBillsForTenant(tenantId: Long): Flow<List<RentBill>> = dao.getBillsForTenant(tenantId)
+    fun getBillsForRoom(roomNumber: String): Flow<List<RentBill>> = dao.getBillsForRoom(roomNumber)
 
     fun createRoom(roomNumber: String, baseRent: Double, ratePerUnit: Double, initialReading: Double) {
         viewModelScope.launch {
@@ -43,6 +42,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                     name = "Vacant Room",
                     roomNumber = roomNumber,
                     phone = "-",
+                    aadhaarNumber = "",
                     defaultBaseRent = baseRent,
                     electricityRatePerUnit = ratePerUnit,
                     initialMeterReading = initialReading,
@@ -55,12 +55,22 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun occupyRoom(tenant: Tenant, name: String, phone: String, rent: Double, rate: Double, reading: Double, entryDate: String) {
+    fun occupyRoom(
+        tenant: Tenant,
+        name: String,
+        phone: String,
+        aadhaarNumber: String,
+        rent: Double,
+        rate: Double,
+        reading: Double,
+        entryDate: String
+    ) {
         viewModelScope.launch {
             dao.updateTenant(
                 tenant.copy(
                     name = name,
                     phone = phone,
+                    aadhaarNumber = aadhaarNumber,
                     defaultBaseRent = rent,
                     electricityRatePerUnit = rate,
                     initialMeterReading = reading,
@@ -77,6 +87,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             dao.updateTenant(
                 tenant.copy(
+                    name = "Vacant Room",
+                    phone = "-",
+                    aadhaarNumber = "",
                     isOccupied = false,
                     exitDate = exitDate,
                     lastMeterReading = finalReading
@@ -112,6 +125,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             val bill = RentBill(
                 id = 0,
                 tenantId = tenant.id,
+                roomNumber = tenant.roomNumber,
+                tenantName = tenant.name,
                 monthYear = monthYearInput,
                 baseRent = baseRent,
                 prevMeterReading = prevReading,
@@ -132,4 +147,3 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
-
