@@ -324,11 +324,11 @@ fun RevenueSummaryCard(
             ) {
                 Column {
                     Text("Total Collected", fontSize = 12.sp, color = Color.DarkGray)
-                    Text("₹${String.format(Locale.US, "%.2f", totalEarnings)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                    Text("₹" + String.format(Locale.US, "%.2f", totalEarnings), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                 }
                 Column {
                     Text("Pending Due", fontSize = 12.sp, color = Color.DarkGray)
-                    Text("₹${String.format(Locale.US, "%.2f", totalDue)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    Text("₹" + String.format(Locale.US, "%.2f", totalDue), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                 }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -503,7 +503,6 @@ fun AddMonthlyBillDialog(
     var amountPaidStr by remember { mutableStateOf("") }
     var paymentMode by remember { mutableStateOf("UPI") }
     
-    // Payment Date Field (Defaults to Current Date)
     val todayFormatted = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
     var paymentDate by remember { mutableStateOf(todayFormatted) }
 
@@ -519,4 +518,5 @@ fun AddMonthlyBillDialog(
         onDismissRequest = onDismiss,
         title = { Text("Log Rent: Room ${tenant.roomNumber}") },
         text = {
-            Column(
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+ 
