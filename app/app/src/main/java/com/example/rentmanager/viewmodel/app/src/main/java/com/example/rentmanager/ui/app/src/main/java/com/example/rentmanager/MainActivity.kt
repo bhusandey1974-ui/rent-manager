@@ -89,7 +89,7 @@ interface AppDao {
     fun getAllTenants(): Flow<List<Tenant>>
 
     // Real inserts of new rows (id = 0) never conflict, so the default
-    // ABORT strategy is used instead of REPLACE — REPLACE risked silently
+    // ABORT strategy is used instead of REPLACE - REPLACE risked silently
     // overwriting an existing row if an id ever collided.
     @Insert
     suspend fun insertTenant(tenant: Tenant): Long
@@ -176,7 +176,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
      *
      * Fixes vs. the original version:
      *  - [monthYearInput] is derived from the payment date the user actually
-     *    entered, not from "today" — so backdated entries get the right label.
+     *    entered, not from "today" - so backdated entries get the right label.
      *  - The tenant's occupied flag is preserved as-is (previously this
      *    function force-set isOccupied = true on every bill, which silently
      *    re-occupied a room the owner had marked vacant).
@@ -636,7 +636,7 @@ fun AddMonthlyBillDialog(
     val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
 
     // Validation: a reading below the previous one usually means a typo
-    // (or a meter replacement, which needs manual handling) — flag it
+    // (or a meter replacement, which needs manual handling) - flag it
     // instead of silently clamping units consumed to zero.
     val isReadingInvalid = currReading != null && currReading < tenant.lastMeterReading
     val units = if (currReading != null && !isReadingInvalid) currReading - tenant.lastMeterReading else 0.0
@@ -648,7 +648,7 @@ fun AddMonthlyBillDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log Bill — Room ${tenant.roomNumber}") },
+        title = { Text("Log Bill - Room ${tenant.roomNumber}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -767,7 +767,7 @@ fun TenantHistoryBottomSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Bill History — Room ${tenant.roomNumber}",
+                "Bill History - Room ${tenant.roomNumber}",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
