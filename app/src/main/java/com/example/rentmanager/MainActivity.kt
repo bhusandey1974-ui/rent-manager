@@ -1,14 +1,14 @@
 package com.example.rentmanager
 
-import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,71 +19,35 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import androidx.lifecycle.viewmodel.compose.viewModel
+import java.text.NumberFormat
 import java.util.Locale
 
-class MainActivity : ComponentActivity() {
-    private val viewModel: RentViewModel by viewModels()
+val PrimaryBlue = Color(0xFF1E40AF)
+val BackgroundLight = Color(0xFFF8FAFC)
+val DarkNavy = Color(0xFF0F172A)
+val SuccessGreen = Color(0xFF16A34A)
+val AlertRed = Color(0xFFDC2626)
 
+fun formatCurrency(amount: Double): String {
+    val formatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+    formatter.maximumFractionDigits = 0
+    return formatter.format(amount)
+}
+
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = BrandBackground) {
-                    AppNavigationContainer(viewModel = viewModel)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AppNavigationContainer(viewModel: RentViewModel) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-
-    Scaffold(
-        bottomBar = {
-            NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) {
-                NavigationBarItem(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    icon = { Icon(Icons.Default.Apartment, contentDescription = "Rooms") },
-                    label = { Text("Properties") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BrandPrimary,
-                        selectedTextColor = BrandPrimary,
-                        indicatorColor = Color(0xFFE3F2FD)
-                    )
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.QueryStats, contentDescription = "Analytics") },
-                    label = { Text("Revenue") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = BrandPrimary,
-                        selectedTextColor = BrandPrimary,
-                        indicatorColor = Color(0xFFE3F2FD)
-                    )
-                )
-            }
-        }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            if (selectedTab == 0) {
-                PropertiesScreen(viewModel = viewModel)
-            } else {
-                RevenueAnalyticsScreen(viewModel = viewModel)
+                val vm: RentViewModel = viewModel()
+                RentManagerMainScreen(vm)
             }
         }
     }
@@ -91,893 +55,545 @@ fun AppNavigationContainer(viewModel: RentViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PropertiesScreen(viewModel: RentViewModel) {
-    val tenants by viewModel.allTenants.collectAsState()
+fun RentManagerMainScreen(viewModel: RentViewModel) {
+    val properties by viewModel.properties.collectAsState()
+    val rooms by viewModel.rooms.collectAsState()
+    val tenants by viewModel.tenants.collectAsState()
+    val tenantHistory by viewModel.tenantHistory.collectAsState()
+    val bills by viewModel.bills.collectAsState()
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var showAddPropertyDialog by remember { mutableStateOf(false) }
     var showAddRoomDialog by remember { mutableStateOf(false) }
-    var selectedTenantForBill by remember { mutableStateOf<Tenant?>(null) }
-    var selectedTenantForLedger by remember { mutableStateOf<Tenant?>(null) }
-    var selectedTenantForCheckout by remember { mutableStateOf<Tenant?>(null) }
-    var selectedRoomForNewTenant by remember { mutableStateOf<Tenant?>(null) }
+    var showAddBillDialog by remember { mutableStateOf(false) }
+    var assignRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
+    var checkoutTenantTarget by remember { mutableStateOf<Tenant?>(null) }
+    var viewingHistoryRoom by remember { mutableStateOf<RoomUnit?>(null) }
+    var selectedPropertyId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(properties) {
+        if (selectedPropertyId == null && properties.isNotEmpty()) {
+            selectedPropertyId = properties.first().id
+        }
+    }
+
+    val currentProperty = properties.find { it.id == selectedPropertyId }
+    val currentRooms = rooms.filter { it.propertyId == selectedPropertyId }
+    val currentTenants = tenants.filter { it.propertyId == selectedPropertyId }
+    val currentBills = bills.filter { it.propertyId == selectedPropertyId }
+
+    val totalUnits = currentRooms.size
+    val vacantUnits = currentRooms.count { it.isVacant }
+    val occupiedUnits = totalUnits - vacantUnits
+    val pendingCollection = currentBills.filter { !it.isPaid }.sumOf { it.totalAmount }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Brush.linearGradient(listOf(BrandPrimary, BrandAccent))),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("Rent Manager", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = BrandDarkNavy)
+                    Column {
+                        Text(currentProperty?.name ?: "Rent Manager", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text(currentProperty?.address ?: "Manage rooms, billing & stay histories", fontSize = 12.sp, color = Color.Gray)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BrandBackground)
+                actions = {
+                    IconButton(onClick = { showAddPropertyDialog = true }) {
+                        Icon(Icons.Default.AddBusiness, contentDescription = "Add Property", tint = PrimaryBlue)
+                    }
+                }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddRoomDialog = true },
-                containerColor = BrandPrimary,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Room")
-            }
         }
-    ) { pad ->
-        LazyColumn(
+    ) { padding ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(pad)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .background(BackgroundLight)
+                .padding(padding)
         ) {
-            item {
-                Text(
-                    text = "Properties & Rooms (${tenants.size})",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BrandDarkNavy
-                )
+            if (properties.size > 1) {
+                LazyRow(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(properties) { prop ->
+                        FilterChip(
+                            selected = prop.id == selectedPropertyId,
+                            onClick = { selectedPropertyId = prop.id },
+                            label = { Text(prop.name) }
+                        )
+                    }
+                }
             }
 
-            if (tenants.isEmpty()) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(Icons.Default.Domain, contentDescription = null, tint = BrandSecondary, modifier = Modifier.size(40.dp))
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text("No rooms added yet", fontWeight = FontWeight.Bold, color = BrandDarkNavy)
-                            Text("Tap + to add your first room/flat.", fontSize = 12.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Occupancy", fontSize = 11.sp, color = Color.Gray)
+                        Text("$occupiedUnits/$totalUnits Occupied", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DarkNavy)
+                        Text("$vacantUnits Vacant 🟢", fontSize = 11.sp, color = SuccessGreen, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.weight(1.2f),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Pending Dues", fontSize = 11.sp, color = Color.Gray)
+                        Text(formatCurrency(pendingCollection), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = AlertRed)
+                        Text("${currentBills.count { !it.isPaid }} unpaid bill(s)", fontSize = 11.sp, color = Color.Gray)
+                    }
+                }
+            }
+
+            TabRow(selectedTabIndex = selectedTab, modifier = Modifier.padding(top = 6.dp)) {
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Rooms & Tenants") })
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Billing & Ledger") })
+            }
+
+            Box(modifier = Modifier.weight(1f).padding(16.dp)) {
+                when (selectedTab) {
+                    0 -> {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                            items(currentRooms) { room ->
+                                val tenant = currentTenants.find { it.roomId == room.id }
+                                RoomCard(
+                                    room = room,
+                                    tenant = tenant,
+                                    onAssign = { assignRoomTarget = room },
+                                    onCheckout = { tenant?.let { checkoutTenantTarget = it } },
+                                    onHistory = { viewingHistoryRoom = room }
+                                )
+                            }
+
+                            item {
+                                OutlinedButton(
+                                    onClick = { showAddRoomDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Add New Room")
+                                }
+                            }
+                        }
+                    }
+
+                    1 -> {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                            items(currentBills) { bill ->
+                                val room = currentRooms.find { it.id == bill.roomId }
+                                val tenant = currentTenants.find { it.id == bill.tenantId }
+                                BillCard(bill = bill, room = room, tenant = tenant, property = currentProperty, viewModel = viewModel)
+                            }
+
+                            item {
+                                Button(
+                                    onClick = { showAddBillDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                                ) {
+                                    Icon(Icons.Default.Calculate, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Generate Monthly Rent & Electricity Bill")
+                                }
+                            }
                         }
                     }
                 }
-            } else {
-                items(tenants, key = { it.id }) { tenant ->
-                    EnhancedTenantCard(
-                        tenant = tenant,
-                        onAddBillClick = { selectedTenantForBill = tenant },
-                        onViewHistoryClick = { selectedTenantForLedger = tenant },
-                        onCheckoutClick = { selectedTenantForCheckout = tenant },
-                        onNewTenantClick = { selectedRoomForNewTenant = tenant },
-                        onDeleteClick = { viewModel.deleteTenant(tenant) }
-                    )
-                }
             }
-            item { Spacer(modifier = Modifier.height(70.dp)) }
         }
     }
 
-    if (showAddRoomDialog) {
-        AddNewRoomDialog(
-            existingRooms = tenants.map { it.roomNumber.trim().lowercase() }.toSet(),
+    if (showAddPropertyDialog) {
+        AddPropertyModal(
+            onDismiss = { showAddPropertyDialog = false },
+            onAdd = { n, addr, c, on, op ->
+                viewModel.addProperty(n, addr, c, on, op)
+                showAddPropertyDialog = false
+            }
+        )
+    }
+
+    if (showAddRoomDialog && currentProperty != null) {
+        AddRoomModal(
+            propertyName = currentProperty.name,
             onDismiss = { showAddRoomDialog = false },
-            onSave = { room, rent, rate, reading ->
-                viewModel.createRoom(room, rent, rate, reading)
+            onAdd = { no, type, rent, rate ->
+                viewModel.addRoom(currentProperty.id, no, type, rent, rate)
                 showAddRoomDialog = false
             }
         )
     }
 
-    selectedRoomForNewTenant?.let { room ->
-        AssignNewTenantDialog(
-            room = room,
-            onDismiss = { selectedRoomForNewTenant = null },
-            onSave = { name, phone, aadhaar, rent, rate, reading, entryDate ->
-                viewModel.occupyRoom(room, name, phone, aadhaar, rent, rate, reading, entryDate)
-                selectedRoomForNewTenant = null
+    assignRoomTarget?.let { room ->
+        if (currentProperty != null) {
+            AssignTenantModal(
+                roomNumber = room.roomNumber,
+                onDismiss = { assignRoomTarget = null },
+                onAssign = { name, phone, aadhaar, date, deposit, reading ->
+                    viewModel.assignTenant(currentProperty.id, room.id, name, phone, aadhaar, date, deposit, reading)
+                    assignRoomTarget = null
+                }
+            )
+        }
+    }
+
+    checkoutTenantTarget?.let { tenant ->
+        val tenantPaidSum = bills.filter { it.tenantId == tenant.id && it.isPaid }.sumOf { it.totalAmount }
+        CheckoutTenantModal(
+            tenantName = tenant.name,
+            moveInDate = tenant.moveInDate,
+            deposit = tenant.securityDeposit,
+            totalPaidSoFar = tenantPaidSum,
+            onDismiss = { checkoutTenantTarget = null },
+            onConfirm = { date, refund ->
+                viewModel.checkoutTenant(tenant.id, date, refund)
+                checkoutTenantTarget = null
             }
         )
     }
 
-    selectedTenantForCheckout?.let { tenant ->
-        CheckoutTenantDialog(
-            tenant = tenant,
-            onDismiss = { selectedTenantForCheckout = null },
-            onConfirm = { exitDate, finalReading ->
-                viewModel.checkoutTenant(tenant, exitDate, finalReading)
-                selectedTenantForCheckout = null
-            }
-        )
+    viewingHistoryRoom?.let { room ->
+        val historyList = tenantHistory.filter { it.roomId == room.id }
+        RoomHistoryModal(roomNumber = room.roomNumber, history = historyList, onDismiss = { viewingHistoryRoom = null })
     }
 
-    selectedTenantForBill?.let { tenant ->
-        AddMonthlyBillDialog(
-            tenant = tenant,
-            onDismiss = { selectedTenantForBill = null },
-            onSave = { currReading, baseRent, amountPaid, paymentDate, mode, monthYear ->
-                viewModel.addMonthlyBill(tenant, currReading, baseRent, amountPaid, paymentDate, mode, monthYear)
-                selectedTenantForBill = null
+    if (showAddBillDialog && currentProperty != null) {
+        AddBillModal(
+            tenants = currentTenants,
+            rooms = currentRooms,
+            onDismiss = { showAddBillDialog = false },
+            onGenerate = { rId, tId, month, base, prev, cur, rate ->
+                viewModel.generateBill(currentProperty.id, rId, tId, month, base, prev, cur, rate, 200.0)
+                showAddBillDialog = false
             }
-        )
-    }
-
-    selectedTenantForLedger?.let { tenant ->
-        TenantHistoryBottomSheet(
-            tenant = tenant,
-            viewModel = viewModel,
-            onDismiss = { selectedTenantForLedger = null }
         )
     }
 }
 @Composable
-fun EnhancedTenantCard(
-    tenant: Tenant,
-    onAddBillClick: () -> Unit,
-    onViewHistoryClick: () -> Unit,
-    onCheckoutClick: () -> Unit,
-    onNewTenantClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
+fun RoomCard(room: RoomUnit, tenant: Tenant?, onAssign: () -> Unit, onCheckout: () -> Unit, onHistory: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (tenant.isOccupied) Color(0xFFE3F2FD) else Color(0xFFFFF3E0)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = tenant.roomNumber,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (tenant.isOccupied) BrandPrimary else Color(0xFFE65100),
-                            fontSize = 16.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (tenant.isOccupied) tenant.name else "Vacant Room",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = BrandDarkNavy
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                color = if (tenant.isOccupied) Color(0xFFE8F5E9) else Color(0xFFFFF3E0),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = if (tenant.isOccupied) "Active" else "Vacant",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (tenant.isOccupied) SuccessGreen else Color(0xFFE65100),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        Text(
-                            text = buildString {
-                                if (tenant.isOccupied) {
-                                    append("📞 ${tenant.phone}")
-                                    if (tenant.aadhaarNumber.isNotBlank()) {
-                                        append(" • ID: ${tenant.aadhaarNumber}")
-                                    }
-                                } else {
-                                    append("Ready for new tenant")
-                                }
-                            },
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
+                    Box(modifier = Modifier.size(10.dp).background(if (room.isVacant) SuccessGreen else AlertRed, shape = CircleShape))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Room ${room.roomNumber} (${room.roomType})", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
+                Text("${formatCurrency(room.baseRent)}/mo", fontWeight = FontWeight.ExtraBold, color = PrimaryBlue)
+            }
 
-                IconButton(onClick = { showDeleteConfirm = true }) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = Color.LightGray)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (tenant != null) {
+                Text("👤 ${tenant.name} (${tenant.phone})", fontSize = 12.sp, color = DarkNavy, fontWeight = FontWeight.Medium)
+                if (tenant.aadhaarNo.isNotBlank()) {
+                    Text("🪪 Aadhaar: ${tenant.aadhaarNo}", fontSize = 11.sp, color = Color.DarkGray)
                 }
+                Text("📅 Moved In: ${tenant.moveInDate} • Deposit: ${formatCurrency(tenant.securityDeposit)}", fontSize = 11.sp, color = Color.Gray)
+            } else {
+                Text("🟢 Status: Vacant", fontSize = 12.sp, color = SuccessGreen, fontWeight = FontWeight.Medium)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Surface(
-                color = BrandBackground,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Entered: ${tenant.entryDate}", fontSize = 11.sp, color = Color.DarkGray)
-                        Text("Base Rent: ${formatCurrency(tenant.defaultBaseRent)}", fontSize = 11.sp, color = Color.DarkGray)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Rate: ${formatCurrency(tenant.electricityRatePerUnit)}/u", fontSize = 12.sp, color = BrandDarkNavy)
-                        Text("Current Meter: ${formatUnits(tenant.lastMeterReading)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandSecondary)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onViewHistoryClick,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandPrimary)
-                ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onHistory, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text("Ledger", fontSize = 11.sp, maxLines = 1)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("View History", fontSize = 11.sp)
                 }
 
-                if (tenant.isOccupied) {
-                    OutlinedButton(
-                        onClick = onCheckoutClick,
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = WarningRed)
-                    ) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("Exit", fontSize = 11.sp, maxLines = 1)
-                    }
-
+                if (room.isVacant) {
                     Button(
-                        onClick = onAddBillClick,
-                        modifier = Modifier.weight(1.2f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+                        onClick = onAssign,
+                        modifier = Modifier.weight(1.3f),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
                     ) {
-                        Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("Log Bill", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text("Add Tenant", fontSize = 11.sp)
                     }
                 } else {
-                    Button(
-                        onClick = onNewTenantClick,
-                        modifier = Modifier.weight(1.5f),
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
-                    ) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Tenant", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    OutlinedButton(onClick = onCheckout, modifier = Modifier.weight(1.3f)) {
+                        Text("Checkout", fontSize = 11.sp, color = AlertRed)
                     }
                 }
             }
-        }
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Room ${tenant.roomNumber}?") },
-            text = { Text("This will permanently remove the room structure and all bill logs.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onDeleteClick()
-                        showDeleteConfirm = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = WarningRed)
-                ) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
-            }
-        )
-    }
-}
-
-@Composable
-fun RevenueAnalyticsScreen(viewModel: RentViewModel) {
-    val allBills by viewModel.allBills.collectAsState()
-
-    val currentYear = Calendar.getInstance().get(Calendar.YEAR).coerceAtLeast(2026)
-    var selectedYear by remember { mutableIntStateOf(currentYear) }
-    var showPastRecordsDialog by remember { mutableStateOf(false) }
-
-    val recentYears = remember(currentYear) {
-        if (currentYear == 2026) listOf(2026)
-        else listOf(currentYear - 1, currentYear)
-    }
-
-    val allHistoricalYears = remember(currentYear) {
-        (2026..currentYear).toList().reversed()
-    }
-
-    val lifetimeRent = allBills.sumOf { it.baseRent }
-    val lifetimeElec = allBills.sumOf { it.electricityAmount }
-    val lifetimeCollected = allBills.sumOf { it.amountPaid }
-    val lifetimeDue = allBills.sumOf { it.dueAmount }
-
-    val yearBills = allBills.filter { it.billingYear == selectedYear }
-    val yearRent = yearBills.sumOf { it.baseRent }
-    val yearElec = yearBills.sumOf { it.electricityAmount }
-    val yearTotal = yearBills.sumOf { it.totalBillAmount }
-    val yearCollected = yearBills.sumOf { it.amountPaid }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            Text("Revenue & Analytics", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = BrandDarkNavy)
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(Brush.verticalGradient(listOf(BrandPrimary, BrandSecondary, BrandAccent)))
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Text("LIFETIME COLLECTION", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.8f))
-                        Text(formatCurrency(lifetimeCollected), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text("Rent Earnings", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
-                                Text(formatCurrency(lifetimeRent), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            Column {
-                                Text("Elec. Earnings", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
-                                Text(formatCurrency(lifetimeElec), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            Column {
-                                Text("Total Due", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
-                                Text(formatCurrency(lifetimeDue), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Yearly Breakdown ($selectedYear)", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = BrandDarkNavy)
-                        
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            recentYears.forEach { yr ->
-                                FilterChip(
-                                    selected = selectedYear == yr,
-                                    onClick = { selectedYear = yr },
-                                    label = { Text(yr.toString(), fontSize = 11.sp) }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedButton(
-                        onClick = { showPastRecordsDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(vertical = 6.dp)
-                    ) {
-                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("View Past Year Records", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        AnalyticsMiniBox(label = "Rent Billed", value = formatCurrency(yearRent), color = BrandDarkNavy)
-                        AnalyticsMiniBox(label = "Electricity", value = formatCurrency(yearElec), color = BrandSecondary)
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        AnalyticsMiniBox(label = "Total Invoiced", value = formatCurrency(yearTotal), color = BrandPrimary)
-                        AnalyticsMiniBox(label = "Collected", value = formatCurrency(yearCollected), color = SuccessGreen)
-                    }
-                }
-            }
-        }
-
-        item {
-            Text("Monthly Ledger Entries ($selectedYear)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = BrandDarkNavy)
-        }
-
-        if (yearBills.isEmpty()) {
-            item {
-                Text("No bills generated for $selectedYear.", color = Color.Gray, fontSize = 13.sp)
-            }
-        } else {
-            items(yearBills, key = { it.id }) { bill ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(bill.monthYear, fontWeight = FontWeight.Bold, color = BrandDarkNavy)
-                            Text("Room ${bill.roomNumber} • ${bill.tenantName}", fontSize = 12.sp, color = Color.Gray)
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("+ ${formatCurrency(bill.amountPaid)}", fontWeight = FontWeight.ExtraBold, color = SuccessGreen, fontSize = 14.sp)
-                            Text("Rent: ${formatCurrency(bill.baseRent)} | Elec: ${formatCurrency(bill.electricityAmount)}", fontSize = 11.sp, color = Color.DarkGray)
-                        }
-                    }
-                }
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(50.dp)) }
-    }
-
-    if (showPastRecordsDialog) {
-        AlertDialog(
-            onDismissRequest = { showPastRecordsDialog = false },
-            title = { Text("Select Year for Records", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Choose any year to view its financial summary and bills:", fontSize = 13.sp, color = Color.DarkGray)
-                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
-                        items(allHistoricalYears) { yr ->
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (selectedYear == yr) Color(0xFFE3F2FD) else BrandBackground,
-                                onClick = {
-                                    selectedYear = yr
-                                    showPastRecordsDialog = false
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Year $yr",
-                                        fontWeight = if (selectedYear == yr) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selectedYear == yr) BrandPrimary else BrandDarkNavy
-                                    )
-                                    if (selectedYear == yr) {
-                                        Icon(Icons.Default.Check, contentDescription = null, tint = BrandPrimary, modifier = Modifier.size(18.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPastRecordsDialog = false }) { Text("Close") }
-            }
-        )
-    }
-}
-@Composable
-fun AnalyticsMiniBox(label: String, value: String, color: Color) {
-    Surface(
-        color = BrandBackground,
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.width(160.dp)
-    ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Text(label, fontSize = 11.sp, color = Color.Gray)
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color)
         }
     }
 }
 
 @Composable
-fun AddNewRoomDialog(
-    existingRooms: Set<String>,
-    onDismiss: () -> Unit,
-    onSave: (String, Double, Double, Double) -> Unit
-) {
-    var roomNumber by remember { mutableStateOf("") }
-    var baseRent by remember { mutableStateOf("") }
-    var ratePerUnit by remember { mutableStateOf("10.0") }
-    var initialReading by remember { mutableStateOf("0.0") }
-
-    val isDuplicate = existingRooms.contains(roomNumber.trim().lowercase())
-
+fun RoomHistoryModal(roomNumber: String, history: List<TenantHistoryRecord>, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create New Room", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = roomNumber,
-                    onValueChange = { roomNumber = it },
-                    label = { Text("Room Number (e.g. 01, 102)") },
-                    isError = isDuplicate
-                )
-                OutlinedTextField(
-                    value = baseRent,
-                    onValueChange = { baseRent = it },
-                    label = { Text("Standard Monthly Rent (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = ratePerUnit,
-                    onValueChange = { ratePerUnit = it },
-                    label = { Text("Rate / Unit (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = initialReading,
-                    onValueChange = { initialReading = it },
-                    label = { Text("Initial Meter Reading") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.History, contentDescription = null, tint = PrimaryBlue)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Room $roomNumber Stay History", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        roomNumber.trim(),
-                        baseRent.toDoubleOrNull() ?: 0.0,
-                        ratePerUnit.toDoubleOrNull() ?: 0.0,
-                        initialReading.toDoubleOrNull() ?: 0.0
-                    )
-                },
-                enabled = roomNumber.isNotBlank() && !isDuplicate
-            ) { Text("Create Room") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-fun AssignNewTenantDialog(
-    room: Tenant,
-    onDismiss: () -> Unit,
-    onSave: (String, String, String, Double, Double, Double, String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var aadhaarNumber by remember { mutableStateOf("") }
-    var baseRent by remember { mutableStateOf(room.defaultBaseRent.toString()) }
-    var ratePerUnit by remember { mutableStateOf(room.electricityRatePerUnit.toString()) }
-    var initialReading by remember { mutableStateOf(room.lastMeterReading.toString()) }
-    val today = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
-    var entryDate by remember { mutableStateOf(today) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New Tenant: Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tenant Name *") })
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Phone Number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                )
-                OutlinedTextField(
-                    value = aadhaarNumber,
-                    onValueChange = { if (it.length <= 12) aadhaarNumber = it },
-                    label = { Text("Aadhaar Number (Optional)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = baseRent,
-                    onValueChange = { baseRent = it },
-                    label = { Text("Agreed Rent (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = ratePerUnit,
-                    onValueChange = { ratePerUnit = it },
-                    label = { Text("Rate / Unit (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = initialReading,
-                    onValueChange = { initialReading = it },
-                    label = { Text("Check-In Meter Reading") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(value = entryDate, onValueChange = { entryDate = it }, label = { Text("Entry Date") })
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        name,
-                        phone,
-                        aadhaarNumber.trim(),
-                        baseRent.toDoubleOrNull() ?: room.defaultBaseRent,
-                        ratePerUnit.toDoubleOrNull() ?: room.electricityRatePerUnit,
-                        initialReading.toDoubleOrNull() ?: room.lastMeterReading,
-                        entryDate
-                    )
-                },
-                enabled = name.isNotBlank()
-            ) { Text("Move In") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-fun CheckoutTenantDialog(
-    tenant: Tenant,
-    onDismiss: () -> Unit,
-    onConfirm: (String, Double) -> Unit
-) {
-    val today = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
-    var exitDate by remember { mutableStateOf(today) }
-    var finalReading by remember { mutableStateOf(tenant.lastMeterReading.toString()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Tenant Move-Out: Room ${tenant.roomNumber}", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Mark ${tenant.name} as vacated. Room ${tenant.roomNumber} will become vacant and ready for the next tenant.")
-                OutlinedTextField(value = exitDate, onValueChange = { exitDate = it }, label = { Text("Exit / Move-Out Date") })
-                OutlinedTextField(
-                    value = finalReading,
-                    onValueChange = { finalReading = it },
-                    label = { Text("Final Meter Reading") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(exitDate, finalReading.toDoubleOrNull() ?: tenant.lastMeterReading) },
-                colors = ButtonDefaults.buttonColors(containerColor = WarningRed)
-            ) { Text("Confirm Move-Out") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-fun AddMonthlyBillDialog(
-    tenant: Tenant,
-    onDismiss: () -> Unit,
-    onSave: (Double, Double, Double, String, String, String) -> Unit
-) {
-    var currReadingStr by remember { mutableStateOf("") }
-    var baseRentStr by remember { mutableStateOf(tenant.defaultBaseRent.toString()) }
-    var amountPaidStr by remember { mutableStateOf("") }
-    var paymentMode by remember { mutableStateOf("UPI") }
-
-    val todayFormatted = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
-    val previousMonthFormatted = remember {
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.MONTH, -1)
-        SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time)
-    }
-    var paymentDate by remember { mutableStateOf(todayFormatted) }
-    var monthYear by remember { mutableStateOf(previousMonthFormatted) }
-
-    val currReading = currReadingStr.toDoubleOrNull() ?: tenant.lastMeterReading
-    val baseRent = baseRentStr.toDoubleOrNull() ?: 0.0
-    val unitsConsumed = (currReading - tenant.lastMeterReading).coerceAtLeast(0.0)
-    val elecAmount = unitsConsumed * tenant.electricityRatePerUnit
-    val totalBill = baseRent + elecAmount
-    val amountPaid = amountPaidStr.toDoubleOrNull() ?: totalBill
-    val due = totalBill - amountPaid
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Bill: Room ${tenant.roomNumber} (${tenant.name})") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Previous Meter: ${formatUnits(tenant.lastMeterReading)}", fontWeight = FontWeight.Bold)
-                OutlinedTextField(
-                    value = currReadingStr,
-                    onValueChange = { currReadingStr = it },
-                    label = { Text("Current Meter Reading") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = baseRentStr,
-                    onValueChange = { baseRentStr = it },
-                    label = { Text("Rent Amount (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                Text("Elec: ${formatUnits(unitsConsumed)} units × ₹${tenant.electricityRatePerUnit} = ${formatCurrency(elecAmount)}")
-                Text("Total Payable: ${formatCurrency(totalBill)}", fontWeight = FontWeight.Bold, color = BrandPrimary)
-                OutlinedTextField(
-                    value = amountPaidStr,
-                    onValueChange = { amountPaidStr = it },
-                    label = { Text("Amount Paid (₹)") },
-                    placeholder = { Text(formatCurrency(totalBill)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(value = paymentDate, onValueChange = { paymentDate = it }, label = { Text("Payment Date") })
-                OutlinedTextField(value = monthYear, onValueChange = { monthYear = it }, label = { Text("For Billing Period (e.g. July 2026)") })
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("UPI", "Cash", "Bank").forEach { mode ->
-                        FilterChip(selected = paymentMode == mode, onClick = { paymentMode = mode }, label = { Text(mode) })
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(currReading, baseRent, amountPaid, paymentDate, paymentMode, monthYear) },
-                enabled = currReadingStr.isNotBlank() && paymentDate.isNotBlank()
-            ) { Text("Save Bill") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TenantHistoryBottomSheet(
-    tenant: Tenant,
-    viewModel: RentViewModel,
-    onDismiss: () -> Unit
-) {
-    val bills by viewModel.getBillsForRoom(tenant.roomNumber).collectAsState(initial = emptyList())
-    val context = LocalContext.current
-    val tenantTotalPaid = bills.sumOf { it.amountPaid }
-    val tenantTotalDue = bills.sumOf { it.dueAmount }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = BrandBackground) {
-        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-            Text("Room ${tenant.roomNumber} - Lifetime Ledger", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BrandDarkNavy)
-            Text("Total Paid: ${formatCurrency(tenantTotalPaid)} | Due: ${formatCurrency(tenantTotalDue)}", fontSize = 13.sp, color = BrandSecondary)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (bills.isEmpty()) {
-                Text("No past billing records for this room.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+            if (history.isEmpty()) {
+                Text("No previous tenant records logged for this room yet.", color = Color.Gray, fontSize = 13.sp)
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(bills, key = { it.id }) { bill ->
-                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    items(history) { record ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = BackgroundLight),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(bill.monthYear, fontWeight = FontWeight.Bold)
-                                    Surface(color = Color(0xFFE3F2FD), shape = RoundedCornerShape(6.dp)) {
-                                        Text(
-                                            text = "Tenant: ${bill.tenantName}",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = BrandPrimary,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
+                                Text(record.name, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = DarkNavy)
+                                Text("📞 Phone: ${record.phone}", fontSize = 11.sp, color = Color.DarkGray)
+                                Text("🪪 Aadhaar: ${record.aadhaarNo.ifBlank { "N/A" }}", fontSize = 11.sp, color = Color.DarkGray)
+                                
+                                Divider(modifier = Modifier.padding(vertical = 6.dp), thickness = 0.5.dp)
+                                
+                                Text("🗓️ Stay: ${record.moveInDate} → ${record.moveOutDate}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                Text("⏳ Duration: ${record.formattedDuration} (${record.totalDaysStayed} Days total)", fontWeight = FontWeight.Bold, color = PrimaryBlue, fontSize = 11.sp)
+                                
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("Rent: ${formatCurrency(bill.baseRent)} | Elec: ${formatCurrency(bill.electricityAmount)} (${formatUnits(bill.unitsConsumed)} units)")
-                                Text("Paid: ${formatCurrency(bill.amountPaid)} (${bill.paymentMode}) on ${bill.paymentDate}")
-                                Spacer(modifier = Modifier.height(6.dp))
-                                OutlinedButton(
-                                    onClick = { shareReceiptOnWhatsApp(context, tenant, bill) },
+                                Surface(
+                                    color = Color(0xFFE0F2FE),
+                                    shape = RoundedCornerShape(6.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Share WhatsApp Receipt")
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Text("💰 Lifetime Rent Paid: ${formatCurrency(record.totalRentPaidLifetime)}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = PrimaryBlue)
+                                        Text("💵 Security Deposit Refunded: ${formatCurrency(record.depositRefunded)}", fontSize = 11.sp, color = SuccessGreen)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+        },
+        confirmButton = { Button(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+@Composable
+fun BillCard(bill: BillRecord, room: RoomUnit?, tenant: Tenant?, property: Property?, viewModel: RentViewModel) {
+    val context = LocalContext.current
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("${tenant?.name ?: "Tenant"} (Room ${room?.roomNumber ?: ""})", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(bill.monthYear, fontSize = 11.sp, color = Color.Gray)
+                }
+                Surface(color = if (bill.isPaid) Color(0xFFE8F5E9) else Color(0xFFFFEBEE), shape = RoundedCornerShape(6.dp)) {
+                    Text(if (bill.isPaid) "PAID ✅" else "PENDING ⏳", color = if (bill.isPaid) SuccessGreen else AlertRed, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp))
+                }
+            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("Base Rent: ${formatCurrency(bill.baseRent)}", fontSize = 12.sp)
+                    Text("Electricity (${bill.electricityUnitsUsed.toInt()} units): ${formatCurrency(bill.electricityBill)}", fontSize = 12.sp)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Total Due", fontSize = 11.sp, color = Color.Gray)
+                    Text(formatCurrency(bill.totalAmount), fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = PrimaryBlue)
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        if (tenant != null && property != null && room != null) {
+                            val msg = viewModel.getWhatsAppReceiptText(bill, tenant, property, room)
+                            val cleanNum = tenant.phone.replace("+", "").replace(" ", "")
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$cleanNum&text=${Uri.encode(msg)}")))
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Send Bill", fontSize = 11.sp)
+                }
+                if (!bill.isPaid) {
+                    OutlinedButton(onClick = { viewModel.markBillPaid(bill.id) }, modifier = Modifier.weight(1f)) {
+                        Text("Mark Paid", fontSize = 11.sp)
+                    }
+                }
+            }
         }
     }
 }
+@Composable
+fun AssignTenantModal(roomNumber: String, onDismiss: () -> Unit, onAssign: (String, String, String, String, Double, Double) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var aadhaar by remember { mutableStateOf("") }
+    var moveInDate by remember { mutableStateOf("01 Aug 2026") }
+    var deposit by remember { mutableStateOf("5000") }
+    var initialMeter by remember { mutableStateOf("0") }
 
-fun shareReceiptOnWhatsApp(context: Context, tenant: Tenant, bill: RentBill) {
-    val sb = StringBuilder()
-    sb.append("🏠 *RENT & ELECTRICITY RECEIPT*\n")
-    sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-    sb.append("👤 *Tenant:* ").append(bill.tenantName).append(" (Room ").append(bill.roomNumber).append(")\n")
-    sb.append("📅 *Billing Period:* ").append(bill.monthYear).append("\n")
-    sb.append("🗓️ *Date of Payment:* ").append(bill.paymentDate).append("\n\n")
-    sb.append("⚡ *Electricity Details:*\n")
-    sb.append("• Previous Reading: ").append(formatUnits(bill.prevMeterReading)).append("\n")
-    sb.append("• Current Reading: ").append(formatUnits(bill.currMeterReading)).append("\n")
-    sb.append("• Units Consumed: ").append(formatUnits(bill.unitsConsumed)).append("\n")
-    sb.append("• Rate / Unit: ").append(formatCurrency(bill.electricityRate)).append("\n")
-    sb.append("• Total Electricity: ").append(formatCurrency(bill.electricityAmount)).append("\n\n")
-    sb.append("🏢 *Base Rent:* ").append(formatCurrency(bill.baseRent)).append("\n")
-    sb.append("🧾 *Total Amount:* ").append(formatCurrency(bill.totalBillAmount)).append("\n")
-    sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-    sb.append("✅ *Amount Paid:* ").append(formatCurrency(bill.amountPaid)).append(" (").append(bill.paymentMode).append(")\n")
-    if (bill.dueAmount > 0) {
-        sb.append("⚠️ *Pending Due:* ").append(formatCurrency(bill.dueAmount)).append("\n")
-    } else {
-        sb.append("✨ *Status:* Fully Paid\n")
-    }
-    sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-    sb.append("Thank you!")
-
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, sb.toString())
-    }
-    context.startActivity(Intent.createChooser(intent, "Share Receipt via"))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Assign Tenant (Room $roomNumber)", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Full Name") }, singleLine = true)
+                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                OutlinedTextField(value = aadhaar, onValueChange = { aadhaar = it }, label = { Text("Aadhaar Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(value = moveInDate, onValueChange = { moveInDate = it }, label = { Text("Move-In Date (e.g. 01 Aug 2026)") }, singleLine = true)
+                OutlinedTextField(value = deposit, onValueChange = { deposit = it }, label = { Text("Security Deposit (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(value = initialMeter, onValueChange = { initialMeter = it }, label = { Text("Initial Meter Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (name.isNotBlank() && phone.isNotBlank()) {
+                    onAssign(name, phone, aadhaar, moveInDate, deposit.toDoubleOrNull() ?: 0.0, initialMeter.toDoubleOrNull() ?: 0.0)
+                }
+            }) { Text("Assign") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
+@Composable
+fun CheckoutTenantModal(tenantName: String, moveInDate: String, deposit: Double, totalPaidSoFar: Double, onDismiss: () -> Unit, onConfirm: (String, Double) -> Unit) {
+    var moveOutDate by remember { mutableStateOf("27 Aug 2026") }
+    var refund by remember { mutableStateOf(deposit.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Checkout $tenantName", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Move-In Date: $moveInDate", fontSize = 12.sp, color = Color.Gray)
+                Text("Total Rent Paid During Stay: ${formatCurrency(totalPaidSoFar)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryBlue)
+                Text("Original Deposit: ${formatCurrency(deposit)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                
+                OutlinedTextField(value = moveOutDate, onValueChange = { moveOutDate = it }, label = { Text("Move-Out Date (e.g. 27 Aug 2026)") }, singleLine = true)
+                OutlinedTextField(value = refund, onValueChange = { refund = it }, label = { Text("Refund Amount (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(moveOutDate, refund.toDoubleOrNull() ?: 0.0) }, colors = ButtonDefaults.buttonColors(containerColor = AlertRed)) {
+                Text("Confirm Checkout & Save History")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun AddPropertyModal(onDismiss: () -> Unit, onAdd: (String, String, String, String, String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var ownerName by remember { mutableStateOf("") }
+    var ownerPhone by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Rental Property", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Property Name") }, singleLine = true)
+                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Street Address") }, singleLine = true)
+                OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text("City") }, singleLine = true)
+                OutlinedTextField(value = ownerName, onValueChange = { ownerName = it }, label = { Text("Owner Name") }, singleLine = true)
+                OutlinedTextField(value = ownerPhone, onValueChange = { ownerPhone = it }, label = { Text("Owner Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+            }
+        },
+        confirmButton = {
+            Button(onClick = { if (name.isNotBlank()) onAdd(name, address, city, ownerName, ownerPhone) }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun AddRoomModal(propertyName: String, onDismiss: () -> Unit, onAdd: (String, String, Double, Double) -> Unit) {
+    var roomNo by remember { mutableStateOf("") }
+    var roomType by remember { mutableStateOf("1BHK") }
+    var rent by remember { mutableStateOf("") }
+    var rate by remember { mutableStateOf("10.0") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Room to $propertyName", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(value = roomNo, onValueChange = { roomNo = it }, label = { Text("Room / Flat No (e.g. 101)") }, singleLine = true)
+                OutlinedTextField(value = roomType, onValueChange = { roomType = it }, label = { Text("Type (1BHK, 2BHK, Single)") }, singleLine = true)
+                OutlinedTextField(value = rent, onValueChange = { rent = it }, label = { Text("Base Rent (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(value = rate, onValueChange = { rate = it }, label = { Text("Electricity Rate/Unit (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val r = rent.toDoubleOrNull() ?: 0.0
+                val rt = rate.toDoubleOrNull() ?: 10.0
+                if (roomNo.isNotBlank() && r > 0) onAdd(roomNo, roomType, r, rt)
+            }) { Text("Add Room") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun AddBillModal(tenants: List<Tenant>, rooms: List<RoomUnit>, onDismiss: () -> Unit, onGenerate: (String, String, String, Double, Double, Double, Double) -> Unit) {
+    if (tenants.isEmpty()) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("No Tenants") },
+            text = { Text("Please assign a tenant to a room before generating a bill.") },
+            confirmButton = { Button(onClick = onDismiss) { Text("OK") } }
+        )
+        return
+    }
+
+    var selectedTenant by remember { mutableStateOf(tenants.first()) }
+    var prevUnits by remember { mutableStateOf(selectedTenant.initialMeterReading.toString()) }
+    var curUnits by remember { mutableStateOf("") }
+    var month by remember { mutableStateOf("August 2026") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Generate Bill & Meter Calculation", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Tenant: ${selectedTenant.name}", fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(value = month, onValueChange = { month = it }, label = { Text("Billing Month") }, singleLine = true)
+                OutlinedTextField(value = prevUnits, onValueChange = { prevUnits = it }, label = { Text("Previous Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(value = curUnits, onValueChange = { curUnits = it }, label = { Text("Current Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val prev = prevUnits.toDoubleOrNull() ?: 0.0
+                val cur = curUnits.toDoubleOrNull() ?: prev
+                val room = rooms.find { it.id == selectedTenant.roomId }
+                if (room != null) onGenerate(room.id, selectedTenant.id, month, room.baseRent, prev, cur, room.electricityRate)
+            }) { Text("Generate") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
