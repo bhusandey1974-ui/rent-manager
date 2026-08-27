@@ -1,4 +1,4 @@
-apackage com.example.rentmanager
+package com.example.rentmanager
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
