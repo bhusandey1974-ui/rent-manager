@@ -1,102 +1,78 @@
 package com.example.rentmanager
 
-import android.content.Context
-import androidx.room.*
-import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
-@Entity(tableName = "tenants")
-data class Tenant(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+// Core Property Definition
+data class Property(
+    val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val roomNumber: String,
-    val phone: String,
-    val aadhaarNumber: String = "",
-    val defaultBaseRent: Double,
-    val electricityRatePerUnit: Double,
-    val initialMeterReading: Double = 0.0,
-    val lastMeterReading: Double = 0.0,
-    val isOccupied: Boolean = true,
-    val entryDate: String = "",
-    val exitDate: String? = null
+    val address: String,
+    val city: String,
+    val ownerName: String,
+    val ownerPhone: String
 )
 
-@Entity(
-    tableName = "rent_bills",
-    foreignKeys = [
-        ForeignKey(
-            entity = Tenant::class,
-            parentColumns = ["id"],
-            childColumns = ["tenantId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("tenantId"), Index("roomNumber")]
+// Unit / Room Definition
+data class RoomUnit(
+    val id: String = UUID.randomUUID().toString(),
+    val propertyId: String,
+    val roomNumber: String,
+    val roomType: String,
+    val baseRent: Double,
+    val electricityRate: Double = 10.0,
+    val isVacant: Boolean = true
 )
-data class RentBill(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val tenantId: Long,
-    val roomNumber: String = "",
-    val tenantName: String = "",
+
+// Active Tenant Profile
+data class Tenant(
+    val id: String = UUID.randomUUID().toString(),
+    val propertyId: String,
+    val roomId: String,
+    val name: String,
+    val phone: String,
+    val aadhaarNo: String,
+    val moveInDate: String, // e.g. "01 Jan 2025"
+    val securityDeposit: Double = 0.0,
+    val initialMeterReading: Double = 0.0
+)
+
+// Complete Lifetime & Stay History for Past Tenants
+data class TenantHistoryRecord(
+    val id: String = UUID.randomUUID().toString(),
+    val roomId: String,
+    val propertyId: String,
+    val tenantId: String,
+    val name: String,
+    val phone: String,
+    val aadhaarNo: String,
+    val moveInDate: String,
+    val moveOutDate: String,
+    val formattedDuration: String, // e.g., "1 Year, 2 Months, 10 Days"
+    val totalDaysStayed: Long,
+    val totalRentPaidLifetime: Double, // Sum of all rent + electricity paid
+    val depositRefunded: Double
+)
+
+// Monthly Ledger & Bill Statement
+data class BillRecord(
+    val id: String = UUID.randomUUID().toString(),
+    val propertyId: String,
+    val roomId: String,
+    val tenantId: String,
     val monthYear: String,
     val baseRent: Double,
     val prevMeterReading: Double,
-    val currMeterReading: Double,
-    val unitsConsumed: Double,
+    val currentMeterReading: Double,
     val electricityRate: Double,
-    val electricityAmount: Double,
-    val totalBillAmount: Double,
-    val amountPaid: Double,
-    val dueAmount: Double,
-    val paymentDate: String,
-    val paymentMode: String,
-    val billingYear: Int = 2026,
-    val billingMonthIndex: Int = 8
-)
+    val maintenanceCharge: Double = 0.0,
+    val isPaid: Boolean = false
+) {
+    val electricityUnitsUsed: Double
+        get() = (currentMeterReading - prevMeterReading).coerceAtLeast(0.0)
 
-@Dao
-interface AppDao {
-    @Query("SELECT * FROM tenants ORDER BY roomNumber ASC")
-    fun getAllTenants(): Flow<List<Tenant>>
+    val electricityBill: Double
+        get() = electricityUnitsUsed * electricityRate
 
-    @Insert
-    suspend fun insertTenant(tenant: Tenant): Long
-
-    @Delete
-    suspend fun deleteTenant(tenant: Tenant)
-
-    @Update
-    suspend fun updateTenant(tenant: Tenant)
-
-    @Query("SELECT * FROM rent_bills WHERE roomNumber = :roomNumber ORDER BY id DESC")
-    fun getBillsForRoom(roomNumber: String): Flow<List<RentBill>>
-
-    @Query("SELECT * FROM rent_bills ORDER BY id DESC")
-    fun getAllBills(): Flow<List<RentBill>>
-
-    @Insert
-    suspend fun insertBill(bill: RentBill)
-}
-
-@Database(entities = [Tenant::class, RentBill::class], version = 4, exportSchema = false)
-abstract class AppDatabase : RoomDatabase() {
-    abstract fun appDao(): AppDao
-
-    companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getDatabase(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "rent_manager_database"
-                )
-                    .fallbackToDestructiveMigration()
-                    .build()
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
+    val totalAmount: Double
+        get() = baseRent + electricityBill + maintenanceCharge
 }
