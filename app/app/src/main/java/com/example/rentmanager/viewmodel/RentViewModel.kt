@@ -1,90 +1,182 @@
-package com.example.rentmanager.viewmodel
+package com.example.rentmanager
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.rentmanager.data.AppDatabase
-import com.example.rentmanager.data.RentBill
-import com.example.rentmanager.data.Tenant
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
-class RentViewModel(application: Application) : AndroidViewModel(application) {
-    private val dao = AppDatabase.getDatabase(application).appDao()
+class RentViewModel : ViewModel() {
 
-    val allTenants: StateFlow<List<Tenant>> = dao.getAllTenants()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _properties = MutableStateFlow<List<Property>>(emptyList())
+    val properties: StateFlow<List<Property>> = _properties.asStateFlow()
 
-    fun getBillsForTenant(tenantId: Long): Flow<List<RentBill>> {
-        return dao.getBillsForTenant(tenantId)
+    private val _rooms = MutableStateFlow<List<RoomUnit>>(emptyList())
+    val rooms: StateFlow<List<RoomUnit>> = _rooms.asStateFlow()
+
+    private val _tenants = MutableStateFlow<List<Tenant>>(emptyList())
+    val tenants: StateFlow<List<Tenant>> = _tenants.asStateFlow()
+
+    private val _tenantHistory = MutableStateFlow<List<TenantHistoryRecord>>(emptyList())
+    val tenantHistory: StateFlow<List<TenantHistoryRecord>> = _tenantHistory.asStateFlow()
+
+    private val _bills = MutableStateFlow<List<BillRecord>>(emptyList())
+    val bills: StateFlow<List<BillRecord>> = _bills.asStateFlow()
+
+    fun addProperty(name: String, address: String, city: String, ownerName: String, ownerPhone: String) {
+        val prop = Property(name = name, address = address, city = city, ownerName = ownerName, ownerPhone = ownerPhone)
+        _properties.update { it + prop }
     }
 
-    fun addTenant(
+    fun addRoom(propertyId: String, roomNumber: String, roomType: String, baseRent: Double, rate: Double) {
+        val room = RoomUnit(propertyId = propertyId, roomNumber = roomNumber, roomType = roomType, baseRent = baseRent, electricityRate = rate, isVacant = true)
+        _rooms.update { it + room }
+    }
+
+    fun assignTenant(
+        propertyId: String,
+        roomId: String,
         name: String,
-        roomNumber: String,
         phone: String,
-        baseRent: Double,
-        ratePerUnit: Double,
-        initialReading: Double
+        aadhaar: String,
+        moveInDate: String,
+        deposit: Double,
+        meterReading: Double
     ) {
-        viewModelScope.launch {
-            val tenant = Tenant(
-                name = name,
-                roomNumber = roomNumber,
-                phone = phone,
-                defaultBaseRent = baseRent,
-                electricityRatePerUnit = ratePerUnit,
-                lastMeterReading = initialReading
-            )
-            dao.insertTenant(tenant)
+        val tenant = Tenant(
+            propertyId = propertyId,
+            roomId = roomId,
+            name = name,
+            phone = phone,
+            aadhaarNo = aadhaar,
+            moveInDate = moveInDate,
+            securityDeposit = deposit,
+            initialMeterReading = meterReading
+        )
+        _tenants.update { it + tenant }
+        _rooms.update { list ->
+            list.map { if (it.id == roomId) it.copy(isVacant = false) else it }
         }
     }
 
-    fun deleteTenant(tenant: Tenant) {
-        viewModelScope.launch {
-            dao.deleteTenant(tenant)
+    fun checkoutTenant(tenantId: String, moveOutDate: String, depositRefunded: Double) {
+        val tenant = _tenants.value.find { it.id == tenantId } ?: return
+
+        val lifetimePaid = _bills.value
+            .filter { it.tenantId == tenantId && it.isPaid }
+            .sumOf { it.totalAmount }
+
+        val (formattedDuration, totalDays) = calculateDetailedDuration(tenant.moveInDate, moveOutDate)
+
+        val historyEntry = TenantHistoryRecord(
+            roomId = tenant.roomId,
+            propertyId = tenant.propertyId,
+            tenantId = tenant.id,
+            name = tenant.name,
+            phone = tenant.phone,
+            aadhaarNo = tenant.aadhaarNo,
+            moveInDate = tenant.moveInDate,
+            moveOutDate = moveOutDate,
+            formattedDuration = formattedDuration,
+            totalDaysStayed = totalDays,
+            totalRentPaidLifetime = lifetimePaid,
+            depositRefunded = depositRefunded
+        )
+
+        _tenantHistory.update { it + historyEntry }
+        _tenants.update { list -> list.filter { it.id != tenantId } }
+        _rooms.update { list ->
+            list.map { if (it.id == tenant.roomId) it.copy(isVacant = true) else it }
         }
     }
 
-    fun addMonthlyBill(
-        tenant: Tenant,
-        currReading: Double,
-        baseRent: Double,
-        amountPaid: Double,
-        paymentMode: String
-    ) {
-        viewModelScope.launch {
-            val prevReading = tenant.lastMeterReading
-            val units = (currReading - prevReading).coerceAtLeast(0.0)
-            val elecAmount = units * tenant.electricityRatePerUnit
-            val total = baseRent + elecAmount
-            val due = total - amountPaid
-            val currentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
-            val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date())
+    private fun calculateDetailedDuration(startDateStr: String, endDateStr: String): Pair<String, Long> {
+        return try {
+            val sdf = SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH)
+            val start = sdf.parse(startDateStr) ?: Date()
+            val end = sdf.parse(endDateStr) ?: Date()
 
-            val bill = RentBill(
-                tenantId = tenant.id,
-                monthYear = monthYear,
-                baseRent = baseRent,
-                prevMeterReading = prevReading,
-                currMeterReading = currReading,
-                unitsConsumed = units,
-                electricityRate = tenant.electricityRatePerUnit,
-                electricityAmount = elecAmount,
-                totalBillAmount = total,
-                amountPaid = amountPaid,
-                dueAmount = due,
-                paymentDate = currentDate,
-                paymentMode = paymentMode
-            )
-            dao.insertBill(bill)
-            dao.updateTenant(tenant.copy(lastMeterReading = currReading))
+            val diffMillis = (end.time - start.time).coerceAtLeast(0)
+            val totalDays = TimeUnit.DAYS.convert(diffMillis, TimeUnit.MILLISECONDS)
+
+            val startCal = Calendar.getInstance().apply { time = start }
+            val endCal = Calendar.getInstance().apply { time = end }
+
+            var years = endCal.get(Calendar.YEAR) - startCal.get(Calendar.YEAR)
+            var months = endCal.get(Calendar.MONTH) - startCal.get(Calendar.MONTH)
+            var days = endCal.get(Calendar.DAY_OF_MONTH) - startCal.get(Calendar.DAY_OF_MONTH)
+
+            if (days < 0) {
+                months -= 1
+                val prevMonthCal = (startCal.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
+                days += prevMonthCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            }
+            if (months < 0) {
+                years -= 1
+                months += 12
+            }
+            if (years < 0) {
+                years = 0
+                months = 0
+                days = totalDays.toInt()
+            }
+
+            val parts = mutableListOf<String>()
+            if (years > 0) parts.add("$years ${if (years == 1) "Year" else "Years"}")
+            if (months > 0) parts.add("$months ${if (months == 1) "Month" else "Months"}")
+            if (days > 0 || parts.isEmpty()) parts.add("$days ${if (days == 1) "Day" else "Days"}")
+
+            Pair(parts.joinToString(", "), totalDays)
+        } catch (e: Exception) {
+            Pair("Duration unavailable", 0L)
         }
+    }
+
+    fun generateBill(propertyId: String, roomId: String, tenantId: String, month: String, baseRent: Double, prevUnit: Double, curUnit: Double, rate: Double, maintenance: Double) {
+        val bill = BillRecord(
+            propertyId = propertyId,
+            roomId = roomId,
+            tenantId = tenantId,
+            monthYear = month,
+            baseRent = baseRent,
+            prevMeterReading = prevUnit,
+            currentMeterReading = curUnit,
+            electricityRate = rate,
+            maintenanceCharge = maintenance,
+            isPaid = false
+        )
+        _bills.update { it + bill }
+    }
+
+    fun markBillPaid(billId: String) {
+        _bills.update { list ->
+            list.map { if (it.id == billId) it.copy(isPaid = true) else it }
+        }
+    }
+
+    fun getWhatsAppReceiptText(bill: BillRecord, tenant: Tenant, property: Property, room: RoomUnit): String {
+        return """
+            🧾 *RENT INVOICE - RENT MANAGER*
+            --------------------------------
+            🏠 *Property:* ${property.name}
+            🚪 *Room:* ${room.roomNumber} (${room.roomType})
+            👤 *Tenant:* ${tenant.name}
+            📅 *Month:* ${bill.monthYear}
+            --------------------------------
+            💵 Base Rent: ₹${bill.baseRent.toInt()}
+            ⚡ Units: ${bill.electricityUnitsUsed.toInt()} (${bill.prevMeterReading.toInt()} -> ${bill.currentMeterReading.toInt()})
+            ⚡ Electricity Due: ₹${bill.electricityBill.toInt()} (@ ₹${bill.electricityRate}/unit)
+            🛠️ Maintenance: ₹${bill.maintenanceCharge.toInt()}
+            --------------------------------
+            💰 *TOTAL PAYABLE: ₹${bill.totalAmount.toInt()}*
+            Status: ${if (bill.isPaid) "PAID ✅" else "PENDING ⏳"}
+            
+            _Generated via Rent Manager_
+        """.trimIndent()
     }
 }
