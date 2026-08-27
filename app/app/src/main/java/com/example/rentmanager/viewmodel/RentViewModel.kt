@@ -29,12 +29,25 @@ class RentViewModel : ViewModel() {
     val bills: StateFlow<List<BillRecord>> = _bills.asStateFlow()
 
     fun addProperty(name: String, address: String, city: String, ownerName: String, ownerPhone: String) {
-        val prop = Property(name = name, address = address, city = city, ownerName = ownerName, ownerPhone = ownerPhone)
+        val prop = Property(
+            name = name,
+            address = address,
+            city = city,
+            ownerName = ownerName,
+            ownerPhone = ownerPhone
+        )
         _properties.update { it + prop }
     }
 
     fun addRoom(propertyId: String, roomNumber: String, roomType: String, baseRent: Double, rate: Double) {
-        val room = RoomUnit(propertyId = propertyId, roomNumber = roomNumber, roomType = roomType, baseRent = baseRent, electricityRate = rate, isVacant = true)
+        val room = RoomUnit(
+            propertyId = propertyId,
+            roomNumber = roomNumber,
+            roomType = roomType,
+            baseRent = baseRent,
+            electricityRate = rate,
+            isVacant = true
+        )
         _rooms.update { it + room }
     }
 
@@ -137,7 +150,17 @@ class RentViewModel : ViewModel() {
         }
     }
 
-    fun generateBill(propertyId: String, roomId: String, tenantId: String, month: String, baseRent: Double, prevUnit: Double, curUnit: Double, rate: Double, maintenance: Double) {
+    fun generateBill(
+        propertyId: String,
+        roomId: String,
+        tenantId: String,
+        month: String,
+        baseRent: Double,
+        prevUnit: Double,
+        curUnit: Double,
+        rate: Double,
+        maintenance: Double
+    ) {
         val bill = BillRecord(
             propertyId = propertyId,
             roomId = roomId,
