@@ -288,23 +288,40 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getWhatsAppReceiptText(bill: BillRecord, tenant: Tenant, property: Property, room: RoomUnit): String {
+        val dateOfPayment = bill.paymentTransactions.lastOrNull()?.date ?: getTodayDateFormatted()
+        val formattedElecCost = String.format(Locale.ENGLISH, "%.2f", bill.electricityBill)
+        val formattedRate = String.format(Locale.ENGLISH, "%.2f", bill.electricityRate)
+        val formattedBaseRent = String.format(Locale.ENGLISH, "%.2f", bill.baseRent)
+        val formattedTotal = String.format(Locale.ENGLISH, "%.2f", bill.totalAmount)
+        val formattedPaid = String.format(Locale.ENGLISH, "%.2f", bill.amountPaid)
+        val formattedDue = String.format(Locale.ENGLISH, "%.2f", bill.remainingDue)
+
+        val pendingDueLine = if (bill.remainingDue > 0) {
+            "⚠️ *Pending Due:* ₹$formattedDue\n"
+        } else {
+            "🎉 *Status:* Fully Paid\n"
+        }
+
         return """
-            🧾 *RENT INVOICE - RENT MANAGER*
-            --------------------------------
-            🏠 *Property:* ${property.name}
-            🚪 *Room:* ${room.roomNumber}
-            👤 *Tenant:* ${tenant.name}
-            📅 *Billing Cycle:* ${bill.monthYear}
-            --------------------------------
-            💵 Base Rent: ₹${bill.baseRent.toInt()}
-            ⚡ Units: ${bill.electricityUnitsUsed.toInt()} (${bill.prevMeterReading.toInt()} -> ${bill.currentMeterReading.toInt()})
-            ⚡ Electricity Due: ₹${bill.electricityBill.toInt()} (@ ₹${bill.electricityRate}/unit)
-            🛠️ Maintenance: ₹${bill.maintenanceCharge.toInt()}
-            ${if (bill.previousDueCarryover > 0) "⚠️ Previous Unpaid Dues: ₹${bill.previousDueCarryover.toInt()}\n" else ""}--------------------------------
-            💰 *TOTAL BILL: ₹${bill.totalAmount.toInt()}*
-            💳 *PAID: ₹${bill.amountPaid.toInt()} via ${bill.paymentMode}*
-            ${if (bill.remainingDue > 0) "⏳ *REMAINING DUE: ₹${bill.remainingDue.toInt()}*\n" else "✅ *FULLY PAID*\n"}
-            _Generated via Rent Manager_
+🏠 *RENT & ELECTRICITY RECEIPT*
+━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 *Tenant:* ${tenant.name} (Room ${room.roomNumber})
+📅 *Billing Period:* ${bill.monthYear}
+🗓️ *Date of Payment:* $dateOfPayment
+
+⚡ *Electricity Details:*
+• Previous Reading: ${bill.prevMeterReading}
+• Current Reading: ${bill.currentMeterReading}
+• Units Consumed: ${bill.electricityUnitsUsed}
+• Rate / Unit: ₹$formattedRate
+• Total Electricity: ₹$formattedElecCost
+
+🏢 *Base Rent:* ₹$formattedBaseRent
+🧾 *Total Amount:* ₹$formattedTotal
+━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ *Amount Paid:* ₹$formattedPaid (${bill.paymentMode})
+$pendingDueLine━━━━━━━━━━━━━━━━━━━━━━━━━
+Thank you!
         """.trimIndent()
     }
 
