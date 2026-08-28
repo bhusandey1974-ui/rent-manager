@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -67,7 +66,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun RentManagerMainApp(viewModel: RentViewModel) {
     val properties by viewModel.properties.collectAsState()
@@ -84,7 +82,9 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     var assignRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
     var checkoutTenantTarget by remember { mutableStateOf<Tenant?>(null) }
     var viewingHistoryRoom by remember { mutableStateOf<RoomUnit?>(null) }
+    var editingRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
     var billRoomTarget by remember { mutableStateOf<Pair<RoomUnit, Tenant>?>(null) }
+    var recordPaymentTarget by remember { mutableStateOf<BillRecord?>(null) }
     var viewingTenantDetails by remember { mutableStateOf<Tenant?>(null) }
 
     LaunchedEffect(properties) {
@@ -239,8 +239,10 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                         onAssign = { room -> assignRoomTarget = room },
                         onCheckout = { tenant -> checkoutTenantTarget = tenant },
                         onHistory = { room -> viewingHistoryRoom = room },
+                        onEditRoom = { room -> editingRoomTarget = room },
                         onGenerateBill = { room, tenant -> billRoomTarget = Pair(room, tenant) },
-                        onViewTenant = { tenant -> viewingTenantDetails = tenant }
+                        onViewTenant = { tenant -> viewingTenantDetails = tenant },
+                        onOpenPayment = { bill -> recordPaymentTarget = bill }
                     )
                 }
                 1 -> {
@@ -249,7 +251,8 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                         tenants = tenants,
                         rooms = rooms,
                         properties = properties,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onOpenPayment = { bill -> recordPaymentTarget = bill }
                     )
                 }
             }
@@ -279,9 +282,21 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
         )
     }
 
+    editingRoomTarget?.let { room ->
+        EditRoomDialog(
+            room = room,
+            onDismiss = { editingRoomTarget = null },
+            onSave = { newNo, newRent, newRate ->
+                viewModel.editRoom(room.id, newNo, newRent, newRate)
+                editingRoomTarget = null
+            }
+        )
+    }
+
     assignRoomTarget?.let { room ->
         AssignTenantDialog(
             roomNumber = room.roomNumber,
+            todayDate = viewModel.getTodayDateFormatted(),
             onDismiss = { assignRoomTarget = null },
             onAssign = { name, phone, aadhaar, date, deposit, reading ->
                 viewModel.assignTenant(room.propertyId, room.id, name, phone, aadhaar, date, deposit, reading)
@@ -291,10 +306,11 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     }
 
     checkoutTenantTarget?.let { tenant ->
-        val totalPaidSoFar = bills.filter { it.tenantId == tenant.id && it.isPaid }.sumOf { it.totalAmount }
+        val totalPaidSoFar = bills.filter { it.tenantId == tenant.id }.sumOf { it.amountPaid }
         CheckoutTenantDialog(
             tenantName = tenant.name,
             moveInDate = tenant.moveInDate,
+            todayDate = viewModel.getTodayDateFormatted(),
             deposit = tenant.securityDeposit,
             totalPaidSoFar = totalPaidSoFar,
             onDismiss = { checkoutTenantTarget = null },
@@ -310,6 +326,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
         RoomHistoryDialog(
             roomNumber = room.roomNumber,
             history = historyList,
+            rentLogs = room.rentChangeLogs,
             onDismiss = { viewingHistoryRoom = null }
         )
     }
@@ -317,12 +334,17 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     billRoomTarget?.let { (room, tenant) ->
         val lastBill = bills.filter { it.roomId == room.id }.lastOrNull()
         val prevReading = lastBill?.currentMeterReading ?: tenant.initialMeterReading
+        val pendingDueCarryover = viewModel.getCumulativePendingDue(room.id)
+        val defaultCycle = viewModel.getPreviousMonthFormatted()
+
         LodgeBillDialog(
             roomNumber = room.roomNumber,
             tenantName = tenant.name,
+            defaultMonth = defaultCycle,
             baseRent = room.baseRent,
             electricityRate = room.electricityRate,
             prevReading = prevReading,
+            pendingDueCarryover = pendingDueCarryover,
             onDismiss = { billRoomTarget = null },
             onLodge = { month, curReading, maint ->
                 viewModel.generateBill(
@@ -334,9 +356,25 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                     prevUnit = prevReading,
                     curUnit = curReading,
                     rate = room.electricityRate,
-                    maintenance = maint
+                    maintenance = maint,
+                    previousDue = pendingDueCarryover
                 )
                 billRoomTarget = null
+            }
+        )
+    }
+
+    recordPaymentTarget?.let { bill ->
+        val room = rooms.find { it.id == bill.roomId }
+        val tenant = tenants.find { it.id == bill.tenantId }
+        RecordPaymentDialog(
+            bill = bill,
+            roomNumber = room?.roomNumber ?: "-",
+            tenantName = tenant?.name ?: "Tenant",
+            onDismiss = { recordPaymentTarget = null },
+            onConfirmPayment = { amount ->
+                viewModel.recordPayment(bill.id, amount)
+                recordPaymentTarget = null
             }
         )
     }
@@ -424,8 +462,10 @@ fun PropertiesRoomsTab(
     onAssign: (RoomUnit) -> Unit,
     onCheckout: (Tenant) -> Unit,
     onHistory: (RoomUnit) -> Unit,
+    onEditRoom: (RoomUnit) -> Unit,
     onGenerateBill: (RoomUnit, Tenant) -> Unit,
-    onViewTenant: (Tenant) -> Unit
+    onViewTenant: (Tenant) -> Unit,
+    onOpenPayment: (BillRecord) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -469,7 +509,7 @@ fun PropertiesRoomsTab(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Tap + to add your first room/flat.",
+                        text = "Tap + to add your first room.",
                         fontSize = 13.sp,
                         color = TextMuted,
                         textAlign = TextAlign.Center
@@ -484,19 +524,22 @@ fun PropertiesRoomsTab(
                 items(rooms) { room ->
                     val tenant = tenants.find { it.roomId == room.id }
                     val latestUnpaidBill = bills.findLast { it.roomId == room.id && !it.isPaid }
+                    val cumulativeDue = viewModel.getCumulativePendingDue(room.id)
                     val prop = properties.find { it.id == room.propertyId } ?: Property(name = "Property")
 
                     RoomUnitCard(
                         room = room,
                         tenant = tenant,
                         latestUnpaidBill = latestUnpaidBill,
+                        cumulativeDue = cumulativeDue,
                         property = prop,
-                        viewModel = viewModel,
                         onAssign = { onAssign(room) },
                         onCheckout = { tenant?.let { onCheckout(it) } },
                         onHistory = { onHistory(room) },
+                        onEditRoom = { onEditRoom(room) },
                         onGenerateBill = { tenant?.let { onGenerateBill(room, it) } },
-                        onViewTenant = { tenant?.let { onViewTenant(it) } }
+                        onViewTenant = { tenant?.let { onViewTenant(it) } },
+                        onOpenPayment = { latestUnpaidBill?.let { onOpenPayment(it) } }
                     )
                 }
             }
@@ -509,13 +552,15 @@ fun RoomUnitCard(
     room: RoomUnit,
     tenant: Tenant?,
     latestUnpaidBill: BillRecord?,
+    cumulativeDue: Double,
     property: Property,
-    viewModel: RentViewModel,
     onAssign: () -> Unit,
     onCheckout: () -> Unit,
     onHistory: () -> Unit,
+    onEditRoom: () -> Unit,
     onGenerateBill: () -> Unit,
-    onViewTenant: () -> Unit
+    onViewTenant: () -> Unit,
+    onOpenPayment: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -524,7 +569,6 @@ fun RoomUnitCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header Row: Room Number & Rent
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -543,6 +587,17 @@ fun RoomUnitCard(
                         fontSize = 17.sp,
                         color = TextDark
                     )
+                    IconButton(
+                        onClick = onEditRoom,
+                        modifier = Modifier.size(28.dp).padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit Room",
+                            tint = TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
                 Text(
                     text = "${formatRupee(room.baseRent)}/mo",
@@ -554,7 +609,6 @@ fun RoomUnitCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Body: Active Tenant Details or Vacant Status
             if (tenant != null) {
                 Surface(
                     modifier = Modifier
@@ -602,8 +656,7 @@ fun RoomUnitCard(
                     }
                 }
 
-                // Unpaid Bill Alert
-                if (latestUnpaidBill != null) {
+                if (cumulativeDue > 0) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         color = AlertRedLight,
@@ -619,17 +672,21 @@ fun RoomUnitCard(
                                 Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Due: ${formatRupee(latestUnpaidBill.totalAmount)} (${latestUnpaidBill.monthYear})",
-                                    fontSize = 11.sp,
+                                    text = "Pending Due: ${formatRupee(cumulativeDue)}",
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = AlertRed
                                 )
                             }
-                            TextButton(
-                                onClick = { viewModel.markBillPaid(latestUnpaidBill.id) },
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                            ) {
-                                Text("Mark Paid", fontSize = 11.sp, color = SuccessGreen, fontWeight = FontWeight.Bold)
+                            if (latestUnpaidBill != null) {
+                                Button(
+                                    onClick = onOpenPayment,
+                                    colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Pay", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -649,7 +706,6 @@ fun RoomUnitCard(
 
             Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.6.dp, color = Color(0xFFF1F5F9))
 
-            // Actions Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -662,7 +718,7 @@ fun RoomUnitCard(
                 ) {
                     Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Stay History", fontSize = 11.sp)
+                    Text("History", fontSize = 11.sp)
                 }
 
                 if (room.isVacant) {
@@ -709,15 +765,16 @@ fun RevenueAnalyticsTab(
     tenants: List<Tenant>,
     rooms: List<RoomUnit>,
     properties: List<Property>,
-    viewModel: RentViewModel
+    viewModel: RentViewModel,
+    onOpenPayment: (BillRecord) -> Unit
 ) {
     val context = LocalContext.current
     var ledgerFilter by remember { mutableStateOf("ALL") }
 
-    val totalPaidLifetime = bills.filter { it.isPaid }.sumOf { it.totalAmount }
+    val totalPaidLifetime = bills.sumOf { it.amountPaid }
     val rentEarnings = bills.filter { it.isPaid }.sumOf { it.baseRent }
     val elecEarnings = bills.filter { it.isPaid }.sumOf { it.electricityBill }
-    val totalDue = bills.filter { !it.isPaid }.sumOf { it.totalAmount }
+    val totalDue = bills.sumOf { it.remainingDue }
     val totalInvoiced = bills.sumOf { it.totalAmount }
 
     val filteredBills = when (ledgerFilter) {
@@ -732,7 +789,6 @@ fun RevenueAnalyticsTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Hero Lifetime Revenue Card
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -799,7 +855,6 @@ fun RevenueAnalyticsTab(
             }
         }
 
-        // Yearly Breakdown
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -845,7 +900,6 @@ fun RevenueAnalyticsTab(
             }
         }
 
-        // Monthly Ledger Header & Filter Chips
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -909,7 +963,7 @@ fun RevenueAnalyticsTab(
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
-                                    text = if (bill.isPaid) "PAID ✅" else "PENDING ⏳",
+                                    text = if (bill.isPaid) "PAID ✅" else "DUE: ${formatRupee(bill.remainingDue)}",
                                     color = if (bill.isPaid) SuccessGreen else AlertRed,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp,
@@ -928,13 +982,24 @@ fun RevenueAnalyticsTab(
                             Column {
                                 Text("Rent: ${formatRupee(bill.baseRent)} • Elec: ${formatRupee(bill.electricityBill)}", fontSize = 11.sp, color = TextDark)
                                 Text("Units: ${bill.electricityUnitsUsed.toInt()} (${bill.prevMeterReading.toInt()} -> ${bill.currentMeterReading.toInt()})", fontSize = 10.sp, color = TextMuted)
+                                if (bill.previousDueCarryover > 0) {
+                                    Text("Carried Due: ${formatRupee(bill.previousDueCarryover)}", fontSize = 10.sp, color = AlertRed)
+                                }
                             }
-                            Text(
-                                text = formatRupee(bill.totalAmount),
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp,
-                                color = BrandBlue
-                            )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = formatRupee(bill.totalAmount),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp,
+                                    color = BrandBlue
+                                )
+                                Text(
+                                    text = "Paid: ${formatRupee(bill.amountPaid)}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = SuccessGreen
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -965,12 +1030,12 @@ fun RevenueAnalyticsTab(
                             if (!bill.isPaid) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Button(
-                                    onClick = { viewModel.markBillPaid(bill.id) },
+                                    onClick = { onOpenPayment(bill) },
                                     colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                                     shape = RoundedCornerShape(8.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
-                                    Text("Mark as Paid", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("Record Payment", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -1015,9 +1080,191 @@ fun MetricSmallCard(modifier: Modifier = Modifier, label: String, value: String,
     }
 }
 @Composable
+fun RecordPaymentDialog(
+    bill: BillRecord,
+    roomNumber: String,
+    tenantName: String,
+    onDismiss: () -> Unit,
+    onConfirmPayment: (Double) -> Unit
+) {
+    var amountText by remember { mutableStateOf(bill.remainingDue.toInt().toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record Payment - Room $roomNumber", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Total Bill: ${formatRupee(bill.totalAmount)}", fontSize = 12.sp, color = TextMuted)
+                Text("Already Paid: ${formatRupee(bill.amountPaid)}", fontSize = 12.sp, color = SuccessGreen)
+                Text("Remaining Due: ${formatRupee(bill.remainingDue)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Enter Amount Paying Now (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val paying = amountText.toDoubleOrNull() ?: 0.0
+                    if (paying > 0) onConfirmPayment(paying)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+            ) {
+                Text("Save Payment")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun EditRoomDialog(
+    room: RoomUnit,
+    onDismiss: () -> Unit,
+    onSave: (String, Double, Double) -> Unit
+) {
+    var roomNo by remember { mutableStateOf(room.roomNumber) }
+    var rent by remember { mutableStateOf(room.baseRent.toInt().toString()) }
+    var rate by remember { mutableStateOf(room.electricityRate.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = roomNo,
+                    onValueChange = { roomNo = it },
+                    label = { Text("Room No") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rent,
+                    onValueChange = { rent = it },
+                    label = { Text("Monthly Rent (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Electricity Rate/Unit (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val r = rent.toDoubleOrNull() ?: room.baseRent
+                    val rt = rate.toDoubleOrNull() ?: room.electricityRate
+                    if (roomNo.isNotBlank()) onSave(roomNo, r, rt)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+            ) { Text("Save & Log Changes") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun LodgeBillDialog(
+    roomNumber: String,
+    tenantName: String,
+    defaultMonth: String,
+    baseRent: Double,
+    electricityRate: Double,
+    prevReading: Double,
+    pendingDueCarryover: Double,
+    onDismiss: () -> Unit,
+    onLodge: (String, Double, Double) -> Unit
+) {
+    var month by remember { mutableStateOf(defaultMonth) }
+    var currentReading by remember { mutableStateOf("") }
+    var maintenance by remember { mutableStateOf("0") }
+
+    val cur = currentReading.toDoubleOrNull() ?: prevReading
+    val units = (cur - prevReading).coerceAtLeast(0.0)
+    val elecCost = units * electricityRate
+    val total = baseRent + elecCost + (maintenance.toDoubleOrNull() ?: 0.0) + pendingDueCarryover
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = BrandBlue)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Lodge Bill - Room $roomNumber", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                OutlinedTextField(
+                    value = month,
+                    onValueChange = { month = it },
+                    label = { Text("Billing Month (Completed Month)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = prevReading.toString(),
+                    onValueChange = {},
+                    label = { Text("Previous Reading") },
+                    enabled = false,
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = currentReading,
+                    onValueChange = { currentReading = it },
+                    label = { Text("Current Reading (Enter manually)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = maintenance,
+                    onValueChange = { maintenance = it },
+                    label = { Text("Maintenance / Other (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                Surface(color = Color(0xFFF1F5F9), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("Units Consumed: ${units.toInt()} units (@ ₹${electricityRate}/unit)", fontSize = 11.sp, color = TextMuted)
+                        if (pendingDueCarryover > 0) {
+                            Text("⚠️ Carried Forward Due: ${formatRupee(pendingDueCarryover)}", fontSize = 11.sp, color = AlertRed, fontWeight = FontWeight.Bold)
+                        }
+                        Text("Total Amount Due: ${formatRupee(total)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (currentReading.isNotBlank()) {
+                        onLodge(month, cur, maintenance.toDoubleOrNull() ?: 0.0)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+            ) { Text("Create Bill") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
 fun RoomHistoryDialog(
     roomNumber: String,
     history: List<TenantHistoryRecord>,
+    rentLogs: List<RentChangeLog>,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -1026,28 +1273,44 @@ fun RoomHistoryDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.History, contentDescription = null, tint = BrandBlue)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Room $roomNumber Stay History", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("Room $roomNumber Stay & Rent Logs", fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         },
         text = {
-            if (history.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(Icons.Default.PersonOff, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("No past tenant records saved for this room yet.", color = TextMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                if (rentLogs.isNotEmpty()) {
+                    item {
+                        Text("Rent Revision Log", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextDark)
+                    }
+                    items(rentLogs) { log ->
+                        Surface(
+                            color = PurpleAccentLight,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text("📅 ${log.dateChanged}", fontSize = 11.sp, color = PurpleAccent, fontWeight = FontWeight.Bold)
+                                Text("Rent: ₹${log.oldRent.toInt()} ➔ ₹${log.newRent.toInt()} | Elec: ₹${log.oldRate} ➔ ₹${log.newRate}", fontSize = 11.sp, color = TextDark)
+                            }
+                        }
+                    }
+                    item { Divider(modifier = Modifier.padding(vertical = 4.dp)) }
                 }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 380.dp)
-                ) {
+
+                item {
+                    Text("Past Tenants Stay History", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextDark)
+                }
+
+                if (history.isEmpty()) {
+                    item {
+                        Text("No past tenant records saved for this room yet.", color = TextMuted, fontSize = 12.sp)
+                    }
+                } else {
                     items(history) { record ->
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
@@ -1070,7 +1333,7 @@ fun RoomHistoryDialog(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
-                                        Text("💰 Total Paid in Lifetime: ${formatRupee(record.totalRentPaidLifetime)}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BrandBlueDark)
+                                        Text("💰 Total Paid: ${formatRupee(record.totalRentPaidLifetime)}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BrandBlueDark)
                                         Text("💵 Deposit Refunded: ${formatRupee(record.depositRefunded)}", fontSize = 11.sp, color = SuccessGreen, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
@@ -1087,7 +1350,6 @@ fun RoomHistoryDialog(
         }
     )
 }
-
 @Composable
 fun AddRoomDialog(
     properties: List<Property>,
@@ -1142,60 +1404,6 @@ fun AddRoomDialog(
 }
 
 @Composable
-fun LodgeBillDialog(
-    roomNumber: String,
-    tenantName: String,
-    baseRent: Double,
-    electricityRate: Double,
-    prevReading: Double,
-    onDismiss: () -> Unit,
-    onLodge: (String, Double, Double) -> Unit
-) {
-    var month by remember { mutableStateOf("August 2026") }
-    var currentReading by remember { mutableStateOf((prevReading + 40).toInt().toString()) }
-    var maintenance by remember { mutableStateOf("0") }
-
-    val cur = currentReading.toDoubleOrNull() ?: prevReading
-    val units = (cur - prevReading).coerceAtLeast(0.0)
-    val elecCost = units * electricityRate
-    val total = baseRent + elecCost + (maintenance.toDoubleOrNull() ?: 0.0)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = BrandBlue)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Lodge Bill - Room $roomNumber", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                OutlinedTextField(value = month, onValueChange = { month = it }, label = { Text("Billing Month") }, singleLine = true)
-                OutlinedTextField(value = prevReading.toString(), onValueChange = {}, label = { Text("Previous Reading") }, enabled = false, singleLine = true)
-                OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("Current Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-                OutlinedTextField(value = maintenance, onValueChange = { maintenance = it }, label = { Text("Maintenance / Other (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-
-                Surface(color = Color(0xFFF1F5F9), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("Units Consumed: ${units.toInt()} units (@ ₹${electricityRate}/unit)", fontSize = 11.sp, color = TextMuted)
-                        Text("Total Amount Due: ${formatRupee(total)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onLodge(month, cur, maintenance.toDoubleOrNull() ?: 0.0) },
-                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-            ) { Text("Create Bill") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
 fun AddPropertyDialog(
     onDismiss: () -> Unit,
     onSave: (String, String, String, String, String) -> Unit
@@ -1231,14 +1439,15 @@ fun AddPropertyDialog(
 @Composable
 fun AssignTenantDialog(
     roomNumber: String,
+    todayDate: String,
     onDismiss: () -> Unit,
     onAssign: (String, String, String, String, Double, Double) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var aadhaar by remember { mutableStateOf("") }
-    var moveInDate by remember { mutableStateOf("01 Aug 2026") }
-    var deposit by remember { mutableStateOf("5000") }
+    var moveInDate by remember { mutableStateOf(todayDate) }
+    var deposit by remember { mutableStateOf("0") }
     var meterReading by remember { mutableStateOf("0") }
 
     AlertDialog(
@@ -1272,12 +1481,13 @@ fun AssignTenantDialog(
 fun CheckoutTenantDialog(
     tenantName: String,
     moveInDate: String,
+    todayDate: String,
     deposit: Double,
     totalPaidSoFar: Double,
     onDismiss: () -> Unit,
     onConfirm: (String, Double) -> Unit
 ) {
-    var moveOutDate by remember { mutableStateOf("28 Aug 2026") }
+    var moveOutDate by remember { mutableStateOf(todayDate) }
     var refund by remember { mutableStateOf(deposit.toString()) }
 
     AlertDialog(
