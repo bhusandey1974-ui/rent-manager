@@ -11,6 +11,15 @@ data class Property(
     val ownerPhone: String = ""
 )
 
+data class RentChangeLog(
+    val id: String = UUID.randomUUID().toString(),
+    val dateChanged: String,
+    val oldRent: Double,
+    val newRent: Double,
+    val oldRate: Double,
+    val newRate: Double
+)
+
 data class RoomUnit(
     val id: String = UUID.randomUUID().toString(),
     val propertyId: String,
@@ -18,7 +27,8 @@ data class RoomUnit(
     val roomType: String = "Room",
     val baseRent: Double,
     val electricityRate: Double = 10.0,
-    val isVacant: Boolean = true
+    val isVacant: Boolean = true,
+    val rentChangeLogs: List<RentChangeLog> = emptyList()
 )
 
 data class Tenant(
@@ -28,25 +38,9 @@ data class Tenant(
     val name: String,
     val phone: String,
     val aadhaarNo: String = "",
-    val moveInDate: String, // e.g. "01 Jan 2025"
+    val moveInDate: String,
     val securityDeposit: Double = 0.0,
     val initialMeterReading: Double = 0.0
-)
-
-data class TenantHistoryRecord(
-    val id: String = UUID.randomUUID().toString(),
-    val roomId: String,
-    val propertyId: String,
-    val tenantId: String,
-    val name: String,
-    val phone: String,
-    val aadhaarNo: String = "",
-    val moveInDate: String,
-    val moveOutDate: String,
-    val formattedDuration: String, // e.g. "1 Year, 2 Months, 14 Days"
-    val totalDaysStayed: Long,
-    val totalRentPaidLifetime: Double, // Cumulative paid rent + utilities
-    val depositRefunded: Double = 0.0
 )
 
 data class BillRecord(
@@ -56,10 +50,12 @@ data class BillRecord(
     val tenantId: String,
     val monthYear: String,
     val baseRent: Double,
-    val prevMeterReading: Double = 0.0,
-    val currentMeterReading: Double = 0.0,
-    val electricityRate: Double = 10.0,
+    val prevMeterReading: Double,
+    val currentMeterReading: Double,
+    val electricityRate: Double,
     val maintenanceCharge: Double = 0.0,
+    val previousDueCarryover: Double = 0.0,
+    val amountPaid: Double = 0.0,
     val isPaid: Boolean = false
 ) {
     val electricityUnitsUsed: Double
@@ -69,5 +65,24 @@ data class BillRecord(
         get() = electricityUnitsUsed * electricityRate
 
     val totalAmount: Double
-        get() = baseRent + electricityBill + maintenanceCharge
+        get() = baseRent + electricityBill + maintenanceCharge + previousDueCarryover
+
+    val remainingDue: Double
+        get() = (totalAmount - amountPaid).coerceAtLeast(0.0)
 }
+
+data class TenantHistoryRecord(
+    val id: String = UUID.randomUUID().toString(),
+    val roomId: String,
+    val propertyId: String,
+    val tenantId: String,
+    val name: String,
+    val phone: String,
+    val aadhaarNo: String,
+    val moveInDate: String,
+    val moveOutDate: String,
+    val formattedDuration: String,
+    val totalDaysStayed: Long,
+    val totalRentPaidLifetime: Double,
+    val depositRefunded: Double
+)
