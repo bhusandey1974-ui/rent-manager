@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +36,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.NumberFormat
 import java.util.Locale
 
-// Design System & Palette
 val BrandBlue = Color(0xFF0066DB)
 val BrandBlueDark = Color(0xFF004CB7)
 val BrandBlueLight = Color(0xFFE0F2FE)
@@ -49,8 +47,6 @@ val SuccessGreen = Color(0xFF10B981)
 val SuccessGreenLight = Color(0xFFD1FAE5)
 val AlertRed = Color(0xFFEF4444)
 val AlertRedLight = Color(0xFFFEE2E2)
-val WarningAmber = Color(0xFFF59E0B)
-val WarningAmberLight = Color(0xFFFEF3C7)
 val PurpleAccent = Color(0xFF7C3AED)
 val PurpleAccentLight = Color(0xFFEDE9FE)
 
@@ -72,7 +68,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RentManagerMainApp(viewModel: RentViewModel) {
     val properties by viewModel.properties.collectAsState()
@@ -84,7 +79,6 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     var currentNavTab by remember { mutableIntStateOf(0) }
     var selectedPropertyId by remember { mutableStateOf<String?>(null) }
 
-    // Dialog Visibility States
     var showAddPropertyDialog by remember { mutableStateOf(false) }
     var showAddRoomDialog by remember { mutableStateOf(false) }
     var assignRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
@@ -93,7 +87,6 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     var billRoomTarget by remember { mutableStateOf<Pair<RoomUnit, Tenant>?>(null) }
     var viewingTenantDetails by remember { mutableStateOf<Tenant?>(null) }
 
-    // Default property select
     LaunchedEffect(properties) {
         if (selectedPropertyId == null && properties.isNotEmpty()) {
             selectedPropertyId = properties.first().id
@@ -118,7 +111,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(40.dp)
                                     .background(
                                         Brush.linearGradient(listOf(BrandBlue, BrandBlueDark)),
                                         CircleShape
@@ -129,19 +122,19 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                                     imageVector = Icons.Default.HomeWork,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = if (currentNavTab == 0) "Rent Manager" else "Revenue & Ledger",
+                                    text = if (currentNavTab == 0) "Rent Manager" else "Revenue & Analytics",
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = TextDark
                                 )
                                 Text(
-                                    text = if (currentNavTab == 0) "${rooms.size} Units Registered" else "Financial Intelligence",
+                                    text = if (currentNavTab == 0) "${rooms.size} Units Registered" else "Lifetime Ledger",
                                     fontSize = 12.sp,
                                     color = TextMuted
                                 )
@@ -185,7 +178,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                     selected = currentNavTab == 0,
                     onClick = { currentNavTab = 0 },
                     icon = { Icon(Icons.Default.Apartment, contentDescription = "Properties") },
-                    label = { Text("Units & Rooms", fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Properties", fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = BrandBlue,
                         selectedTextColor = BrandBlue,
@@ -196,7 +189,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                     selected = currentNavTab == 1,
                     onClick = { currentNavTab = 1 },
                     icon = { Icon(Icons.Default.QueryStats, contentDescription = "Revenue") },
-                    label = { Text("Revenue & Bills", fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Revenue", fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = BrandBlue,
                         selectedTextColor = BrandBlue,
@@ -211,17 +204,15 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                     onClick = { showAddRoomDialog = true },
                     containerColor = BrandBlueDark,
                     contentColor = Color.White,
-                    shape = RoundedCornerShape(18.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(6.dp)
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(6.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(22.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Unit", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Room",
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
         }
@@ -265,7 +256,6 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
         }
     }
 
-    // Modal Attachments
     if (showAddPropertyDialog) {
         AddPropertyDialog(
             onDismiss = { showAddPropertyDialog = false },
@@ -282,8 +272,8 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
             properties = properties,
             selectedPropertyId = selectedPropertyId,
             onDismiss = { showAddRoomDialog = false },
-            onSave = { propId, roomNo, type, rent, rate ->
-                viewModel.addRoom(propId, roomNo, type, rent, rate)
+            onSave = { propId, roomNo, rent, rate ->
+                viewModel.addRoom(propId, roomNo, "Room", rent, rate)
                 showAddRoomDialog = false
             }
         )
@@ -437,73 +427,16 @@ fun PropertiesRoomsTab(
     onGenerateBill: (RoomUnit, Tenant) -> Unit,
     onViewTenant: (Tenant) -> Unit
 ) {
-    val occupiedCount = rooms.count { !it.isVacant }
-    val vacantCount = rooms.count { it.isVacant }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Occupancy Counter Strip
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Surface(
-                modifier = Modifier.weight(1f),
-                color = Color.White,
-                shape = RoundedCornerShape(14.dp),
-                shadowElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .background(SuccessGreen, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Vacant Units", fontSize = 11.sp, color = TextMuted)
-                        Text("$vacantCount Rooms", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    }
-                }
-            }
-
-            Surface(
-                modifier = Modifier.weight(1f),
-                color = Color.White,
-                shape = RoundedCornerShape(14.dp),
-                shadowElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .background(AlertRed, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Occupied Units", fontSize = 11.sp, color = TextMuted)
-                        Text("$occupiedCount Tenants", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    }
-                }
-            }
-        }
-
         if (rooms.isEmpty()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 24.dp),
+                    .padding(top = 16.dp),
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = CardBackground),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -536,21 +469,11 @@ fun PropertiesRoomsTab(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Add your first room/flat to begin tracking rent, meter readings, and lifetime tenant stays.",
+                        text = "Tap + to add your first room/flat.",
                         fontSize = 13.sp,
                         color = TextMuted,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Button(
-                        onClick = onAddRoomClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Create Room Unit")
-                    }
                 }
             }
         } else {
@@ -594,8 +517,6 @@ fun RoomUnitCard(
     onGenerateBill: () -> Unit,
     onViewTenant: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -617,24 +538,11 @@ fun RoomUnitCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Unit ${room.roomNumber}",
+                        text = "Room ${room.roomNumber}",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 17.sp,
                         color = TextDark
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        color = Color(0xFFF1F5F9),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = room.roomType,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextMuted,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
                 }
                 Text(
                     text = "${formatRupee(room.baseRent)}/mo",
@@ -646,7 +554,7 @@ fun RoomUnitCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Body: Active Tenant Details or Vacant Placeholder
+            // Body: Active Tenant Details or Vacant Status
             if (tenant != null) {
                 Surface(
                     modifier = Modifier
@@ -694,7 +602,7 @@ fun RoomUnitCard(
                     }
                 }
 
-                // Unpaid Bill Alert Tag
+                // Unpaid Bill Alert
                 if (latestUnpaidBill != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
@@ -735,13 +643,13 @@ fun RoomUnitCard(
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Unit Available for occupancy", fontSize = 12.sp, color = SuccessGreen, fontWeight = FontWeight.Medium)
+                    Text("Status: Vacant", fontSize = 12.sp, color = SuccessGreen, fontWeight = FontWeight.Medium)
                 }
             }
 
             Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.6.dp, color = Color(0xFFF1F5F9))
 
-            // Action Buttons
+            // Actions Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -786,7 +694,7 @@ fun RoomUnitCard(
                         onClick = onCheckout,
                         modifier = Modifier.weight(0.9f),
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Text("Vacate", fontSize = 11.sp, color = AlertRed)
                     }
@@ -804,7 +712,7 @@ fun RevenueAnalyticsTab(
     viewModel: RentViewModel
 ) {
     val context = LocalContext.current
-    var ledgerFilter by remember { mutableStateOf("ALL") } // ALL, PAID, UNPAID
+    var ledgerFilter by remember { mutableStateOf("ALL") }
 
     val totalPaidLifetime = bills.filter { it.isPaid }.sumOf { it.totalAmount }
     val rentEarnings = bills.filter { it.isPaid }.sumOf { it.baseRent }
@@ -824,7 +732,7 @@ fun RevenueAnalyticsTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Hero Gradient Card
+        // Hero Lifetime Revenue Card
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -874,7 +782,7 @@ fun RevenueAnalyticsTab(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("Rent Inflow", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
+                                Text("Rent Earnings", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
                                 Text(formatRupee(rentEarnings), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             Column {
@@ -882,7 +790,7 @@ fun RevenueAnalyticsTab(
                                 Text(formatRupee(elecEarnings), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             Column {
-                                Text("Pending Dues", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
+                                Text("Total Due", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
                                 Text(formatRupee(totalDue), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFCA5A5))
                             }
                         }
@@ -891,7 +799,7 @@ fun RevenueAnalyticsTab(
             }
         }
 
-        // Yearly Breakdown Card
+        // Yearly Breakdown
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -930,8 +838,8 @@ fun RevenueAnalyticsTab(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        MetricSmallCard(modifier = Modifier.weight(1f), label = "Gross Invoiced", value = formatRupee(totalInvoiced), valueColor = BrandBlue)
-                        MetricSmallCard(modifier = Modifier.weight(1f), label = "Total Realized", value = formatRupee(totalPaidLifetime), valueColor = SuccessGreen)
+                        MetricSmallCard(modifier = Modifier.weight(1f), label = "Total Invoiced", value = formatRupee(totalInvoiced), valueColor = BrandBlue)
+                        MetricSmallCard(modifier = Modifier.weight(1f), label = "Collected", value = formatRupee(totalPaidLifetime), valueColor = SuccessGreen)
                     }
                 }
             }
@@ -939,18 +847,16 @@ fun RevenueAnalyticsTab(
 
         // Monthly Ledger Header & Filter Chips
         item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Billing Ledger (${filteredBills.size})", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterLedgerChip(label = "All", isSelected = ledgerFilter == "ALL", onSelect = { ledgerFilter = "ALL" })
-                        FilterLedgerChip(label = "Paid", isSelected = ledgerFilter == "PAID", onSelect = { ledgerFilter = "PAID" })
-                        FilterLedgerChip(label = "Pending", isSelected = ledgerFilter == "UNPAID", onSelect = { ledgerFilter = "UNPAID" })
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Billing Ledger (${filteredBills.size})", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterLedgerChip(label = "All", isSelected = ledgerFilter == "ALL", onSelect = { ledgerFilter = "ALL" })
+                    FilterLedgerChip(label = "Paid", isSelected = ledgerFilter == "PAID", onSelect = { ledgerFilter = "PAID" })
+                    FilterLedgerChip(label = "Pending", isSelected = ledgerFilter == "UNPAID", onSelect = { ledgerFilter = "UNPAID" })
                 }
             }
         }
@@ -963,7 +869,7 @@ fun RevenueAnalyticsTab(
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        Text("No billing entries found for this category.", color = TextMuted, fontSize = 13.sp)
+                        Text("No billing entries found.", color = TextMuted, fontSize = 13.sp)
                     }
                 }
             }
@@ -1183,6 +1089,59 @@ fun RoomHistoryDialog(
 }
 
 @Composable
+fun AddRoomDialog(
+    properties: List<Property>,
+    selectedPropertyId: String?,
+    onDismiss: () -> Unit,
+    onSave: (String, String, Double, Double) -> Unit
+) {
+    var propId by remember { mutableStateOf(selectedPropertyId ?: properties.firstOrNull()?.id ?: "") }
+    var roomNo by remember { mutableStateOf("") }
+    var rent by remember { mutableStateOf("") }
+    var rate by remember { mutableStateOf("10.0") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Room", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = roomNo,
+                    onValueChange = { roomNo = it },
+                    label = { Text("Room No (e.g. 101, 01)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rent,
+                    onValueChange = { rent = it },
+                    label = { Text("Monthly Rent (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Electricity Rate/Unit (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val r = rent.toDoubleOrNull() ?: 0.0
+                    val rt = rate.toDoubleOrNull() ?: 10.0
+                    if (roomNo.isNotBlank() && r > 0) onSave(propId, roomNo, r, rt)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+            ) { Text("Save Room") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
 fun LodgeBillDialog(
     roomNumber: String,
     tenantName: String,
@@ -1213,9 +1172,9 @@ fun LodgeBillDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                OutlinedTextField(value = month, onValueChange = { month = it }, label = { Text("Billing Cycle / Month") }, singleLine = true)
-                OutlinedTextField(value = prevReading.toString(), onValueChange = {}, label = { Text("Previous Meter Reading") }, enabled = false, singleLine = true)
-                OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("Current Meter Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(value = month, onValueChange = { month = it }, label = { Text("Billing Month") }, singleLine = true)
+                OutlinedTextField(value = prevReading.toString(), onValueChange = {}, label = { Text("Previous Reading") }, enabled = false, singleLine = true)
+                OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("Current Reading") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 OutlinedTextField(value = maintenance, onValueChange = { maintenance = it }, label = { Text("Maintenance / Other (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
 
                 Surface(color = Color(0xFFF1F5F9), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1230,7 +1189,7 @@ fun LodgeBillDialog(
             Button(
                 onClick = { onLodge(month, cur, maintenance.toDoubleOrNull() ?: 0.0) },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-            ) { Text("Create & Lodge") }
+            ) { Text("Create Bill") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
@@ -1252,11 +1211,11 @@ fun AddPropertyDialog(
         title = { Text("Add New Property", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Property Name (e.g. Skyline Residency)") }, singleLine = true)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Property Name") }, singleLine = true)
                 OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address / Area") }, singleLine = true)
                 OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text("City") }, singleLine = true)
-                OutlinedTextField(value = ownerName, onValueChange = { ownerName = it }, label = { Text("Owner / Manager Name") }, singleLine = true)
-                OutlinedTextField(value = ownerPhone, onValueChange = { ownerPhone = it }, label = { Text("Contact Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                OutlinedTextField(value = ownerName, onValueChange = { ownerName = it }, label = { Text("Owner Name") }, singleLine = true)
+                OutlinedTextField(value = ownerPhone, onValueChange = { ownerPhone = it }, label = { Text("Owner Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
             }
         },
         confirmButton = {
@@ -1264,44 +1223,6 @@ fun AddPropertyDialog(
                 onClick = { if (name.isNotBlank()) onSave(name, address, city, ownerName, ownerPhone) },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
             ) { Text("Save Property") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-fun AddRoomDialog(
-    properties: List<Property>,
-    selectedPropertyId: String?,
-    onDismiss: () -> Unit,
-    onSave: (String, String, String, Double, Double) -> Unit
-) {
-    var propId by remember { mutableStateOf(selectedPropertyId ?: properties.firstOrNull()?.id ?: "") }
-    var roomNo by remember { mutableStateOf("") }
-    var roomType by remember { mutableStateOf("1 BHK") }
-    var rent by remember { mutableStateOf("") }
-    var rate by remember { mutableStateOf("10.0") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Room / Flat Unit", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedTextField(value = roomNo, onValueChange = { roomNo = it }, label = { Text("Unit / Room No (e.g. 101, 2B)") }, singleLine = true)
-                OutlinedTextField(value = roomType, onValueChange = { roomType = it }, label = { Text("Unit Type (Room, 1 BHK, 2 BHK)") }, singleLine = true)
-                OutlinedTextField(value = rent, onValueChange = { rent = it }, label = { Text("Monthly Base Rent (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-                OutlinedTextField(value = rate, onValueChange = { rate = it }, label = { Text("Electricity Rate/Unit (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val r = rent.toDoubleOrNull() ?: 0.0
-                    val rt = rate.toDoubleOrNull() ?: 10.0
-                    if (roomNo.isNotBlank() && r > 0) onSave(propId, roomNo, roomType, r, rt)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-            ) { Text("Save Unit") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
@@ -1322,13 +1243,13 @@ fun AssignTenantDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Assign Tenant to Unit $roomNumber", fontWeight = FontWeight.Bold) },
+        title = { Text("Assign Tenant to Room $roomNumber", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tenant Full Name") }, singleLine = true)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tenant Name") }, singleLine = true)
                 OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
-                OutlinedTextField(value = aadhaar, onValueChange = { aadhaar = it }, label = { Text("Aadhaar / ID Card No") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-                OutlinedTextField(value = moveInDate, onValueChange = { moveInDate = it }, label = { Text("Move-In Date (e.g. 01 Aug 2026)") }, singleLine = true)
+                OutlinedTextField(value = aadhaar, onValueChange = { aadhaar = it }, label = { Text("Aadhaar Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(value = moveInDate, onValueChange = { moveInDate = it }, label = { Text("Move-In Date") }, singleLine = true)
                 OutlinedTextField(value = deposit, onValueChange = { deposit = it }, label = { Text("Security Deposit (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 OutlinedTextField(value = meterReading, onValueChange = { meterReading = it }, label = { Text("Initial Meter Reading (kWh)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
             }
@@ -1367,7 +1288,7 @@ fun CheckoutTenantDialog(
                 Text("Move-In Date: $moveInDate", fontSize = 12.sp, color = TextMuted)
                 Text("Lifetime Rent Collected: ${formatRupee(totalPaidSoFar)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandBlue)
                 Text("Security Deposit Paid: ${formatRupee(deposit)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(value = moveOutDate, onValueChange = { moveOutDate = it }, label = { Text("Move-Out Date (e.g. 28 Aug 2026)") }, singleLine = true)
+                OutlinedTextField(value = moveOutDate, onValueChange = { moveOutDate = it }, label = { Text("Move-Out Date") }, singleLine = true)
                 OutlinedTextField(value = refund, onValueChange = { refund = it }, label = { Text("Deposit Refund Amount (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
             }
         },
@@ -1411,4 +1332,3 @@ fun TenantDetailsModal(tenant: Tenant, onDismiss: () -> Unit) {
         }
     )
 }
-
