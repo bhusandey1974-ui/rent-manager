@@ -112,6 +112,14 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         saveDataToStorage()
     }
 
+    fun deleteRoom(roomId: String) {
+        _rooms.update { list -> list.filter { it.id != roomId } }
+        _tenants.update { list -> list.filter { it.roomId != roomId } }
+        _bills.update { list -> list.filter { it.roomId != roomId } }
+        _tenantHistory.update { list -> list.filter { it.roomId != roomId } }
+        saveDataToStorage()
+    }
+
     fun assignTenant(
         propertyId: String,
         roomId: String,
