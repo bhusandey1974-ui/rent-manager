@@ -1,6 +1,7 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.RentManager" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Startup window background set to pure clean white -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.RentManager" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Pure clean white window background for launch -->
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:statusBarColor">@android:color/white</item>
         <item name="android:windowLightStatusBar">true</item>
@@ -8,4 +9,3 @@
         <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>
-
