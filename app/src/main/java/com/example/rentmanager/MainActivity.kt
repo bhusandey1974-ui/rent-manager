@@ -46,6 +46,8 @@ val SuccessGreen = Color(0xFF10B981)
 val SuccessGreenLight = Color(0xFFD1FAE5)
 val AlertRed = Color(0xFFEF4444)
 val AlertRedLight = Color(0xFFFEE2E2)
+val WarningYellowLight = Color(0xFFFEF3C7)
+val WarningYellowDark = Color(0xFFB45309)
 val PurpleAccent = Color(0xFF7C3AED)
 val PurpleAccentLight = Color(0xFFEDE9FE)
 
@@ -83,6 +85,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     var checkoutTenantTarget by remember { mutableStateOf<Tenant?>(null) }
     var viewingHistoryRoom by remember { mutableStateOf<RoomUnit?>(null) }
     var editingRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
+    var deletingRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
     var unifiedBillTarget by remember { mutableStateOf<Pair<RoomUnit, Tenant>?>(null) }
     var standalonePaymentTarget by remember { mutableStateOf<BillRecord?>(null) }
     var viewingTenantDetails by remember { mutableStateOf<Tenant?>(null) }
@@ -240,6 +243,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                         onCheckout = { tenant -> checkoutTenantTarget = tenant },
                         onHistory = { room -> viewingHistoryRoom = room },
                         onEditRoom = { room -> editingRoomTarget = room },
+                        onDeleteRoom = { room -> deletingRoomTarget = room },
                         onUnifiedLodgeBill = { room, tenant -> unifiedBillTarget = Pair(room, tenant) },
                         onViewTenant = { tenant -> viewingTenantDetails = tenant },
                         onOpenPayment = { bill -> standalonePaymentTarget = bill }
@@ -289,6 +293,26 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
             onSave = { newNo, newRent, newRate ->
                 viewModel.editRoom(room.id, newNo, newRent, newRate)
                 editingRoomTarget = null
+            }
+        )
+    }
+
+    deletingRoomTarget?.let { room ->
+        AlertDialog(
+            onDismissRequest = { deletingRoomTarget = null },
+            title = { Text("Delete Room ${room.roomNumber}?", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure? This will permanently delete Room ${room.roomNumber}, including all of its bills, payment history, and tenant records.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteRoom(room.id)
+                        deletingRoomTarget = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) { Text("Delete Permanently") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingRoomTarget = null }) { Text("Cancel") }
             }
         )
     }
@@ -467,6 +491,7 @@ fun PropertiesRoomsTab(
     onCheckout: (Tenant) -> Unit,
     onHistory: (RoomUnit) -> Unit,
     onEditRoom: (RoomUnit) -> Unit,
+    onDeleteRoom: (RoomUnit) -> Unit,
     onUnifiedLodgeBill: (RoomUnit, Tenant) -> Unit,
     onViewTenant: (Tenant) -> Unit,
     onOpenPayment: (BillRecord) -> Unit
@@ -541,6 +566,7 @@ fun PropertiesRoomsTab(
                         onCheckout = { tenant?.let { onCheckout(it) } },
                         onHistory = { onHistory(room) },
                         onEditRoom = { onEditRoom(room) },
+                        onDeleteRoom = { onDeleteRoom(room) },
                         onUnifiedLodgeBill = { tenant?.let { onUnifiedLodgeBill(room, it) } },
                         onViewTenant = { tenant?.let { onViewTenant(it) } },
                         onOpenPayment = { latestUnpaidBill?.let { onOpenPayment(it) } }
@@ -562,6 +588,7 @@ fun RoomUnitCard(
     onCheckout: () -> Unit,
     onHistory: () -> Unit,
     onEditRoom: () -> Unit,
+    onDeleteRoom: () -> Unit,
     onUnifiedLodgeBill: () -> Unit,
     onViewTenant: () -> Unit,
     onOpenPayment: () -> Unit
@@ -593,13 +620,24 @@ fun RoomUnitCard(
                     )
                     IconButton(
                         onClick = onEditRoom,
-                        modifier = Modifier.size(28.dp).padding(start = 4.dp)
+                        modifier = Modifier.size(28.dp).padding(start = 2.dp)
                     ) {
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = "Edit Room",
                             tint = TextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDeleteRoom,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = "Delete Room",
+                            tint = AlertRed.copy(alpha = 0.7f),
+                            modifier = Modifier.size(15.dp)
                         )
                     }
                 }
@@ -660,10 +698,11 @@ fun RoomUnitCard(
                     }
                 }
 
+                // Warm Yellow Due Amount Pill
                 if (cumulativeDue > 0) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
-                        color = AlertRedLight,
+                        color = WarningYellowLight,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -673,13 +712,13 @@ fun RoomUnitCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Info, contentDescription = null, tint = WarningYellowDark, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Pending Due: ${formatRupee(cumulativeDue)}",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = AlertRed
+                                    color = WarningYellowDark
                                 )
                             }
                             if (latestUnpaidBill != null) {
@@ -781,10 +820,12 @@ fun RevenueAnalyticsTab(
     val totalDue = bills.sumOf { it.remainingDue }
     val totalInvoiced = bills.sumOf { it.totalAmount }
 
+    // Recent items displayed on top using reversed()
+    val chronologicalBills = bills.reversed()
     val filteredBills = when (ledgerFilter) {
-        "PAID" -> bills.filter { it.isPaid }
-        "UNPAID" -> bills.filter { !it.isPaid }
-        else -> bills
+        "PAID" -> chronologicalBills.filter { it.isPaid }
+        "UNPAID" -> chronologicalBills.filter { !it.isPaid }
+        else -> chronologicalBills
     }
 
     LazyColumn(
@@ -1109,68 +1150,120 @@ fun UnifiedLodgeBillDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = BrandBlue)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Lodge Bill - Room $roomNumber", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = BrandBlue, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Lodge Bill - Room $roomNumber", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                }
+                Text(
+                    text = "Tenant: $tenantName",
+                    fontSize = 12.sp,
+                    color = TextMuted,
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 440.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                OutlinedTextField(
-                    value = month,
-                    onValueChange = { month = it },
-                    label = { Text("Billing Month (Completed Month)") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = prevReading.toString(),
-                    onValueChange = {},
-                    label = { Text("Previous Reading") },
-                    enabled = false,
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = currentReading,
-                    onValueChange = { currentReading = it },
-                    label = { Text("Current Reading (Enter manually)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = maintenance,
-                    onValueChange = { maintenance = it },
-                    label = { Text("Maintenance / Other (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = month,
+                        onValueChange = { month = it },
+                        label = { Text("Billing Cycle", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1.2f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = maintenance,
+                        onValueChange = { maintenance = it },
+                        label = { Text("Maint. (₹)", fontSize = 11.sp) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(0.8f),
+                        singleLine = true
+                    )
+                }
 
-                Surface(color = Color(0xFFF1F5F9), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("Units Consumed: ${units.toInt()} units (@ ₹${electricityRate}/unit)", fontSize = 11.sp, color = TextMuted)
-                        if (pendingDueCarryover > 0) {
-                            Text("⚠️ Carried Forward Due: ${formatRupee(pendingDueCarryover)}", fontSize = 11.sp, color = AlertRed, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = prevReading.toString(),
+                        onValueChange = {},
+                        label = { Text("Prev Reading", fontSize = 11.sp) },
+                        enabled = false,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = currentReading,
+                        onValueChange = { currentReading = it },
+                        label = { Text("Current Reading", fontSize = 11.sp) },
+                        placeholder = { Text("Enter kWh", fontSize = 11.sp) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
+                Surface(
+                    color = BrandBlueLight.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Rent ₹${baseRent.toInt()} + Elec (${units.toInt()}u @ ₹${electricityRate.toInt()})",
+                                fontSize = 11.sp,
+                                color = TextDark
+                            )
+                            if (pendingDueCarryover > 0) {
+                                Text("+ Due: ₹${pendingDueCarryover.toInt()}", fontSize = 11.sp, color = AlertRed, fontWeight = FontWeight.Bold)
+                            }
                         }
-                        Text("Total Amount Due: ${formatRupee(calculatedTotal)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Total Amount Due:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                            Text(
+                                text = formatRupee(calculatedTotal),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = BrandBlue
+                            )
+                        }
                     }
                 }
 
                 OutlinedTextField(
                     value = amountPaidText,
                     onValueChange = { amountPaidText = it },
-                    label = { Text("Amount Paid Now (₹)") },
-                    placeholder = { Text("e.g. ${calculatedTotal.toInt()}") },
+                    label = { Text("Amount Paid Now (₹)", fontSize = 11.sp) },
+                    placeholder = { Text("Full or Partial (e.g. ${calculatedTotal.toInt()})", fontSize = 11.sp) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
 
-                Text("Payment Mode", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1188,10 +1281,10 @@ fun UnifiedLodgeBillDialog(
                             Text(
                                 text = mode,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSel) Color.White else TextDark,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(vertical = 6.dp)
+                                modifier = Modifier.padding(vertical = 7.dp)
                             )
                         }
                     }
@@ -1212,10 +1305,17 @@ fun UnifiedLodgeBillDialog(
                         )
                     }
                 },
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-            ) { Text("Create & Save") }
+            ) {
+                Text("Create & Save", fontWeight = FontWeight.Bold)
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextMuted)
+            }
+        }
     )
 }
 
