@@ -20,6 +20,13 @@ data class RentChangeLog(
     val newRate: Double
 )
 
+data class PaymentTransaction(
+    val id: String = UUID.randomUUID().toString(),
+    val date: String,
+    val amount: Double,
+    val paymentMode: String // "Cash", "UPI", "Bank", "Cheque"
+)
+
 data class RoomUnit(
     val id: String = UUID.randomUUID().toString(),
     val propertyId: String,
@@ -56,7 +63,9 @@ data class BillRecord(
     val maintenanceCharge: Double = 0.0,
     val previousDueCarryover: Double = 0.0,
     val amountPaid: Double = 0.0,
-    val isPaid: Boolean = false
+    val paymentMode: String = "UPI", // "Cash", "UPI", "Bank", "Cheque"
+    val isPaid: Boolean = false,
+    val paymentTransactions: List<PaymentTransaction> = emptyList()
 ) {
     val electricityUnitsUsed: Double
         get() = (currentMeterReading - prevMeterReading).coerceAtLeast(0.0)
