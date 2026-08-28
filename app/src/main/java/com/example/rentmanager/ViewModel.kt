@@ -28,6 +28,18 @@ class RentViewModel : ViewModel() {
     private val _bills = MutableStateFlow<List<BillRecord>>(emptyList())
     val bills: StateFlow<List<BillRecord>> = _bills.asStateFlow()
 
+    fun getTodayDateFormatted(): String {
+        val sdf = SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH)
+        return sdf.format(Date())
+    }
+
+    fun getPreviousMonthFormatted(): String {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.MONTH, -1)
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+        return sdf.format(cal.time)
+    }
+
     fun addProperty(
         name: String,
         address: String = "",
@@ -49,7 +61,7 @@ class RentViewModel : ViewModel() {
     fun addRoom(
         propertyId: String,
         roomNumber: String,
-        roomType: String,
+        roomType: String = "Room",
         baseRent: Double,
         rate: Double
     ) {
@@ -62,6 +74,30 @@ class RentViewModel : ViewModel() {
             isVacant = true
         )
         _rooms.update { it + room }
+    }
+
+    fun editRoom(roomId: String, newRoomNo: String, newRent: Double, newRate: Double) {
+        val currentDate = getTodayDateFormatted()
+        _rooms.update { list ->
+            list.map { room ->
+                if (room.id == roomId) {
+                    val log = RentChangeLog(
+                        dateChanged = currentDate,
+                        oldRent = room.baseRent,
+                        newRent = newRent,
+                        oldRate = room.electricityRate,
+                        newRate = newRate
+                    )
+                    val updatedLogs = room.rentChangeLogs + log
+                    room.copy(
+                        roomNumber = newRoomNo,
+                        baseRent = newRent,
+                        electricityRate = newRate,
+                        rentChangeLogs = updatedLogs
+                    )
+                } else room
+            }
+        }
     }
 
     fun assignTenant(
@@ -90,12 +126,59 @@ class RentViewModel : ViewModel() {
         }
     }
 
+    fun getCumulativePendingDue(roomId: String): Double {
+        return _bills.value
+            .filter { it.roomId == roomId && !it.isPaid }
+            .sumOf { it.remainingDue }
+    }
+
+    fun generateBill(
+        propertyId: String,
+        roomId: String,
+        tenantId: String,
+        month: String,
+        baseRent: Double,
+        prevUnit: Double,
+        curUnit: Double,
+        rate: Double,
+        maintenance: Double,
+        previousDue: Double
+    ) {
+        val bill = BillRecord(
+            propertyId = propertyId,
+            roomId = roomId,
+            tenantId = tenantId,
+            monthYear = month,
+            baseRent = baseRent,
+            prevMeterReading = prevUnit,
+            currentMeterReading = curUnit,
+            electricityRate = rate,
+            maintenanceCharge = maintenance,
+            previousDueCarryover = previousDue,
+            amountPaid = 0.0,
+            isPaid = false
+        )
+        _bills.update { it + bill }
+    }
+
+    fun recordPayment(billId: String, payingAmount: Double) {
+        _bills.update { list ->
+            list.map { bill ->
+                if (bill.id == billId) {
+                    val updatedPaid = (bill.amountPaid + payingAmount).coerceAtMost(bill.totalAmount)
+                    val paidInFull = updatedPaid >= bill.totalAmount
+                    bill.copy(amountPaid = updatedPaid, isPaid = paidInFull)
+                } else bill
+            }
+        }
+    }
+
     fun checkoutTenant(tenantId: String, moveOutDate: String, depositRefunded: Double) {
         val tenant = _tenants.value.find { it.id == tenantId } ?: return
 
         val lifetimePaid = _bills.value
-            .filter { it.tenantId == tenantId && it.isPaid }
-            .sumOf { it.totalAmount }
+            .filter { it.tenantId == tenantId }
+            .sumOf { it.amountPaid }
 
         val (formattedDuration, totalDays) = calculateDetailedDuration(tenant.moveInDate, moveOutDate)
 
@@ -163,55 +246,23 @@ class RentViewModel : ViewModel() {
         }
     }
 
-    fun generateBill(
-        propertyId: String,
-        roomId: String,
-        tenantId: String,
-        month: String,
-        baseRent: Double,
-        prevUnit: Double,
-        curUnit: Double,
-        rate: Double,
-        maintenance: Double
-    ) {
-        val bill = BillRecord(
-            propertyId = propertyId,
-            roomId = roomId,
-            tenantId = tenantId,
-            monthYear = month,
-            baseRent = baseRent,
-            prevMeterReading = prevUnit,
-            currentMeterReading = curUnit,
-            electricityRate = rate,
-            maintenanceCharge = maintenance,
-            isPaid = false
-        )
-        _bills.update { it + bill }
-    }
-
-    fun markBillPaid(billId: String) {
-        _bills.update { list ->
-            list.map { if (it.id == billId) it.copy(isPaid = true) else it }
-        }
-    }
-
     fun getWhatsAppReceiptText(bill: BillRecord, tenant: Tenant, property: Property, room: RoomUnit): String {
         return """
             🧾 *RENT INVOICE - RENT MANAGER*
             --------------------------------
             🏠 *Property:* ${property.name}
-            🚪 *Room:* ${room.roomNumber} (${room.roomType})
+            🚪 *Room:* ${room.roomNumber}
             👤 *Tenant:* ${tenant.name}
-            📅 *Month:* ${bill.monthYear}
+            📅 *Billing Cycle (Completed Month):* ${bill.monthYear}
             --------------------------------
             💵 Base Rent: ₹${bill.baseRent.toInt()}
-            ⚡ Units: ${bill.electricityUnitsUsed.toInt()} (${bill.prevMeterReading.toInt()} -> ${bill.currentMeterReading.toInt()})
+            ⚡ Units Used: ${bill.electricityUnitsUsed.toInt()} (${bill.prevMeterReading.toInt()} -> ${bill.currentMeterReading.toInt()})
             ⚡ Electricity Due: ₹${bill.electricityBill.toInt()} (@ ₹${bill.electricityRate}/unit)
-            🛠️ Maintenance: ₹${bill.maintenanceCharge.toInt()}
-            --------------------------------
-            💰 *TOTAL PAYABLE: ₹${bill.totalAmount.toInt()}*
-            Status: ${if (bill.isPaid) "PAID ✅" else "PENDING ⏳"}
-            
+            🛠️ Maintenance / Other: ₹${bill.maintenanceCharge.toInt()}
+            ${if (bill.previousDueCarryover > 0) "⚠️ Previous Unpaid Dues: ₹${bill.previousDueCarryover.toInt()}\n" else ""}--------------------------------
+            💰 *TOTAL BILL: ₹${bill.totalAmount.toInt()}*
+            💳 *AMOUNT PAID: ₹${bill.amountPaid.toInt()}*
+            ${if (bill.remainingDue > 0) "⏳ *REMAINING DUE: ₹${bill.remainingDue.toInt()}*\n" else "✅ *FULLY PAID*\n"}
             _Generated via Rent Manager_
         """.trimIndent()
     }
