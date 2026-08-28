@@ -28,13 +28,31 @@ class RentViewModel : ViewModel() {
     private val _bills = MutableStateFlow<List<BillRecord>>(emptyList())
     val bills: StateFlow<List<BillRecord>> = _bills.asStateFlow()
 
-    fun addProperty(name: String, address: String = ""): String {
-        val prop = Property(name = name, address = address)
+    fun addProperty(
+        name: String,
+        address: String = "",
+        city: String = "",
+        ownerName: String = "",
+        ownerPhone: String = ""
+    ): String {
+        val prop = Property(
+            name = name,
+            address = address,
+            city = city,
+            ownerName = ownerName,
+            ownerPhone = ownerPhone
+        )
         _properties.update { it + prop }
         return prop.id
     }
 
-    fun addRoom(propertyId: String, roomNumber: String, roomType: String, baseRent: Double, rate: Double) {
+    fun addRoom(
+        propertyId: String,
+        roomNumber: String,
+        roomType: String,
+        baseRent: Double,
+        rate: Double
+    ) {
         val room = RoomUnit(
             propertyId = propertyId,
             roomNumber = roomNumber,
@@ -75,7 +93,6 @@ class RentViewModel : ViewModel() {
     fun checkoutTenant(tenantId: String, moveOutDate: String, depositRefunded: Double) {
         val tenant = _tenants.value.find { it.id == tenantId } ?: return
 
-        // Calculate all paid collections made by this tenant in this room
         val lifetimePaid = _bills.value
             .filter { it.tenantId == tenantId && it.isPaid }
             .sumOf { it.totalAmount }
@@ -146,7 +163,17 @@ class RentViewModel : ViewModel() {
         }
     }
 
-    fun generateBill(propertyId: String, roomId: String, tenantId: String, month: String, baseRent: Double, prevUnit: Double, curUnit: Double, rate: Double, maintenance: Double) {
+    fun generateBill(
+        propertyId: String,
+        roomId: String,
+        tenantId: String,
+        month: String,
+        baseRent: Double,
+        prevUnit: Double,
+        curUnit: Double,
+        rate: Double,
+        maintenance: Double
+    ) {
         val bill = BillRecord(
             propertyId = propertyId,
             roomId = roomId,
@@ -166,5 +193,26 @@ class RentViewModel : ViewModel() {
         _bills.update { list ->
             list.map { if (it.id == billId) it.copy(isPaid = true) else it }
         }
+    }
+
+    fun getWhatsAppReceiptText(bill: BillRecord, tenant: Tenant, property: Property, room: RoomUnit): String {
+        return """
+            🧾 *RENT INVOICE - RENT MANAGER*
+            --------------------------------
+            🏠 *Property:* ${property.name}
+            🚪 *Room:* ${room.roomNumber} (${room.roomType})
+            👤 *Tenant:* ${tenant.name}
+            📅 *Month:* ${bill.monthYear}
+            --------------------------------
+            💵 Base Rent: ₹${bill.baseRent.toInt()}
+            ⚡ Units: ${bill.electricityUnitsUsed.toInt()} (${bill.prevMeterReading.toInt()} -> ${bill.currentMeterReading.toInt()})
+            ⚡ Electricity Due: ₹${bill.electricityBill.toInt()} (@ ₹${bill.electricityRate}/unit)
+            🛠️ Maintenance: ₹${bill.maintenanceCharge.toInt()}
+            --------------------------------
+            💰 *TOTAL PAYABLE: ₹${bill.totalAmount.toInt()}*
+            Status: ${if (bill.isPaid) "PAID ✅" else "PENDING ⏳"}
+            
+            _Generated via Rent Manager_
+        """.trimIndent()
     }
 }
