@@ -83,8 +83,8 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
     var checkoutTenantTarget by remember { mutableStateOf<Tenant?>(null) }
     var viewingHistoryRoom by remember { mutableStateOf<RoomUnit?>(null) }
     var editingRoomTarget by remember { mutableStateOf<RoomUnit?>(null) }
-    var billRoomTarget by remember { mutableStateOf<Pair<RoomUnit, Tenant>?>(null) }
-    var recordPaymentTarget by remember { mutableStateOf<BillRecord?>(null) }
+    var unifiedBillTarget by remember { mutableStateOf<Pair<RoomUnit, Tenant>?>(null) }
+    var standalonePaymentTarget by remember { mutableStateOf<BillRecord?>(null) }
     var viewingTenantDetails by remember { mutableStateOf<Tenant?>(null) }
 
     LaunchedEffect(properties) {
@@ -240,9 +240,9 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                         onCheckout = { tenant -> checkoutTenantTarget = tenant },
                         onHistory = { room -> viewingHistoryRoom = room },
                         onEditRoom = { room -> editingRoomTarget = room },
-                        onGenerateBill = { room, tenant -> billRoomTarget = Pair(room, tenant) },
+                        onUnifiedLodgeBill = { room, tenant -> unifiedBillTarget = Pair(room, tenant) },
                         onViewTenant = { tenant -> viewingTenantDetails = tenant },
-                        onOpenPayment = { bill -> recordPaymentTarget = bill }
+                        onOpenPayment = { bill -> standalonePaymentTarget = bill }
                     )
                 }
                 1 -> {
@@ -252,7 +252,7 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                         rooms = rooms,
                         properties = properties,
                         viewModel = viewModel,
-                        onOpenPayment = { bill -> recordPaymentTarget = bill }
+                        onOpenPayment = { bill -> standalonePaymentTarget = bill }
                     )
                 }
             }
@@ -323,21 +323,23 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
 
     viewingHistoryRoom?.let { room ->
         val historyList = tenantHistory.filter { it.roomId == room.id }
+        val roomBills = bills.filter { it.roomId == room.id }
         RoomHistoryDialog(
             roomNumber = room.roomNumber,
             history = historyList,
             rentLogs = room.rentChangeLogs,
+            roomBills = roomBills,
             onDismiss = { viewingHistoryRoom = null }
         )
     }
 
-    billRoomTarget?.let { (room, tenant) ->
+    unifiedBillTarget?.let { (room, tenant) ->
         val lastBill = bills.filter { it.roomId == room.id }.lastOrNull()
         val prevReading = lastBill?.currentMeterReading ?: tenant.initialMeterReading
         val pendingDueCarryover = viewModel.getCumulativePendingDue(room.id)
         val defaultCycle = viewModel.getPreviousMonthFormatted()
 
-        LodgeBillDialog(
+        UnifiedLodgeBillDialog(
             roomNumber = room.roomNumber,
             tenantName = tenant.name,
             defaultMonth = defaultCycle,
@@ -345,9 +347,9 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
             electricityRate = room.electricityRate,
             prevReading = prevReading,
             pendingDueCarryover = pendingDueCarryover,
-            onDismiss = { billRoomTarget = null },
-            onLodge = { month, curReading, maint ->
-                viewModel.generateBill(
+            onDismiss = { unifiedBillTarget = null },
+            onLodgeAndPay = { month, curReading, maint, payingAmount, payMode ->
+                viewModel.lodgeBillAndPayment(
                     propertyId = room.propertyId,
                     roomId = room.id,
                     tenantId = tenant.id,
@@ -357,24 +359,26 @@ fun RentManagerMainApp(viewModel: RentViewModel) {
                     curUnit = curReading,
                     rate = room.electricityRate,
                     maintenance = maint,
-                    previousDue = pendingDueCarryover
+                    previousDue = pendingDueCarryover,
+                    amountPaid = payingAmount,
+                    paymentMode = payMode
                 )
-                billRoomTarget = null
+                unifiedBillTarget = null
             }
         )
     }
 
-    recordPaymentTarget?.let { bill ->
+    standalonePaymentTarget?.let { bill ->
         val room = rooms.find { it.id == bill.roomId }
         val tenant = tenants.find { it.id == bill.tenantId }
         RecordPaymentDialog(
             bill = bill,
             roomNumber = room?.roomNumber ?: "-",
             tenantName = tenant?.name ?: "Tenant",
-            onDismiss = { recordPaymentTarget = null },
-            onConfirmPayment = { amount ->
-                viewModel.recordPayment(bill.id, amount)
-                recordPaymentTarget = null
+            onDismiss = { standalonePaymentTarget = null },
+            onConfirmPayment = { amount, payMode ->
+                viewModel.recordPayment(bill.id, amount, payMode)
+                standalonePaymentTarget = null
             }
         )
     }
@@ -463,7 +467,7 @@ fun PropertiesRoomsTab(
     onCheckout: (Tenant) -> Unit,
     onHistory: (RoomUnit) -> Unit,
     onEditRoom: (RoomUnit) -> Unit,
-    onGenerateBill: (RoomUnit, Tenant) -> Unit,
+    onUnifiedLodgeBill: (RoomUnit, Tenant) -> Unit,
     onViewTenant: (Tenant) -> Unit,
     onOpenPayment: (BillRecord) -> Unit
 ) {
@@ -537,7 +541,7 @@ fun PropertiesRoomsTab(
                         onCheckout = { tenant?.let { onCheckout(it) } },
                         onHistory = { onHistory(room) },
                         onEditRoom = { onEditRoom(room) },
-                        onGenerateBill = { tenant?.let { onGenerateBill(room, it) } },
+                        onUnifiedLodgeBill = { tenant?.let { onUnifiedLodgeBill(room, it) } },
                         onViewTenant = { tenant?.let { onViewTenant(it) } },
                         onOpenPayment = { latestUnpaidBill?.let { onOpenPayment(it) } }
                     )
@@ -558,7 +562,7 @@ fun RoomUnitCard(
     onCheckout: () -> Unit,
     onHistory: () -> Unit,
     onEditRoom: () -> Unit,
-    onGenerateBill: () -> Unit,
+    onUnifiedLodgeBill: () -> Unit,
     onViewTenant: () -> Unit,
     onOpenPayment: () -> Unit
 ) {
@@ -735,7 +739,7 @@ fun RoomUnitCard(
                     }
                 } else {
                     Button(
-                        onClick = onGenerateBill,
+                        onClick = onUnifiedLodgeBill,
                         modifier = Modifier.weight(1.2f),
                         colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
                         shape = RoundedCornerShape(10.dp),
@@ -963,7 +967,7 @@ fun RevenueAnalyticsTab(
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
-                                    text = if (bill.isPaid) "PAID ✅" else "DUE: ${formatRupee(bill.remainingDue)}",
+                                    text = if (bill.isPaid) "PAID ✅ (${bill.paymentMode})" else "DUE: ${formatRupee(bill.remainingDue)}",
                                     color = if (bill.isPaid) SuccessGreen else AlertRed,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp,
@@ -994,7 +998,7 @@ fun RevenueAnalyticsTab(
                                     color = BrandBlue
                                 )
                                 Text(
-                                    text = "Paid: ${formatRupee(bill.amountPaid)}",
+                                    text = "Paid: ${formatRupee(bill.amountPaid)} (${bill.paymentMode})",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = SuccessGreen
@@ -1035,7 +1039,7 @@ fun RevenueAnalyticsTab(
                                     shape = RoundedCornerShape(8.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
-                                    Text("Record Payment", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("Pay Remaining", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -1080,102 +1084,7 @@ fun MetricSmallCard(modifier: Modifier = Modifier, label: String, value: String,
     }
 }
 @Composable
-fun RecordPaymentDialog(
-    bill: BillRecord,
-    roomNumber: String,
-    tenantName: String,
-    onDismiss: () -> Unit,
-    onConfirmPayment: (Double) -> Unit
-) {
-    var amountText by remember { mutableStateOf(bill.remainingDue.toInt().toString()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Record Payment - Room $roomNumber", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text("Total Bill: ${formatRupee(bill.totalAmount)}", fontSize = 12.sp, color = TextMuted)
-                Text("Already Paid: ${formatRupee(bill.amountPaid)}", fontSize = 12.sp, color = SuccessGreen)
-                Text("Remaining Due: ${formatRupee(bill.remainingDue)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AlertRed)
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text("Enter Amount Paying Now (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val paying = amountText.toDoubleOrNull() ?: 0.0
-                    if (paying > 0) onConfirmPayment(paying)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
-            ) {
-                Text("Save Payment")
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-fun EditRoomDialog(
-    room: RoomUnit,
-    onDismiss: () -> Unit,
-    onSave: (String, Double, Double) -> Unit
-) {
-    var roomNo by remember { mutableStateOf(room.roomNumber) }
-    var rent by remember { mutableStateOf(room.baseRent.toInt().toString()) }
-    var rate by remember { mutableStateOf(room.electricityRate.toString()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedTextField(
-                    value = roomNo,
-                    onValueChange = { roomNo = it },
-                    label = { Text("Room No") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = rent,
-                    onValueChange = { rent = it },
-                    label = { Text("Monthly Rent (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = rate,
-                    onValueChange = { rate = it },
-                    label = { Text("Electricity Rate/Unit (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val r = rent.toDoubleOrNull() ?: room.baseRent
-                    val rt = rate.toDoubleOrNull() ?: room.electricityRate
-                    if (roomNo.isNotBlank()) onSave(roomNo, r, rt)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-            ) { Text("Save & Log Changes") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-fun LodgeBillDialog(
+fun UnifiedLodgeBillDialog(
     roomNumber: String,
     tenantName: String,
     defaultMonth: String,
@@ -1184,16 +1093,18 @@ fun LodgeBillDialog(
     prevReading: Double,
     pendingDueCarryover: Double,
     onDismiss: () -> Unit,
-    onLodge: (String, Double, Double) -> Unit
+    onLodgeAndPay: (String, Double, Double, Double, String) -> Unit
 ) {
     var month by remember { mutableStateOf(defaultMonth) }
     var currentReading by remember { mutableStateOf("") }
     var maintenance by remember { mutableStateOf("0") }
+    var amountPaidText by remember { mutableStateOf("") }
+    var selectedPaymentMode by remember { mutableStateOf("UPI") }
 
     val cur = currentReading.toDoubleOrNull() ?: prevReading
     val units = (cur - prevReading).coerceAtLeast(0.0)
     val elecCost = units * electricityRate
-    val total = baseRent + elecCost + (maintenance.toDoubleOrNull() ?: 0.0) + pendingDueCarryover
+    val calculatedTotal = baseRent + elecCost + (maintenance.toDoubleOrNull() ?: 0.0) + pendingDueCarryover
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1205,7 +1116,12 @@ fun LodgeBillDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 440.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 OutlinedTextField(
                     value = month,
@@ -1241,7 +1157,43 @@ fun LodgeBillDialog(
                         if (pendingDueCarryover > 0) {
                             Text("⚠️ Carried Forward Due: ${formatRupee(pendingDueCarryover)}", fontSize = 11.sp, color = AlertRed, fontWeight = FontWeight.Bold)
                         }
-                        Text("Total Amount Due: ${formatRupee(total)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue)
+                        Text("Total Amount Due: ${formatRupee(calculatedTotal)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue)
+                    }
+                }
+
+                OutlinedTextField(
+                    value = amountPaidText,
+                    onValueChange = { amountPaidText = it },
+                    label = { Text("Amount Paid Now (₹)") },
+                    placeholder = { Text("e.g. ${calculatedTotal.toInt()}") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                Text("Payment Mode", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("Cash", "UPI", "Bank", "Cheque").forEach { mode ->
+                        val isSel = selectedPaymentMode == mode
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedPaymentMode = mode },
+                            color = if (isSel) BrandBlue else Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = mode,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) Color.White else TextDark,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1250,21 +1202,100 @@ fun LodgeBillDialog(
             Button(
                 onClick = {
                     if (currentReading.isNotBlank()) {
-                        onLodge(month, cur, maintenance.toDoubleOrNull() ?: 0.0)
+                        val paying = amountPaidText.toDoubleOrNull() ?: 0.0
+                        onLodgeAndPay(
+                            month,
+                            cur,
+                            maintenance.toDoubleOrNull() ?: 0.0,
+                            paying,
+                            selectedPaymentMode
+                        )
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-            ) { Text("Create Bill") }
+            ) { Text("Create & Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
 @Composable
+fun RecordPaymentDialog(
+    bill: BillRecord,
+    roomNumber: String,
+    tenantName: String,
+    onDismiss: () -> Unit,
+    onConfirmPayment: (Double, String) -> Unit
+) {
+    var amountText by remember { mutableStateOf(bill.remainingDue.toInt().toString()) }
+    var selectedPaymentMode by remember { mutableStateOf("UPI") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record Payment - Room $roomNumber", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tenant: $tenantName", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Total Bill: ${formatRupee(bill.totalAmount)}", fontSize = 12.sp, color = TextMuted)
+                Text("Already Paid: ${formatRupee(bill.amountPaid)}", fontSize = 12.sp, color = SuccessGreen)
+                Text("Remaining Due: ${formatRupee(bill.remainingDue)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Enter Amount Paying Now (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                Text("Payment Mode", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("Cash", "UPI", "Bank", "Cheque").forEach { mode ->
+                        val isSel = selectedPaymentMode == mode
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedPaymentMode = mode },
+                            color = if (isSel) SuccessGreen else Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = mode,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) Color.White else TextDark,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val paying = amountText.toDoubleOrNull() ?: 0.0
+                    if (paying > 0) onConfirmPayment(paying, selectedPaymentMode)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+            ) {
+                Text("Save Payment")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+@Composable
 fun RoomHistoryDialog(
     roomNumber: String,
     history: List<TenantHistoryRecord>,
     rentLogs: List<RentChangeLog>,
+    roomBills: List<BillRecord>,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -1273,7 +1304,7 @@ fun RoomHistoryDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.History, contentDescription = null, tint = BrandBlue)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Room $roomNumber Stay & Rent Logs", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("Room $roomNumber History & Payment Logs", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         },
         text = {
@@ -1281,8 +1312,34 @@ fun RoomHistoryDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 400.dp)
+                    .heightIn(max = 420.dp)
             ) {
+                if (roomBills.any { it.paymentTransactions.isNotEmpty() }) {
+                    item {
+                        Text("Payment Transactions Log", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextDark)
+                    }
+                    items(roomBills.flatMap { it.paymentTransactions }) { tx ->
+                        Surface(
+                            color = SuccessGreenLight,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Paid: ${formatRupee(tx.amount)} via ${tx.paymentMode}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                                    Text(tx.date, fontSize = 10.sp, color = TextMuted)
+                                }
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                    item { Divider(modifier = Modifier.padding(vertical = 4.dp)) }
+                }
+
                 if (rentLogs.isNotEmpty()) {
                     item {
                         Text("Rent Revision Log", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextDark)
@@ -1350,6 +1407,58 @@ fun RoomHistoryDialog(
         }
     )
 }
+
+@Composable
+fun EditRoomDialog(
+    room: RoomUnit,
+    onDismiss: () -> Unit,
+    onSave: (String, Double, Double) -> Unit
+) {
+    var roomNo by remember { mutableStateOf(room.roomNumber) }
+    var rent by remember { mutableStateOf(room.baseRent.toInt().toString()) }
+    var rate by remember { mutableStateOf(room.electricityRate.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = roomNo,
+                    onValueChange = { roomNo = it },
+                    label = { Text("Room No") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rent,
+                    onValueChange = { rent = it },
+                    label = { Text("Monthly Rent (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Electricity Rate/Unit (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val r = rent.toDoubleOrNull() ?: room.baseRent
+                    val rt = rate.toDoubleOrNull() ?: room.electricityRate
+                    if (roomNo.isNotBlank()) onSave(roomNo, r, rt)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+            ) { Text("Save & Log Changes") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
 @Composable
 fun AddRoomDialog(
     properties: List<Property>,
