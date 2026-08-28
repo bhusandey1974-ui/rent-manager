@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "527554410861",
+    "project_id": "rentmanager-d4d64",
+    "storage_bucket": "rentmanager-d4d64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:527554410861:android:c0621606d29d9c413d4264",
+        "android_client_info": {
+          "package_name": "com.example.rentmanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDW2MDeB6hnKrMmsAysUVolPRSJZy2A91A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
