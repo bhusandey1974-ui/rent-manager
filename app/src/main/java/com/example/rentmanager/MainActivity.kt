@@ -244,7 +244,7 @@ fun PropertiesRoomsTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 48.dp, horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
                         imageVector = Icons.Default.Apartment,
