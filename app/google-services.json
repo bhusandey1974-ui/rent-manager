@@ -12,7 +12,12 @@
           "package_name": "com.example.rentmanager"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "527554410861-81m4ukk2eg1dqu3ug08kdbsfsa99ct0e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDW2MDeB6hnKrMmsAysUVolPRSJZy2A91A"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "527554410861-81m4ukk2eg1dqu3ug08kdbsfsa99ct0e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
