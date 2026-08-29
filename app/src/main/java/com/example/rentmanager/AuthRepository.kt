@@ -31,7 +31,7 @@ class AuthRepository {
     // --- GOOGLE SIGN-IN ---
     fun getGoogleSignInClient(activity: Activity, webClientId: String): GoogleSignInClient {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(webClientId)
+            .requestIdToken(webClientId.ifBlank { "default" })
             .requestEmail()
             .build()
         return GoogleSignIn.getClient(activity, gso)
@@ -61,34 +61,46 @@ class AuthRepository {
         }
     }
 
-    // --- PHONE OTP SIGN-IN ---
+    // --- PHONE OTP SIGN-IN (CRASH-PROOF FORMATTING) ---
     fun sendOtp(
         phoneNumber: String,
         activity: Activity,
         onCodeSent: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val formattedNumber = if (phoneNumber.startsWith("+")) phoneNumber else "+91$phoneNumber"
-        val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(formattedNumber)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(activity)
-            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    signInWithPhoneAuthCredential(credential, {}, onError)
-                }
+        try {
+            val digitsOnly = phoneNumber.filter { it.isDigit() }
+            val cleanNumber = if (digitsOnly.length == 10) {
+                "+91$digitsOnly"
+            } else if (digitsOnly.length > 10 && digitsOnly.startsWith("91")) {
+                "+$digitsOnly"
+            } else {
+                "+$digitsOnly"
+            }
 
-                override fun onVerificationFailed(e: FirebaseException) {
-                    onError(e.localizedMessage ?: "OTP Verification Failed")
-                }
+            val options = PhoneAuthOptions.newBuilder(auth)
+                .setPhoneNumber(cleanNumber)
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setActivity(activity)
+                .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                    override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                        signInWithPhoneAuthCredential(credential, {}, onError)
+                    }
 
-                override fun onCodeSent(vId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    verificationId = vId
-                    onCodeSent()
-                }
-            })
-            .build()
-        PhoneAuthProvider.verifyPhoneNumber(options)
+                    override fun onVerificationFailed(e: FirebaseException) {
+                        onError(e.localizedMessage ?: "OTP Verification Failed")
+                    }
+
+                    override fun onCodeSent(vId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                        verificationId = vId
+                        onCodeSent()
+                    }
+                })
+                .build()
+            PhoneAuthProvider.verifyPhoneNumber(options)
+        } catch (e: Exception) {
+            onError(e.localizedMessage ?: "Failed to initiate phone verification")
+        }
     }
 
     fun verifyOtp(otp: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -118,4 +130,3 @@ class AuthRepository {
         _currentUser.value = null
     }
 }
-
