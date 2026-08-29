@@ -221,7 +221,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                     prevUnit = prevReading,
                     curUnit = curReading,
                     rate = room.electricityRate,
-                    maintenanceCharge = maint,
+                    maintenance = maint,
                     previousDue = pendingDue,
                     amountPaid = paid,
                     paymentMode = mode
@@ -466,4 +466,3 @@ fun RoomCard(
         }
     }
 }
-
