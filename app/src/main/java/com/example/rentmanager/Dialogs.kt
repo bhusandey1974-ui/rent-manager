@@ -14,6 +14,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val DlgBlue = Color(0xFF0284C7)
+private val DlgDark = Color(0xFF1E293B)
+private val DlgMuted = Color(0xFF94A3B8)
+private val DlgGreen = Color(0xFF10B981)
+private val DlgRed = Color(0xFFEF4444)
+
 @Composable
 fun AddRoomDialog(
     onDismiss: () -> Unit,
@@ -25,7 +31,7 @@ fun AddRoomDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Room", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark) },
+        title = { Text("Add Room", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = DlgDark) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -63,14 +69,14 @@ fun AddRoomDialog(
                     }
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
             ) {
                 Text("Save Room", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
+                Text("Cancel", color = DlgMuted)
             }
         }
     )
@@ -92,7 +98,7 @@ fun AssignTenantDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Assign Tenant to Room ${room.roomNumber}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark) },
+        title = { Text("Assign Tenant to Room ${room.roomNumber}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = DlgDark) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -155,14 +161,14 @@ fun AssignTenantDialog(
                     }
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
             ) {
                 Text("Assign Tenant", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
+                Text("Cancel", color = DlgMuted)
             }
         }
     )
@@ -191,7 +197,7 @@ fun GenerateBillDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Lodge Bill - Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Lodge Bill - Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = DlgDark) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -204,8 +210,8 @@ fun GenerateBillDialog(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Base Rent: ₹${room.baseRent}", fontWeight = FontWeight.Bold, color = TextDark, fontSize = 13.sp)
-                Text("Previous Reading: $prevReading kWh", color = TextMuted, fontSize = 12.sp)
+                Text("Base Rent: ₹${room.baseRent}", fontWeight = FontWeight.Bold, color = DlgDark, fontSize = 13.sp)
+                Text("Previous Reading: $prevReading kWh", color = DlgMuted, fontSize = 12.sp)
 
                 OutlinedTextField(
                     value = curReadingStr,
@@ -215,7 +221,7 @@ fun GenerateBillDialog(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Units: $units = ₹${"%.2f".format(elecCharge)} (@ ₹${room.electricityRate}/unit)", fontSize = 12.sp, color = BluePrimary)
+                Text("Units: $units = ₹${"%.2f".format(elecCharge)} (@ ₹${room.electricityRate}/unit)", fontSize = 12.sp, color = DlgBlue)
 
                 OutlinedTextField(
                     value = maintStr,
@@ -227,7 +233,7 @@ fun GenerateBillDialog(
                 )
 
                 if (previousDue > 0) {
-                    Text("Previous Overdue: ₹$previousDue", color = RedDanger, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Previous Overdue: ₹$previousDue", color = DlgRed, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
 
                 Surface(
@@ -239,8 +245,8 @@ fun GenerateBillDialog(
                         modifier = Modifier.padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total Payable:", fontWeight = FontWeight.Bold, color = TextDark)
-                        Text("₹${"%,.2f".format(totalBill)}", fontWeight = FontWeight.ExtraBold, color = BluePrimary)
+                        Text("Total Payable:", fontWeight = FontWeight.Bold, color = DlgDark)
+                        Text("₹${"%,.2f".format(totalBill)}", fontWeight = FontWeight.ExtraBold, color = DlgBlue)
                     }
                 }
 
@@ -264,14 +270,14 @@ fun GenerateBillDialog(
                     }
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
             ) {
                 Text("Save & Open WhatsApp", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
+                Text("Cancel", color = DlgMuted)
             }
         }
     )
@@ -289,7 +295,7 @@ fun EditRoomDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = DlgDark) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -325,14 +331,14 @@ fun EditRoomDialog(
                     onConfirm(roomNum, r, e)
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
             ) {
                 Text("Save Changes", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
+                Text("Cancel", color = DlgMuted)
             }
         }
     )
@@ -350,10 +356,10 @@ fun CheckoutTenantDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Vacate Tenant: ${tenant.name}", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Vacate Tenant: ${tenant.name}", fontWeight = FontWeight.Bold, color = DlgDark) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Security Deposit: ₹${tenant.securityDeposit}", color = TextDark, fontWeight = FontWeight.Bold)
+                Text("Security Deposit: ₹${tenant.securityDeposit}", color = DlgDark, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
                     value = checkoutDate,
                     onValueChange = { checkoutDate = it },
@@ -378,14 +384,14 @@ fun CheckoutTenantDialog(
                     onConfirm(checkoutDate, refund)
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RedDanger)
+                colors = ButtonDefaults.buttonColors(containerColor = DlgRed)
             ) {
                 Text("Confirm Vacate", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
+                Text("Cancel", color = DlgMuted)
             }
         }
     )
@@ -404,7 +410,7 @@ fun AddPropertyDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Property", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Add Property", fontWeight = FontWeight.Bold, color = DlgDark) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -456,14 +462,14 @@ fun AddPropertyDialog(
                     }
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
             ) {
                 Text("Save Property", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
+                Text("Cancel", color = DlgMuted)
             }
         }
     )
@@ -477,16 +483,17 @@ fun RoomHistoryDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, color = DlgDark) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (bills.isEmpty()) {
-                    Text("No billing history found for this room.", color = TextMuted, fontSize = 13.sp)
+                    Text("No billing history found for this room.", color = DlgMuted, fontSize = 13.sp)
                 } else {
                     bills.reversed().forEach { bill ->
+                        val units = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
                         Card(
                             shape = RoundedCornerShape(10.dp),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
@@ -498,9 +505,9 @@ fun RoomHistoryDialog(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(bill.monthYear, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text("Paid: ₹${bill.amountPaid}", color = GreenSuccess, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("Paid: ₹${bill.amountPaid}", color = DlgGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
-                                Text("Units: ${bill.unitsConsumed} (Total: ₹${bill.totalBillAmount})", fontSize = 12.sp, color = TextMuted)
+                                Text("Units: $units (Total: ₹${bill.totalBillAmount})", fontSize = 12.sp, color = DlgMuted)
                             }
                         }
                     }
@@ -508,7 +515,7 @@ fun RoomHistoryDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)) {
+            Button(onClick = onDismiss, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)) {
                 Text("Close")
             }
         }
