@@ -3,6 +3,8 @@ package com.example.rentmanager
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,11 +18,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+// Clean Modern Theme Colors
+val BluePrimary = Color(0xFF0088FF)
+val BlueGradientStart = Color(0xFF1EAEFF)
+val BlueGradientEnd = Color(0xFF007AEB)
+val AppBg = Color(0xFFFBFDFF)
+val CardBorder = Color(0xFFEDF2F7)
+val TextDark = Color(0xFF1E293B)
+val TextMuted = Color(0xFF94A3B8)
+val GreenSuccess = Color(0xFF10B981)
+val RedDanger = Color(0xFFEF4444)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,10 +45,9 @@ fun RentManagerMainApp(vm: RentViewModel) {
     val rooms by vm.rooms.collectAsState()
     val tenants by vm.tenants.collectAsState()
     val bills by vm.bills.collectAsState()
-    val history by vm.tenantHistory.collectAsState()
 
     var selectedPropertyId by remember { mutableStateOf<String?>(null) }
-    var currentTab by remember { mutableIntStateOf(0) }
+    var currentTab by remember { mutableIntStateOf(0) } // 0: Properties, 1: Revenue
 
     var showAddPropertyDialog by remember { mutableStateOf(false) }
     var showAddRoomDialog by remember { mutableStateOf(false) }
@@ -50,68 +64,117 @@ fun RentManagerMainApp(vm: RentViewModel) {
 
     val currentProperty = properties.find { it.id == selectedPropertyId }
     val currentRooms = rooms.filter { it.propertyId == selectedPropertyId }
+    val currentTenants = tenants.filter { it.propertyId == selectedPropertyId }
+    val currentBills = bills.filter { it.propertyId == selectedPropertyId }
 
     Scaffold(
+        containerColor = AppBg,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = currentProperty?.name ?: "Rent Manager",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color.White
-                        )
-                        if (currentProperty != null && currentProperty.city.isNotBlank()) {
+            Surface(
+                color = Color.White,
+                shadowElevation = 0.5.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(BluePrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Apartment,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
                             Text(
-                                text = "${currentProperty.address}, ${currentProperty.city}",
-                                fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.8f)
+                                text = if (currentTab == 0) (currentProperty?.name ?: "Rent Manager") else "Revenue & Analytics",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                            Text(
+                                text = if (currentTab == 0) "${currentRooms.size} Units Registered" else "Lifetime Ledger",
+                                fontSize = 13.sp,
+                                color = TextMuted
                             )
                         }
                     }
-                },
-                actions = {
-                    IconButton(onClick = { showAddPropertyDialog = true }) {
-                        Icon(Icons.Default.AddHome, contentDescription = "Add Property", tint = Color.White)
+
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE0F2FE))
+                            .clickable { showAddPropertyDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DomainAdd,
+                            contentDescription = "Add Property",
+                            tint = BluePrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
-                    IconButton(onClick = { vm.authRepo.signOut() }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Logout", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BrandBlueDark)
-            )
+                }
+            }
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(
-                    selected = currentTab == 0,
-                    onClick = { currentTab = 0 },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Rooms") },
-                    label = { Text("Rooms") }
-                )
-                NavigationBarItem(
-                    selected = currentTab == 1,
-                    onClick = { currentTab = 1 },
-                    icon = { Icon(Icons.Default.History, contentDescription = "History") },
-                    label = { Text("History") }
-                )
-                NavigationBarItem(
-                    selected = currentTab == 2,
-                    onClick = { currentTab = 2 },
-                    icon = { Icon(Icons.Default.Analytics, contentDescription = "Summary") },
-                    label = { Text("Summary") }
-                )
+            Surface(
+                color = Color.White,
+                shadowElevation = 10.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BottomNavTab(
+                        selected = currentTab == 0,
+                        label = "Properties",
+                        icon = Icons.Default.Apartment,
+                        onClick = { currentTab = 0 }
+                    )
+                    BottomNavTab(
+                        selected = currentTab == 1,
+                        label = "Revenue",
+                        icon = Icons.Default.AutoGraph,
+                        onClick = { currentTab = 1 }
+                    )
+                }
             }
         },
         floatingActionButton = {
-            if (currentTab == 0 && selectedPropertyId != null) {
+            if (currentTab == 0) {
                 FloatingActionButton(
-                    onClick = { showAddRoomDialog = true },
-                    containerColor = BrandBlue,
-                    contentColor = Color.White
+                    onClick = {
+                        if (properties.isEmpty()) {
+                            showAddPropertyDialog = true
+                        } else {
+                            showAddRoomDialog = true
+                        }
+                    },
+                    containerColor = BluePrimary,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(60.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Room")
+                    Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(32.dp))
                 }
             }
         }
@@ -120,42 +183,195 @@ fun RentManagerMainApp(vm: RentViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(PageBackground)
+                .background(AppBg)
         ) {
-            if (properties.isEmpty()) {
-                EmptyStateView(
-                    title = "No Properties Added",
-                    subtitle = "Tap the button below to add your first property or building.",
-                    buttonText = "Add Property",
-                    onAction = { showAddPropertyDialog = true }
-                )
-            } else {
-                when (currentTab) {
-                    0 -> RoomsDashboardView(
-                        properties = properties,
-                        selectedPropertyId = selectedPropertyId,
-                        rooms = currentRooms,
-                        tenants = tenants,
-                        bills = bills,
-                        onSelectProperty = { selectedPropertyId = it },
-                        onAssignTenant = { showAssignTenantDialog = it },
-                        onGenerateBill = { room, tenant -> showBillDialog = Pair(room, tenant) },
-                        onEditRoom = { showEditRoomDialog = it },
-                        onDeleteRoom = { vm.deleteRoom(it.id) },
-                        onCheckout = { showCheckoutDialog = it }
-                    )
-                    1 -> HistoryView(history = history.filter { it.propertyId == selectedPropertyId })
-                    2 -> SummaryAnalyticsView(
-                        rooms = currentRooms,
-                        tenants = tenants.filter { it.propertyId == selectedPropertyId },
-                        bills = bills.filter { it.propertyId == selectedPropertyId }
-                    )
-                }
-            }
-        }
-    }
+            when (currentTab) {
+                0 -> {
+                    if (currentRooms.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp, vertical = 24.dp),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, CardBorder),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 40.dp, horizontal = 24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(76.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFE0F2FE)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MeetingRoom,
+                                            contentDescription = null,
+                                            tint = BluePrimary,
+                                            modifier = Modifier.size(38.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(20.dp))
+                                    Text(
+                                        text = "No rooms added yet",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Tap + to add your first room.",
+                                        fontSize = 13.sp,
+                                        color = TextMuted,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            if (properties.size > 1) {
+                                item {
+                                    ScrollableTabRow(
+                                        selectedTabIndex = properties.indexOfFirst { it.id == selectedPropertyId }.coerceAtLeast(0),
+                                        edgePadding = 0.dp,
+                                        divider = {},
+                                        containerColor = Color.Transparent
+                                    ) {
+                                        properties.forEach { prop ->
+                                            Tab(
+                                                selected = prop.id == selectedPropertyId,
+                                                onClick = { selectedPropertyId = prop.id },
+                                                text = { Text(prop.name, fontWeight = FontWeight.Bold) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
 
-    if (showAddPropertyDialog) {
+                            items(currentRooms) { room ->
+                                val tenant = tenants.find { it.roomId == room.id }
+                                val latestBill = bills.filter { it.roomId == room.id }.maxByOrNull { it.id }
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    border = BorderStroke(1.dp, CardBorder)
+                                ) {
+                                    Column(modifier = Modifier.padding(18.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(10.dp)
+                                                        .clip(CircleShape)
+                                                        .background(if (room.isVacant) Color(0xFFCBD5E1) else GreenSuccess)
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Text(
+                                                    text = "${room.roomType} ${room.roomNumber}",
+                                                    fontSize = 17.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = TextDark
+                                                )
+                                            }
+
+                                            Row {
+                                                IconButton(onClick = { showEditRoomDialog = room }, modifier = Modifier.size(32.dp)) {
+                                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextMuted, modifier = Modifier.size(17.dp))
+                                                }
+                                                if (room.isVacant) {
+                                                    IconButton(onClick = { vm.deleteRoom(room.id) }, modifier = Modifier.size(32.dp)) {
+                                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = RedDanger, modifier = Modifier.size(17.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("Rent: ₹${room.baseRent}", fontSize = 13.sp, color = TextMuted)
+                                            Text("Elec: ₹${room.electricityRate}/unit", fontSize = 13.sp, color = TextMuted)
+                                        }
+
+                                        Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = CardBorder)
+
+                                        if (tenant != null) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column {
+                                                    Text(tenant.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark)
+                                                    Text("📞 ${tenant.phone}", fontSize = 12.sp, color = TextMuted)
+                                                }
+
+                                                if (latestBill != null && latestBill.remainingDue > 0) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        color = RedDanger.copy(alpha = 0.1f)
+                                                    ) {
+                                                        Text(
+                                                            text = "Due: ₹${latestBill.remainingDue}",
+                                                            color = RedDanger,
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 12.sp,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(14.dp))
+
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Button(
+                                                    onClick = { showBillDialog = Pair(room, tenant) },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                                                ) {
+                                                    Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Bill & Receipt", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                                }
+
+                                                OutlinedButton(
+                                                    onClick = { showCheckoutDialog = tenant },
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    border = BorderStroke(1.dp, RedDanger)
+                                                ) {
+                                                    Text("Checkout", color = RedDanger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                                }
+                                            }
+                                        } else {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                          if (showAddPropertyDialog) {
         AddPropertyDialog(
             onDismiss = { showAddPropertyDialog = false },
             onConfirm = { name, address, city, owner, phone ->
@@ -262,207 +478,335 @@ fun RentManagerMainApp(vm: RentViewModel) {
 }
 
 @Composable
-fun RoomsDashboardView(
-    properties: List<Property>,
-    selectedPropertyId: String?,
+fun BottomNavTab(
+    selected: Boolean,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 24.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 62.dp, height = 32.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (selected) Color(0xFFE0F2FE) else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (selected) BluePrimary else TextMuted,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) BluePrimary else TextMuted
+        )
+    }
+}
+@Composable
+fun RevenueView(
+    bills: List<BillRecord>,
     rooms: List<RoomUnit>,
     tenants: List<Tenant>,
-    bills: List<BillRecord>,
-    onSelectProperty: (String) -> Unit,
-    onAssignTenant: (RoomUnit) -> Unit,
-    onGenerateBill: (RoomUnit, Tenant) -> Unit,
-    onEditRoom: (RoomUnit) -> Unit,
-    onDeleteRoom: (RoomUnit) -> Unit,
-    onCheckout: (Tenant) -> Unit
+    property: Property,
+    onShareWhatsApp: (BillRecord, Tenant, RoomUnit) -> Unit
 ) {
+    var ledgerFilter by remember { mutableStateOf("All") }
+
+    val totalCollected = bills.sumOf { it.amountPaid }
+    val totalRent = bills.sumOf { it.baseRent }
+    val totalElec = bills.sumOf { it.totalElectricityCharge }
+    val totalDue = bills.sumOf { it.remainingDue }
+
+    val filteredBills = remember(bills, ledgerFilter) {
+        when (ledgerFilter) {
+            "Paid" -> bills.filter { it.remainingDue <= 0 }
+            "Pending" -> bills.filter { it.remainingDue > 0 }
+            else -> bills
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Lifetime Revenue Blue Gradient Card
         item {
-            ScrollableTabRow(
-                selectedTabIndex = properties.indexOfFirst { it.id == selectedPropertyId }.coerceAtLeast(0),
-                edgePadding = 0.dp,
-                divider = {},
-                containerColor = Color.Transparent
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                properties.forEach { prop ->
-                    Tab(
-                        selected = prop.id == selectedPropertyId,
-                        onClick = { onSelectProperty(prop.id) },
-                        text = { Text(prop.name, fontWeight = FontWeight.Bold) }
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(BlueGradientStart, BlueGradientEnd)
+                            )
+                        )
+                        .padding(22.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "LIFETIME REVENUE COLLECTION",
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.8.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Default.AutoGraph,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "₹${"%.2f".format(totalCollected)}",
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Rent Earnings", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("₹${"%.2f".format(totalRent)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Column {
+                                Text("Electricity", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("₹${"%.2f".format(totalElec)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Column {
+                                Text("Total Due", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("₹${"%.2f".format(totalDue)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        if (rooms.isEmpty()) {
+        // Current Year Breakdown Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Current Year Breakdown (2026)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = TextDark
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFEDE9FE)
+                        ) {
+                            Text(
+                                text = "Live",
+                                color = Color(0xFF7C3AED),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        YearStatBox(modifier = Modifier.weight(1f), label = "Base Rent Billed", value = "₹${"%.2f".format(totalRent)}", valueColor = TextDark)
+                        YearStatBox(modifier = Modifier.weight(1f), label = "Electricity Charges", value = "₹${"%.2f".format(totalElec)}", valueColor = BluePrimary)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        YearStatBox(modifier = Modifier.weight(1f), label = "Total Invoiced", value = "₹${"%.2f".format(totalRent + totalElec)}", valueColor = BluePrimary)
+                        YearStatBox(modifier = Modifier.weight(1f), label = "Collected", value = "₹${"%.2f".format(totalCollected)}", valueColor = GreenSuccess)
+                    }
+                }
+            }
+        }
+
+        // Ledger Header with Filter Chips
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Billing Ledger (${filteredBills.size})",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("All", "Paid", "Pending").forEach { filter ->
+                        val isSelected = ledgerFilter == filter
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) BluePrimary else Color(0xFFF1F5F9))
+                                .clickable { ledgerFilter = filter }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = filter,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else TextDark
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Payment History: Newest paid bill appears on top
+        if (filteredBills.isEmpty()) {
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(16.dp)
+                    border = BorderStroke(1.dp, CardBorder)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.MeetingRoom, contentDescription = null, tint = TextMuted, modifier = Modifier.size(48.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("No rooms added in this property.", fontWeight = FontWeight.Bold, color = TextDark)
-                        Text("Tap the '+' button below to add your first room.", fontSize = 12.sp, color = TextMuted)
+                        Text(
+                            text = "No billing entries found.",
+                            color = TextMuted,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
         } else {
-            items(rooms) { room ->
-                val tenant = tenants.find { it.roomId == room.id }
-                val latestBill = bills.filter { it.roomId == room.id }.maxByOrNull { it.id }
+            items(filteredBills.reversed()) { bill ->
+                val room = rooms.find { it.id == bill.roomId }
+                val tenant = tenants.find { it.id == bill.tenantId }
 
-                RoomCard(
-                    room = room,
-                    tenant = tenant,
-                    latestBill = latestBill,
-                    onAssignTenant = { onAssignTenant(room) },
-                    onGenerateBill = { tenant?.let { onGenerateBill(room, it) } },
-                    onEditRoom = { onEditRoom(room) },
-                    onDeleteRoom = { onDeleteRoom(room) },
-                    onCheckout = { tenant?.let { onCheckout(it) } }
-                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(bill.monthYear, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Room ${room?.roomNumber ?: ""} • ${tenant?.name ?: "Tenant"}", fontSize = 12.sp, color = TextMuted)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("₹${bill.totalBillAmount}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = BluePrimary)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (bill.remainingDue <= 0) "Paid: ₹${bill.amountPaid}" else "Due: ₹${bill.remainingDue}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (bill.remainingDue <= 0) GreenSuccess else RedDanger
+                                )
+                            }
+                        }
+
+                        Divider(modifier = Modifier.padding(vertical = 10.dp), thickness = 0.5.dp, color = CardBorder)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Units: ${bill.unitsConsumed} (${bill.prevMeterReading} → ${bill.currentMeterReading})", fontSize = 12.sp, color = TextMuted)
+                            if (tenant != null && room != null) {
+                                TextButton(
+                                    onClick = { onShareWhatsApp(bill, tenant, room) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = null, tint = GreenSuccess, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("WhatsApp", fontSize = 11.sp, color = GreenSuccess, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun RoomCard(
-    room: RoomUnit,
-    tenant: Tenant?,
-    latestBill: BillRecord?,
-    onAssignTenant: () -> Unit,
-    onGenerateBill: () -> Unit,
-    onEditRoom: () -> Unit,
-    onDeleteRoom: () -> Unit,
-    onCheckout: () -> Unit
+fun YearStatBox(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    valueColor: Color
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    Surface(
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        color = Color(0xFFF8FAFC)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(if (room.isVacant) TextMuted else SuccessGreen)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${room.roomType} ${room.roomNumber}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
-                    )
-                }
-
-                Row {
-                    IconButton(onClick = onEditRoom, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextMuted, modifier = Modifier.size(18.dp))
-                    }
-                    if (room.isVacant) {
-                        IconButton(onClick = onDeleteRoom, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-            }
-
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(text = label, fontSize = 11.sp, color = TextMuted)
             Spacer(modifier = Modifier.height(6.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Base Rent: ₹${room.baseRent}", fontSize = 13.sp, color = TextMuted)
-                Text("Elec Rate: ₹${room.electricityRate}/unit", fontSize = 13.sp, color = TextMuted)
-            }
-
-            Divider(modifier = Modifier.padding(vertical = 10.dp), thickness = 0.5.dp, color = CardBorder)
-
-            if (tenant != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(tenant.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark)
-                        Text("📞 ${tenant.phone}", fontSize = 12.sp, color = TextMuted)
-                        Text("Moved in: ${tenant.moveInDate}", fontSize = 11.sp, color = TextMuted)
-                    }
-
-                    if (latestBill != null && latestBill.remainingDue > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = DangerRed.copy(alpha = 0.1f)
-                        ) {
-                            Text(
-                                text = "Due: ₹${latestBill.remainingDue}",
-                                color = DangerRed,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = onGenerateBill,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
-                    ) {
-                        Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Bill & Receipt", fontSize = 12.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = onCheckout,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, DangerRed)
-                    ) {
-                        Text("Checkout", color = DangerRed, fontSize = 12.sp)
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Currently Vacant", color = TextMuted, fontSize = 13.sp)
-                    Button(
-                        onClick = onAssignTenant,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
-                    ) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Assign Tenant", fontSize = 12.sp)
-                    }
-                }
-            }
+            Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = valueColor)
         }
     }
 }
