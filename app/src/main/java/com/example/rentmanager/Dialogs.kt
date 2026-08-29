@@ -79,7 +79,6 @@ fun TenantDetailsDialog(
                 Divider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
 
                 TenantInfoRow(icon = Icons.Default.Phone, label = "Phone", value = tenant.phone)
-                TenantInfoRow(icon = Icons.Default.Badge, label = "Aadhaar / ID", value = if (tenant.aadhaarNumber.isNotBlank()) tenant.aadhaarNumber else "Not Provided")
                 TenantInfoRow(icon = Icons.Default.CalendarToday, label = "Move-In Date", value = tenant.moveInDate)
                 TenantInfoRow(icon = Icons.Default.Savings, label = "Security Deposit", value = "₹${"%,.2f".format(tenant.securityDeposit)}")
                 TenantInfoRow(icon = Icons.Default.ElectricMeter, label = "Initial Meter", value = "${tenant.initialMeterReading} kWh")
