@@ -27,7 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -69,32 +69,20 @@ fun shareToWhatsApp(context: Context, phone: String, message: String) {
 @Composable
 fun RentManagerMainApp(vm: RentViewModel) {
     val context = LocalContext.current
-    val properties by vm.properties.collectAsState()
     val rooms by vm.rooms.collectAsState()
     val tenants by vm.tenants.collectAsState()
     val bills by vm.bills.collectAsState()
 
-    var selectedPropertyId by remember { mutableStateOf<String?>(null) }
     var currentTab by remember { mutableIntStateOf(0) }
 
-    var showAddPropertyDialog by remember { mutableStateOf(false) }
     var showAddRoomDialog by remember { mutableStateOf(false) }
     var showAssignTenantDialog by remember { mutableStateOf<RoomUnit?>(null) }
     var showBillDialog by remember { mutableStateOf<Pair<RoomUnit, Tenant>?>(null) }
     var showCheckoutDialog by remember { mutableStateOf<Tenant?>(null) }
     var showEditRoomDialog by remember { mutableStateOf<RoomUnit?>(null) }
     var showRoomHistoryDialog by remember { mutableStateOf<RoomUnit?>(null) }
-
-    LaunchedEffect(properties) {
-        if (selectedPropertyId == null && properties.isNotEmpty()) {
-            selectedPropertyId = properties.first().id
-        }
-    }
-
-    val currentProperty = properties.find { it.id == selectedPropertyId }
-    val currentRooms = rooms.filter { it.propertyId == selectedPropertyId }
-    val currentTenants = tenants.filter { it.propertyId == selectedPropertyId }
-    val currentBills = bills.filter { it.propertyId == selectedPropertyId }
+    var showTenantDetailsDialog by remember { mutableStateOf<Pair<Tenant, RoomUnit>?>(null) }
+    var showEditTenantDialog by remember { mutableStateOf<Tenant?>(null) }
 
     Scaffold(
         containerColor = UIAppBg,
@@ -114,7 +102,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(48.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(UIBluePrimary),
                             contentAlignment = Alignment.Center
@@ -123,41 +111,25 @@ fun RentManagerMainApp(vm: RentViewModel) {
                                 imageVector = Icons.Default.Apartment,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
-                                text = if (currentTab == 0) (currentProperty?.name ?: "Rent Manager") else "Revenue & Analytics",
+                                text = if (currentTab == 0) "Rent Manager" else "Revenue & Analytics",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = CleanFont,
                                 color = UIDarkText
                             )
                             Text(
-                                text = if (currentTab == 0) "${currentRooms.size} Units Registered" else "Lifetime Ledger",
-                                fontSize = 14.sp,
+                                text = if (currentTab == 0) "${rooms.size} Units Registered" else "Lifetime Ledger",
+                                fontSize = 13.sp,
                                 fontFamily = CleanFont,
                                 color = UIMutedText
                             )
                         }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE0F2FE))
-                            .clickable { showAddPropertyDialog = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DomainAdd,
-                            contentDescription = "Add Property",
-                            tint = UIBluePrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
                     }
                 }
             }
@@ -171,7 +143,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -184,7 +156,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                     BottomNavTab(
                         selected = currentTab == 1,
                         label = "Revenue",
-                        icon = Icons.Default.AutoGraph,
+                        icon = Icons.Default.QueryStats,
                         onClick = { currentTab = 1 }
                     )
                 }
@@ -193,19 +165,13 @@ fun RentManagerMainApp(vm: RentViewModel) {
         floatingActionButton = {
             if (currentTab == 0) {
                 FloatingActionButton(
-                    onClick = {
-                        if (properties.isEmpty()) {
-                            showAddPropertyDialog = true
-                        } else {
-                            showAddRoomDialog = true
-                        }
-                    },
+                    onClick = { showAddRoomDialog = true },
                     containerColor = UIBluePrimary,
                     contentColor = Color.White,
                     shape = CircleShape,
-                    modifier = Modifier.size(62.dp)
+                    modifier = Modifier.size(60.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(34.dp))
+                    Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(32.dp))
                 }
             }
         }
@@ -218,7 +184,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
         ) {
             when (currentTab) {
                 0 -> {
-                    if (currentRooms.isEmpty()) {
+                    if (rooms.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -226,22 +192,18 @@ fun RentManagerMainApp(vm: RentViewModel) {
                             contentAlignment = Alignment.TopCenter
                         ) {
                             Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                 shape = RoundedCornerShape(24.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
                                 border = BorderStroke(1.dp, UICardBorder)
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 44.dp, horizontal = 24.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 44.dp, horizontal = 24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(80.dp)
+                                            .size(76.dp)
                                             .clip(CircleShape)
                                             .background(Color(0xFFE0F2FE)),
                                         contentAlignment = Alignment.Center
@@ -250,24 +212,23 @@ fun RentManagerMainApp(vm: RentViewModel) {
                                             imageVector = Icons.Default.MeetingRoom,
                                             contentDescription = null,
                                             tint = UIBluePrimary,
-                                            modifier = Modifier.size(42.dp)
+                                            modifier = Modifier.size(38.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(20.dp))
+                                    Spacer(modifier = Modifier.height(18.dp))
                                     Text(
                                         text = "No rooms added yet",
-                                        fontSize = 20.sp,
+                                        fontSize = 19.sp,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = CleanFont,
                                         color = UIDarkText
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = "Tap + to add your first room.",
-                                        fontSize = 15.sp,
+                                        fontSize = 14.sp,
                                         fontFamily = CleanFont,
-                                        color = UIMutedText,
-                                        textAlign = TextAlign.Center
+                                        color = UIMutedText
                                     )
                                 }
                             }
@@ -276,30 +237,11 @@ fun RentManagerMainApp(vm: RentViewModel) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            if (properties.size > 1) {
-                                item {
-                                    ScrollableTabRow(
-                                        selectedTabIndex = properties.indexOfFirst { it.id == selectedPropertyId }.coerceAtLeast(0),
-                                        edgePadding = 0.dp,
-                                        divider = {},
-                                        containerColor = Color.Transparent
-                                    ) {
-                                        properties.forEach { prop ->
-                                            Tab(
-                                                selected = prop.id == selectedPropertyId,
-                                                onClick = { selectedPropertyId = prop.id },
-                                                text = { Text(prop.name, fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 15.sp) }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            items(currentRooms) { room ->
+                            items(rooms) { room ->
                                 val tenant = tenants.find { it.roomId == room.id }
-                                RoomCardExact(
+                                CompactRoomCard(
                                     room = room,
                                     tenant = tenant,
                                     onEdit = { showEditRoomDialog = room },
@@ -307,7 +249,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                                     onHistory = { showRoomHistoryDialog = room },
                                     onAddTenant = { showAssignTenantDialog = room },
                                     onLodgeBill = { tenant?.let { showBillDialog = Pair(room, it) } },
-                                    onVacate = { tenant?.let { showCheckoutDialog = it } }
+                                    onTenantClick = { tenant?.let { showTenantDetailsDialog = Pair(it, room) } }
                                 )
                             }
                         }
@@ -315,12 +257,11 @@ fun RentManagerMainApp(vm: RentViewModel) {
                 }
                 1 -> {
                     RevenueView(
-                        bills = currentBills,
-                        rooms = currentRooms,
-                        tenants = currentTenants,
-                        property = currentProperty ?: Property(),
+                        bills = bills,
+                        rooms = rooms,
+                        tenants = tenants,
                         onShareWhatsApp = { bill: BillRecord, tenant: Tenant, room: RoomUnit ->
-                            val msg = vm.getWhatsAppReceiptText(bill, tenant, currentProperty ?: Property(), room)
+                            val msg = vm.getWhatsAppReceiptText(bill, tenant, Property(name = "Rent Manager"), room)
                             shareToWhatsApp(context, tenant.phone, msg)
                         }
                     )
@@ -328,22 +269,11 @@ fun RentManagerMainApp(vm: RentViewModel) {
             }
         }
     }
-        if (showAddPropertyDialog) {
-        AddPropertyDialog(
-            onDismiss = { showAddPropertyDialog = false },
-            onConfirm = { name: String, address: String, city: String, owner: String, phone: String ->
-                val id = vm.addProperty(name, address, city, owner, phone)
-                selectedPropertyId = id
-                showAddPropertyDialog = false
-            }
-        )
-    }
-
-    if (showAddRoomDialog && selectedPropertyId != null) {
+        if (showAddRoomDialog) {
         AddRoomDialog(
             onDismiss = { showAddRoomDialog = false },
             onConfirm = { num: String, rent: Double, rate: Double ->
-                vm.addRoom(selectedPropertyId!!, num, "Room", rent, rate)
+                vm.addRoom("default_prop", num, "Room", rent, rate)
                 showAddRoomDialog = false
             }
         )
@@ -368,6 +298,33 @@ fun RentManagerMainApp(vm: RentViewModel) {
             onConfirm = { name: String, phone: String, aadhaar: String, date: String, deposit: Double, reading: Double ->
                 vm.assignTenant(room.propertyId, room.id, name, phone, aadhaar, date, deposit, reading)
                 showAssignTenantDialog = null
+            }
+        )
+    }
+
+    showTenantDetailsDialog?.let { (tenant, room) ->
+        TenantDetailsDialog(
+            tenant = tenant,
+            room = room,
+            onDismiss = { showTenantDetailsDialog = null },
+            onEdit = {
+                showTenantDetailsDialog = null
+                showEditTenantDialog = tenant
+            },
+            onVacate = {
+                showTenantDetailsDialog = null
+                showCheckoutDialog = tenant
+            }
+        )
+    }
+
+    showEditTenantDialog?.let { tenant ->
+        EditTenantDialog(
+            tenant = tenant,
+            onDismiss = { showEditTenantDialog = null },
+            onConfirm = { name: String, phone: String, aadhaar: String ->
+                vm.editTenant(tenant.id, name, phone, aadhaar)
+                showEditTenantDialog = null
             }
         )
     }
@@ -399,23 +356,6 @@ fun RentManagerMainApp(vm: RentViewModel) {
                     amountPaid = paid,
                     paymentMode = mode
                 )
-
-                val tempBill = BillRecord(
-                    propertyId = room.propertyId,
-                    roomId = room.id,
-                    tenantId = tenant.id,
-                    monthYear = month,
-                    baseRent = room.baseRent,
-                    prevMeterReading = prevReading,
-                    currentMeterReading = curReading,
-                    electricityRate = room.electricityRate,
-                    maintenanceCharge = maint,
-                    previousDueCarryover = pendingDue,
-                    amountPaid = paid,
-                    paymentMode = mode
-                )
-                val msg = vm.getWhatsAppReceiptText(tempBill, tenant, currentProperty ?: Property(), room)
-                shareToWhatsApp(context, tenant.phone, msg)
                 showBillDialog = null
             }
         )
@@ -444,7 +384,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
 }
 
 @Composable
-fun RoomCardExact(
+fun CompactRoomCard(
     room: RoomUnit,
     tenant: Tenant?,
     onEdit: () -> Unit,
@@ -452,15 +392,16 @@ fun RoomCardExact(
     onHistory: () -> Unit,
     onAddTenant: () -> Unit,
     onLodgeBill: () -> Unit,
-    onVacate: () -> Unit
+    onTenantClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, UICardBorder)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header: Status, Room name, actions, Rent
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -469,60 +410,64 @@ fun RoomCardExact(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(12.dp)
+                            .size(10.dp)
                             .clip(CircleShape)
                             .background(if (room.isVacant) UIGreenSuccess else UIRedDanger)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Room ${room.roomNumber}",
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = CleanFont,
                         color = UIDarkText
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit",
                         tint = UIMutedText,
-                        modifier = Modifier.size(18.dp).clickable { onEdit() }
+                        modifier = Modifier.size(16.dp).clickable { onEdit() }
                     )
                     if (room.isVacant) {
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Delete",
                             tint = UIRedDanger,
-                            modifier = Modifier.size(20.dp).clickable { onDelete() }
+                            modifier = Modifier.size(18.dp).clickable { onDelete() }
                         )
                     }
                 }
 
                 Text(
                     text = "₹${"%,.2f".format(room.baseRent)}/mo",
-                    fontSize = 19.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = CleanFont,
                     color = UIBluePrimary
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (tenant != null) {
+                // Compact Clickable Tenant Pill (Opens Details & History)
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = Color(0xFFF8FAFC),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, Color(0xFFF1F5F9)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onTenantClick() }
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFFE0F2FE)),
                             contentAlignment = Alignment.Center
@@ -532,35 +477,75 @@ fun RoomCardExact(
                                 color = UIBluePrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = CleanFont,
-                                fontSize = 18.sp
+                                fontSize = 15.sp
                             )
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = tenant.name,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = CleanFont,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 color = UIDarkText
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Phone, contentDescription = null, tint = UIMutedText, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "${tenant.phone}  •  In: ${tenant.moveInDate}",
-                                    fontSize = 13.sp,
-                                    fontFamily = CleanFont,
-                                    color = UIMutedText
-                                )
-                            }
+                            Text(
+                                text = "📞 ${tenant.phone}  •  In: ${tenant.moveInDate}",
+                                fontSize = 12.sp,
+                                fontFamily = CleanFont,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = UIMutedText
+                            )
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = UIMutedText, modifier = Modifier.size(20.dp))
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Details",
+                            tint = UIMutedText,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onHistory,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, UICardBorder)
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF7C3AED), modifier = Modifier.size(17.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("History", fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold, color = Color(0xFF7C3AED))
+                    }
+
+                    Button(
+                        onClick = onLodgeBill,
+                        modifier = Modifier.weight(1.3f).height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = UIBluePrimary)
+                    ) {
+                        Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Lodge Bill", fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Status: Vacant", color = UIGreenSuccess, fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -572,64 +557,20 @@ fun RoomCardExact(
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, UICardBorder)
                     ) {
-                        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF7C3AED), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF7C3AED), modifier = Modifier.size(17.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("History", fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold, color = Color(0xFF7C3AED))
                     }
 
                     Button(
-                        onClick = onLodgeBill,
+                        onClick = onAddTenant,
                         modifier = Modifier.weight(1.3f).height(44.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = UIBluePrimary)
                     ) {
-                        Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Lodge Bill", fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    OutlinedButton(
-                        onClick = onVacate,
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, UIRedDanger.copy(alpha = 0.5f))
-                    ) {
-                        Text("Vacate", color = UIRedDanger, fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Status: Vacant", color = UIGreenSuccess, fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onHistory,
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, UICardBorder)
-                    ) {
-                        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF7C3AED), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("History", fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold, color = Color(0xFF7C3AED))
-                    }
-
-                    Button(
-                        onClick = onAddTenant,
-                        modifier = Modifier.weight(1.4f).height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = UIBluePrimary)
-                    ) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Tenant", fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold)
+                        Text("Add Tenant", fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -655,8 +596,8 @@ fun BottomNavTab(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 64.dp, height = 34.dp)
-                .clip(RoundedCornerShape(17.dp))
+                .size(width = 64.dp, height = 32.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .background(if (selected) Color(0xFFE0F2FE) else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
@@ -664,13 +605,13 @@ fun BottomNavTab(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (selected) UIBluePrimary else UIMutedText,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = label,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontFamily = CleanFont,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) UIBluePrimary else UIMutedText
@@ -683,7 +624,6 @@ fun RevenueView(
     bills: List<BillRecord>,
     rooms: List<RoomUnit>,
     tenants: List<Tenant>,
-    property: Property,
     onShareWhatsApp: (BillRecord, Tenant, RoomUnit) -> Unit
 ) {
     var ledgerFilter by remember { mutableStateOf("All") }
@@ -709,14 +649,14 @@ fun RevenueView(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(26.dp),
+                shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Brush.linearGradient(listOf(UIBlueGradientStart, UIBlueGradientEnd)))
-                        .padding(24.dp)
+                        .padding(22.dp)
                 ) {
                     Column {
                         Row(
@@ -727,25 +667,25 @@ fun RevenueView(
                             Text(
                                 text = "LIFETIME REVENUE COLLECTION",
                                 color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontFamily = CleanFont,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp
                             )
-                            Icon(Icons.Default.AutoGraph, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.QueryStats, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = "₹${"%,.2f".format(totalCollected)}",
-                            fontSize = 38.sp,
+                            fontSize = 36.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = CleanFont,
                             color = Color.White
                         )
 
-                        Spacer(modifier = Modifier.height(22.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -754,17 +694,17 @@ fun RevenueView(
                             Column {
                                 Text("Rent Earnings", fontSize = 12.sp, fontFamily = CleanFont, color = Color.White.copy(alpha = 0.85f))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("₹${"%,.2f".format(totalRent)}", fontSize = 15.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("₹${"%,.2f".format(totalRent)}", fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             Column {
                                 Text("Electricity", fontSize = 12.sp, fontFamily = CleanFont, color = Color.White.copy(alpha = 0.85f))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("₹${"%,.2f".format(totalElec)}", fontSize = 15.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("₹${"%,.2f".format(totalElec)}", fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             Column {
                                 Text("Total Due", fontSize = 12.sp, fontFamily = CleanFont, color = Color.White.copy(alpha = 0.85f))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("₹${"%,.2f".format(totalDue)}", fontSize = 15.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("₹${"%,.2f".format(totalDue)}", fontSize = 14.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -775,11 +715,11 @@ fun RevenueView(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, UICardBorder)
             ) {
-                Column(modifier = Modifier.padding(22.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -789,7 +729,7 @@ fun RevenueView(
                             text = "Current Year Breakdown (2026)",
                             fontWeight = FontWeight.Bold,
                             fontFamily = CleanFont,
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             color = UIDarkText
                         )
                         Surface(
@@ -799,24 +739,24 @@ fun RevenueView(
                             Text(
                                 text = "Live",
                                 color = Color(0xFF7C3AED),
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontFamily = CleanFont,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         YearStatBox(modifier = Modifier.weight(1f), label = "Base Rent Billed", value = "₹${"%,.2f".format(totalRent)}", valueColor = UIDarkText)
                         YearStatBox(modifier = Modifier.weight(1f), label = "Electricity Charges", value = "₹${"%,.2f".format(totalElec)}", valueColor = UIBluePrimary)
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         YearStatBox(modifier = Modifier.weight(1f), label = "Total Invoiced", value = "₹${"%,.2f".format(totalRent + totalElec)}", valueColor = UIBluePrimary)
                         YearStatBox(modifier = Modifier.weight(1f), label = "Collected", value = "₹${"%,.2f".format(totalCollected)}", valueColor = UIGreenSuccess)
                     }
@@ -826,31 +766,31 @@ fun RevenueView(
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Billing Ledger (${filteredBills.size})",
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = CleanFont,
                     color = UIDarkText
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("All", "Paid", "Pending").forEach { filter ->
                         val isSelected = ledgerFilter == filter
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(if (isSelected) UIBluePrimary else Color(0xFFF1F5F9))
                                 .clickable { ledgerFilter = filter }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = filter,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontFamily = CleanFont,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.White else UIDarkText
@@ -865,12 +805,12 @@ fun RevenueView(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, UICardBorder)
                 ) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 36.dp), contentAlignment = Alignment.Center) {
-                        Text("No billing entries found.", color = UIMutedText, fontFamily = CleanFont, fontSize = 14.sp)
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                        Text("No billing entries found.", color = UIMutedText, fontFamily = CleanFont, fontSize = 13.sp)
                     }
                 }
             }
@@ -883,27 +823,27 @@ fun RevenueView(
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, UICardBorder)
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(bill.monthYear, fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 16.sp, color = UIDarkText)
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text("Room ${room?.roomNumber ?: ""} • ${tenant?.name ?: "Tenant"}", fontSize = 13.sp, fontFamily = CleanFont, color = UIMutedText)
+                                Text(bill.monthYear, fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 15.sp, color = UIDarkText)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Room ${room?.roomNumber ?: ""} • ${tenant?.name ?: "Tenant"}", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("₹${"%,.2f".format(totalBillAmount)}", fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 16.sp, color = UIBluePrimary)
-                                Spacer(modifier = Modifier.height(3.dp))
+                                Text("₹${"%,.2f".format(totalBillAmount)}", fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 15.sp, color = UIBluePrimary)
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = if (bill.remainingDue <= 0) "Paid: ₹${"%,.2f".format(bill.amountPaid)}" else "Due: ₹${"%,.2f".format(bill.remainingDue)}",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontFamily = CleanFont,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (bill.remainingDue <= 0) UIGreenSuccess else UIRedDanger
@@ -911,22 +851,22 @@ fun RevenueView(
                             }
                         }
 
-                        Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = UICardBorder)
+                        Divider(modifier = Modifier.padding(vertical = 10.dp), thickness = 0.5.dp, color = UICardBorder)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Units: $units (${bill.prevMeterReading} → ${bill.currentMeterReading})", fontSize = 13.sp, fontFamily = CleanFont, color = UIMutedText)
+                            Text("Units: $units (${bill.prevMeterReading} → ${bill.currentMeterReading})", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
                             if (tenant != null && room != null) {
                                 TextButton(
                                     onClick = { onShareWhatsApp(bill, tenant, room) },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Icon(Icons.Default.Share, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("WhatsApp", fontSize = 13.sp, fontFamily = CleanFont, color = UIGreenSuccess, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.Share, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("WhatsApp", fontSize = 12.sp, fontFamily = CleanFont, color = UIGreenSuccess, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -939,11 +879,11 @@ fun RevenueView(
 
 @Composable
 fun YearStatBox(modifier: Modifier = Modifier, label: String, value: String, valueColor: Color) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = Color(0xFFF8FAFC)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = label, fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(text = value, fontSize = 18.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = valueColor)
+    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp), color = Color(0xFFF8FAFC)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(text = label, fontSize = 11.sp, fontFamily = CleanFont, color = UIMutedText)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = value, fontSize = 16.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = valueColor)
         }
     }
 }
