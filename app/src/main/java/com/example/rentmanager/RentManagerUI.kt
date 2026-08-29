@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,6 +71,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
     val rooms by vm.rooms.collectAsState()
     val tenants by vm.tenants.collectAsState()
     val bills by vm.bills.collectAsState()
+    val pastTenancies by vm.pastTenancies.collectAsState()
 
     var currentTab by remember { mutableIntStateOf(0) }
 
@@ -82,6 +82,8 @@ fun RentManagerMainApp(vm: RentViewModel) {
     var showEditRoomDialog by remember { mutableStateOf<RoomUnit?>(null) }
     var showRoomHistoryDialog by remember { mutableStateOf<RoomUnit?>(null) }
     var showTenantDetailsDialog by remember { mutableStateOf<Pair<Tenant, RoomUnit>?>(null) }
+    var showEditTenantDialog by remember { mutableStateOf<Tenant?>(null) }
+    var showClearRevenueDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = UIAppBg,
@@ -259,6 +261,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                         bills = bills,
                         rooms = rooms,
                         tenants = tenants,
+                        onClearAll = { showClearRevenueDialog = true },
                         onShareWhatsApp = { bill: BillRecord, tenant: Tenant, room: RoomUnit ->
                             val msg = vm.getWhatsAppReceiptText(bill, tenant, Property(name = "Rent Manager"), room)
                             shareToWhatsApp(context, tenant.phone, msg)
@@ -268,7 +271,8 @@ fun RentManagerMainApp(vm: RentViewModel) {
             }
         }
     }
-        if (showAddRoomDialog) {
+
+    if (showAddRoomDialog) {
         AddRoomDialog(
             onDismiss = { showAddRoomDialog = false },
             onConfirm = { num: String, rent: Double, rate: Double ->
@@ -306,9 +310,24 @@ fun RentManagerMainApp(vm: RentViewModel) {
             tenant = tenant,
             room = room,
             onDismiss = { showTenantDetailsDialog = null },
+            onEdit = {
+                showTenantDetailsDialog = null
+                showEditTenantDialog = tenant
+            },
             onVacate = {
                 showTenantDetailsDialog = null
                 showCheckoutDialog = tenant
+            }
+        )
+    }
+
+    showEditTenantDialog?.let { tenant ->
+        EditTenantDialog(
+            tenant = tenant,
+            onDismiss = { showEditTenantDialog = null },
+            onConfirm = { name: String, phone: String, aadhaar: String ->
+                vm.editTenant(tenant.id, name, phone, aadhaar)
+                showEditTenantDialog = null
             }
         )
     }
@@ -359,14 +378,43 @@ fun RentManagerMainApp(vm: RentViewModel) {
 
     showRoomHistoryDialog?.let { room ->
         val roomBills = bills.filter { it.roomId == room.id }
+        val roomPastTenants = pastTenancies.filter { it.roomId == room.id }
         RoomHistoryDialog(
             room = room,
             bills = roomBills,
+            pastTenants = roomPastTenants,
+            onClearHistory = {
+                vm.clearRoomHistory(room.id)
+                showRoomHistoryDialog = null
+            },
             onDismiss = { showRoomHistoryDialog = null }
         )
     }
-}
 
+    if (showClearRevenueDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearRevenueDialog = false },
+            title = { Text("Reset Revenue & Counts?", fontWeight = FontWeight.Bold, fontFamily = CleanFont) },
+            text = { Text("This will clear all logged bills and reset your revenue statistics to ₹0.00.", fontFamily = CleanFont) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        vm.resetAllRevenueData()
+                        showClearRevenueDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = UIRedDanger)
+                ) {
+                    Text("Clear All", fontWeight = FontWeight.Bold, fontFamily = CleanFont)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearRevenueDialog = false }) {
+                    Text("Cancel", fontFamily = CleanFont)
+                }
+            }
+        )
+    }
+}
 @Composable
 fun CompactRoomCard(
     room: RoomUnit,
@@ -522,7 +570,7 @@ fun CompactRoomCard(
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text("Status: Vacant", color = UIGreenSuccess, fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold)
                 }
 
@@ -558,6 +606,7 @@ fun CompactRoomCard(
         }
     }
 }
+
 @Composable
 fun BottomNavTab(
     selected: Boolean,
@@ -605,6 +654,7 @@ fun RevenueView(
     bills: List<BillRecord>,
     rooms: List<RoomUnit>,
     tenants: List<Tenant>,
+    onClearAll: () -> Unit,
     onShareWhatsApp: (BillRecord, Tenant, RoomUnit) -> Unit
 ) {
     var ledgerFilter by remember { mutableStateOf("All") }
@@ -653,7 +703,9 @@ fun RevenueView(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp
                             )
-                            Icon(Icons.Default.QueryStats, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            IconButton(onClick = onClearAll, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.DeleteOutline, contentDescription = "Clear All Revenue", tint = Color.White)
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -713,18 +765,8 @@ fun RevenueView(
                             fontSize = 16.sp,
                             color = UIDarkText
                         )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFEDE9FE)
-                        ) {
-                            Text(
-                                text = "Live",
-                                color = Color(0xFF7C3AED),
-                                fontSize = 11.sp,
-                                fontFamily = CleanFont,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+                        IconButton(onClick = onClearAll, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Reset Stats", tint = Color(0xFF7C3AED))
                         }
                     }
 
@@ -805,66 +847,4 @@ fun RevenueView(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, UICardBorder)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(bill.monthYear, fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 15.sp, color = UIDarkText)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("Room ${room?.roomNumber ?: ""} • ${tenant?.name ?: "Tenant"}", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("₹${"%,.2f".format(totalBillAmount)}", fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 15.sp, color = UIBluePrimary)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = if (bill.remainingDue <= 0) "Paid: ₹${"%,.2f".format(bill.amountPaid)}" else "Due: ₹${"%,.2f".format(bill.remainingDue)}",
-                                    fontSize = 12.sp,
-                                    fontFamily = CleanFont,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (bill.remainingDue <= 0) UIGreenSuccess else UIRedDanger
-                                )
-                            }
-                        }
-
-                        Divider(modifier = Modifier.padding(vertical = 10.dp), thickness = 0.5.dp, color = UICardBorder)
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Units: $units (${bill.prevMeterReading} → ${bill.currentMeterReading})", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
-                            if (tenant != null && room != null) {
-                                TextButton(
-                                    onClick = { onShareWhatsApp(bill, tenant, room) },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Icon(Icons.Default.Share, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(15.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("WhatsApp", fontSize = 12.sp, fontFamily = CleanFont, color = UIGreenSuccess, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun YearStatBox(modifier: Modifier = Modifier, label: String, value: String, valueColor: Color) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp), color = Color(0xFFF8FAFC)) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(text = label, fontSize = 11.sp, fontFamily = CleanFont, color = UIMutedText)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, fontSize = 16.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = valueColor)
-        }
-    }
-}
+                    colors = CardDefaults.cardColors(containerCo
