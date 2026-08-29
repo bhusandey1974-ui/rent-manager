@@ -35,28 +35,18 @@ fun TenantDetailsDialog(
     tenant: Tenant,
     room: RoomUnit,
     onDismiss: () -> Unit,
-    onEdit: () -> Unit,
     onVacate: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Tenant Details",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    fontFamily = DlgFont,
-                    color = DlgDark
-                )
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Tenant", tint = DlgBlue)
-                }
-            }
+            Text(
+                text = "Tenant Details",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                fontFamily = DlgFont,
+                color = DlgDark
+            )
         },
         text = {
             Column(
@@ -150,69 +140,6 @@ fun TenantInfoRow(
         }
         Text(value, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, fontFamily = DlgFont, color = DlgDark)
     }
-}
-
-@Composable
-fun EditTenantDialog(
-    tenant: Tenant,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, phone: String, aadhaar: String) -> Unit
-) {
-    var name by remember { mutableStateOf(tenant.name) }
-    var phone by remember { mutableStateOf(tenant.phone) }
-    var aadhaar by remember { mutableStateOf(tenant.aadhaarNumber) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Tenant Info", fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = DlgFont, color = DlgDark) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Full Name", fontFamily = DlgFont, fontSize = 14.sp) },
-                    textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Phone Number", fontFamily = DlgFont, fontSize = 14.sp) },
-                    textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = aadhaar,
-                    onValueChange = { aadhaar = it },
-                    label = { Text("Aadhaar / ID Card", fontFamily = DlgFont, fontSize = 14.sp) },
-                    textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank() && phone.isNotBlank()) {
-                        onConfirm(name, phone, aadhaar)
-                    }
-                },
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
-            ) {
-                Text("Save Changes", fontWeight = FontWeight.Bold, fontFamily = DlgFont)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = DlgMuted, fontFamily = DlgFont)
-            }
-        }
-    )
 }
 
 @Composable
@@ -461,7 +388,7 @@ fun GenerateBillDialog(
                     value = paidStr,
                     onValueChange = { paidStr = it },
                     label = { Text("Amount Paid Now (₹)", fontFamily = DlgFont, fontSize = 14.sp) },
-                    placeholder = { Text("Enter ₹${"%,.2f".format(totalBill)}", fontFamily = DlgFont) },
+                    placeholder = { Text("Enter ₹${"%,.2f".format(totalBill)}") },
                     textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(12.dp),
@@ -657,4 +584,3 @@ fun RoomHistoryDialog(
         }
     )
 }
-
