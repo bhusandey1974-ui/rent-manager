@@ -94,7 +94,7 @@ fun AuthScreen(
                 color = TextDark
             )
             Text(
-                text = "Sign in to keep all properties, rooms & payment ledgers safe across reinstalls.",
+                text = "Sign in to keep all properties, rooms & payment records safe across reinstalls.",
                 fontSize = 13.sp,
                 color = TextMuted,
                 textAlign = TextAlign.Center,
@@ -153,11 +153,16 @@ fun AuthScreen(
                     if (!isOtpSent) {
                         OutlinedTextField(
                             value = phoneNo,
-                            onValueChange = { phoneNo = it },
+                            onValueChange = { input ->
+                                if (input.length <= 10 && input.all { it.isDigit() }) {
+                                    phoneNo = input
+                                }
+                            },
                             label = { Text("Mobile Number") },
-                            placeholder = { Text("Enter 10-digit number") },
+                            placeholder = { Text("10-digit number") },
+                            prefix = { Text("+91 ", fontWeight = FontWeight.Bold, color = TextDark) },
                             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = BrandBlue) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
@@ -165,7 +170,7 @@ fun AuthScreen(
 
                         Button(
                             onClick = {
-                                if (phoneNo.length >= 10) {
+                                if (phoneNo.length == 10) {
                                     isLoading = true
                                     authRepo.sendOtp(
                                         phoneNumber = phoneNo,
@@ -182,7 +187,7 @@ fun AuthScreen(
                                     )
                                 }
                             },
-                            enabled = !isLoading && phoneNo.length >= 10,
+                            enabled = !isLoading && phoneNo.length == 10,
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
                             modifier = Modifier
@@ -198,7 +203,11 @@ fun AuthScreen(
                     } else {
                         OutlinedTextField(
                             value = otpCode,
-                            onValueChange = { otpCode = it },
+                            onValueChange = { input ->
+                                if (input.length <= 6 && input.all { it.isDigit() }) {
+                                    otpCode = input
+                                }
+                            },
                             label = { Text("Enter 6-Digit OTP") },
                             leadingIcon = { Icon(Icons.Default.Security, contentDescription = null, tint = BrandBlue) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -250,4 +259,3 @@ fun AuthScreen(
         }
     }
 }
-
