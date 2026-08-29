@@ -82,7 +82,6 @@ fun RentManagerMainApp(vm: RentViewModel) {
     var showEditRoomDialog by remember { mutableStateOf<RoomUnit?>(null) }
     var showRoomHistoryDialog by remember { mutableStateOf<RoomUnit?>(null) }
     var showTenantDetailsDialog by remember { mutableStateOf<Pair<Tenant, RoomUnit>?>(null) }
-    var showEditTenantDialog by remember { mutableStateOf<Tenant?>(null) }
 
     Scaffold(
         containerColor = UIAppBg,
@@ -307,24 +306,9 @@ fun RentManagerMainApp(vm: RentViewModel) {
             tenant = tenant,
             room = room,
             onDismiss = { showTenantDetailsDialog = null },
-            onEdit = {
-                showTenantDetailsDialog = null
-                showEditTenantDialog = tenant
-            },
             onVacate = {
                 showTenantDetailsDialog = null
                 showCheckoutDialog = tenant
-            }
-        )
-    }
-
-    showEditTenantDialog?.let { tenant ->
-        EditTenantDialog(
-            tenant = tenant,
-            onDismiss = { showEditTenantDialog = null },
-            onConfirm = { name: String, phone: String, aadhaar: String ->
-                vm.editTenant(tenant.id, name, phone, aadhaar)
-                showEditTenantDialog = null
             }
         )
     }
@@ -401,7 +385,6 @@ fun CompactRoomCard(
         border = BorderStroke(1.dp, UICardBorder)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Status, Room name, actions, Rent
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -452,7 +435,6 @@ fun CompactRoomCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (tenant != null) {
-                // Compact Clickable Tenant Pill (Opens Details & History)
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = Color(0xFFF8FAFC),
@@ -511,7 +493,6 @@ fun CompactRoomCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -541,7 +522,7 @@ fun CompactRoomCard(
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = UIGreenSuccess, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Status: Vacant", color = UIGreenSuccess, fontSize = 13.sp, fontFamily = CleanFont, fontWeight = FontWeight.SemiBold)
                 }
 
