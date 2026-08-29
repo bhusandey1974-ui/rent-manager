@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,7 +86,7 @@ fun AuthScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = "Cloud Backup & Sync",
@@ -94,14 +95,14 @@ fun AuthScreen(
                 color = TextDark
             )
             Text(
-                text = "Sign in to keep all properties, rooms & payment records safe across reinstalls.",
+                text = "Sign in to keep all properties, rooms & payment records safe.",
                 fontSize = 13.sp,
                 color = TextMuted,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -111,7 +112,7 @@ fun AuthScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -122,7 +123,7 @@ fun AuthScreen(
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(46.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Mail,
@@ -130,19 +131,19 @@ fun AuthScreen(
                             tint = BrandBlue,
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Continue with Google (Gmail)",
                             fontWeight = FontWeight.Bold,
                             color = TextDark,
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                     }
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Divider(modifier = Modifier.weight(1f), thickness = 0.6.dp, color = Color(0xFFE2E8F0))
@@ -192,7 +193,7 @@ fun AuthScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
+                                .height(46.dp)
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
@@ -238,7 +239,7 @@ fun AuthScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
+                                .height(46.dp)
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
@@ -254,8 +255,23 @@ fun AuthScreen(
                             Text("Change Mobile Number", color = TextMuted, fontSize = 12.sp)
                         }
                     }
+
+                    // --- DIRECT OFFLINE / GUEST LOGIN BUTTON ---
+                    OutlinedButton(
+                        onClick = { onLoginSuccess("guest_owner_local") },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, CardBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                    ) {
+                        Icon(Icons.Outlined.AccountCircle, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Continue Offline (Guest Mode)", fontSize = 12.sp, color = TextMuted)
+                    }
                 }
             }
         }
     }
 }
+
