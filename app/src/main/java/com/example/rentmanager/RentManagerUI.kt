@@ -292,7 +292,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                         rooms = currentRooms,
                         tenants = currentTenants,
                         property = currentProperty ?: Property(),
-                        onShareWhatsApp = { bill, tenant, room ->
+                        onShareWhatsApp = { bill: BillRecord, tenant: Tenant, room: RoomUnit ->
                             val msg = vm.getWhatsAppReceiptText(bill, tenant, currentProperty ?: Property(), room)
                             shareToWhatsApp(context, tenant.phone, msg)
                         }
@@ -304,7 +304,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
         if (showAddPropertyDialog) {
         AddPropertyDialog(
             onDismiss = { showAddPropertyDialog = false },
-            onConfirm = { name, address, city, owner, phone ->
+            onConfirm = { name: String, address: String, city: String, owner: String, phone: String ->
                 val id = vm.addProperty(name, address, city, owner, phone)
                 selectedPropertyId = id
                 showAddPropertyDialog = false
@@ -315,7 +315,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
     if (showAddRoomDialog && selectedPropertyId != null) {
         AddRoomDialog(
             onDismiss = { showAddRoomDialog = false },
-            onConfirm = { num, rent, rate ->
+            onConfirm = { num: String, rent: Double, rate: Double ->
                 vm.addRoom(selectedPropertyId!!, num, "Room", rent, rate)
                 showAddRoomDialog = false
             }
@@ -326,7 +326,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
         EditRoomDialog(
             room = room,
             onDismiss = { showEditRoomDialog = null },
-            onConfirm = { num, rent, rate ->
+            onConfirm = { num: String, rent: Double, rate: Double ->
                 vm.editRoom(room.id, num, rent, rate)
                 showEditRoomDialog = null
             }
@@ -338,7 +338,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
             room = room,
             todayDate = vm.getTodayDateFormatted(),
             onDismiss = { showAssignTenantDialog = null },
-            onConfirm = { name, phone, aadhaar, date, deposit, reading ->
+            onConfirm = { name: String, phone: String, aadhaar: String, date: String, deposit: Double, reading: Double ->
                 vm.assignTenant(room.propertyId, room.id, name, phone, aadhaar, date, deposit, reading)
                 showAssignTenantDialog = null
             }
@@ -357,7 +357,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
             previousDue = pendingDue,
             defaultMonth = vm.getPreviousMonthFormatted(),
             onDismiss = { showBillDialog = null },
-            onConfirm = { month, curReading, maint, paid, mode ->
+            onConfirm = { month: String, curReading: Double, maint: Double, paid: Double, mode: String ->
                 vm.lodgeBillAndPayment(
                     propertyId = room.propertyId,
                     roomId = room.id,
@@ -399,7 +399,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
             tenant = tenant,
             todayDate = vm.getTodayDateFormatted(),
             onDismiss = { showCheckoutDialog = null },
-            onConfirm = { date, refund ->
+            onConfirm = { date: String, refund: Double ->
                 vm.checkoutTenant(tenant.id, date, refund)
                 showCheckoutDialog = null
             }
