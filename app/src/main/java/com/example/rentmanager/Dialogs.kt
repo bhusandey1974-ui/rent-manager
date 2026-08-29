@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -16,116 +15,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun AddPropertyDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, address: String, city: String, owner: String, phone: String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var city by remember { mutableStateOf("") }
-    var owner by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Property / Building", fontWeight = FontWeight.Bold, color = TextDark) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Property Name (e.g., Green Villa)") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    label = { Text("Address / Area") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = city,
-                    onValueChange = { city = it },
-                    label = { Text("City") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = owner,
-                    onValueChange = { owner = it },
-                    label = { Text("Owner / Manager Name") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Contact Phone Number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        onConfirm(name, address, city, owner, phone)
-                    }
-                },
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-            ) {
-                Text("Save Property", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
-            }
-        }
-    )
-}
-
-@Composable
 fun AddRoomDialog(
     onDismiss: () -> Unit,
-    onConfirm: (roomNum: String, type: String, baseRent: Double, elecRate: Double) -> Unit
+    onConfirm: (roomNum: String, baseRent: Double, elecRate: Double) -> Unit
 ) {
     var roomNum by remember { mutableStateOf("") }
-    var type by remember { mutableStateOf("1BHK") }
     var rent by remember { mutableStateOf("") }
-    var rate by remember { mutableStateOf("8.0") }
+    var rate by remember { mutableStateOf("10.0") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Room Unit", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Add Room", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = roomNum,
                     onValueChange = { roomNum = it },
-                    label = { Text("Room / Flat Number (e.g. 101, B-2)") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = type,
-                    onValueChange = { type = it },
-                    label = { Text("Room Type (e.g. 1BHK, 2BHK, Single)") },
+                    label = { Text("Room No (e.g. 101, 01)") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = rent,
                     onValueChange = { rent = it },
-                    label = { Text("Monthly Base Rent (₹)") },
+                    label = { Text("Monthly Rent (₹)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -133,7 +46,7 @@ fun AddRoomDialog(
                 OutlinedTextField(
                     value = rate,
                     onValueChange = { rate = it },
-                    label = { Text("Electricity Rate per Unit (₹)") },
+                    label = { Text("Electricity Rate/Unit (₹)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -144,75 +57,15 @@ fun AddRoomDialog(
             Button(
                 onClick = {
                     val r = rent.toDoubleOrNull() ?: 0.0
-                    val e = rate.toDoubleOrNull() ?: 0.0
+                    val e = rate.toDoubleOrNull() ?: 10.0
                     if (roomNum.isNotBlank() && r > 0) {
-                        onConfirm(roomNum, type, r, e)
+                        onConfirm(roomNum, r, e)
                     }
                 },
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
             ) {
-                Text("Add Unit", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextMuted)
-            }
-        }
-    )
-}
-@Composable
-fun EditRoomDialog(
-    room: RoomUnit,
-    onDismiss: () -> Unit,
-    onConfirm: (roomNum: String, baseRent: Double, elecRate: Double) -> Unit
-) {
-    var roomNum by remember { mutableStateOf(room.roomNumber) }
-    var rent by remember { mutableStateOf(room.baseRent.toString()) }
-    var rate by remember { mutableStateOf(room.electricityRate.toString()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = TextDark) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = roomNum,
-                    onValueChange = { roomNum = it },
-                    label = { Text("Room / Flat Number") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = rent,
-                    onValueChange = { rent = it },
-                    label = { Text("Base Rent (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = rate,
-                    onValueChange = { rate = it },
-                    label = { Text("Electricity Rate (₹/unit)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val r = rent.toDoubleOrNull() ?: room.baseRent
-                    val e = rate.toDoubleOrNull() ?: room.electricityRate
-                    onConfirm(roomNum, r, e)
-                },
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-            ) {
-                Text("Save Changes", fontWeight = FontWeight.Bold)
+                Text("Save Room", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -234,28 +87,28 @@ fun AssignTenantDialog(
     var phone by remember { mutableStateOf("") }
     var aadhaar by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(todayDate) }
-    var deposit by remember { mutableStateOf("") }
-    var reading by remember { mutableStateOf("") }
+    var deposit by remember { mutableStateOf("0") }
+    var reading by remember { mutableStateOf("0") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Assign Tenant to ${room.roomType} ${room.roomNumber}", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Assign Tenant to Room ${room.roomNumber}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Tenant Full Name") },
+                    label = { Text("Tenant Name") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("WhatsApp Phone (10 Digits)") },
+                    label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -263,14 +116,14 @@ fun AssignTenantDialog(
                 OutlinedTextField(
                     value = aadhaar,
                     onValueChange = { aadhaar = it },
-                    label = { Text("Aadhaar / ID Card No.") },
+                    label = { Text("Aadhaar Number") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = date,
                     onValueChange = { date = it },
-                    label = { Text("Move-in Date") },
+                    label = { Text("Move-In Date") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -302,9 +155,9 @@ fun AssignTenantDialog(
                     }
                 },
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GreenSuccess)
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
             ) {
-                Text("Confirm Occupancy", fontWeight = FontWeight.Bold)
+                Text("Assign Tenant", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -338,7 +191,7 @@ fun GenerateBillDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Bill: Room ${room.roomNumber} - ${tenant.name}", fontWeight = FontWeight.Bold, color = TextDark) },
+        title = { Text("Lodge Bill - Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = TextDark) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -347,7 +200,7 @@ fun GenerateBillDialog(
                 OutlinedTextField(
                     value = month,
                     onValueChange = { month = it },
-                    label = { Text("Billing Month & Year") },
+                    label = { Text("Billing Month") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -387,7 +240,7 @@ fun GenerateBillDialog(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Total Payable:", fontWeight = FontWeight.Bold, color = TextDark)
-                        Text("₹${"%.2f".format(totalBill)}", fontWeight = FontWeight.ExtraBold, color = BluePrimary)
+                        Text("₹${"%,.2f".format(totalBill)}", fontWeight = FontWeight.ExtraBold, color = BluePrimary)
                     }
                 }
 
@@ -395,16 +248,8 @@ fun GenerateBillDialog(
                     value = paidStr,
                     onValueChange = { paidStr = it },
                     label = { Text("Amount Paid Now (₹)") },
-                    placeholder = { Text("Enter ₹${"%.2f".format(totalBill)}") },
+                    placeholder = { Text("Enter ₹${"%,.2f".format(totalBill)}") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = mode,
-                    onValueChange = { mode = it },
-                    label = { Text("Payment Mode (UPI, Cash, Bank)") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -433,6 +278,67 @@ fun GenerateBillDialog(
 }
 
 @Composable
+fun EditRoomDialog(
+    room: RoomUnit,
+    onDismiss: () -> Unit,
+    onConfirm: (roomNum: String, baseRent: Double, elecRate: Double) -> Unit
+) {
+    var roomNum by remember { mutableStateOf(room.roomNumber) }
+    var rent by remember { mutableStateOf(room.baseRent.toString()) }
+    var rate by remember { mutableStateOf(room.electricityRate.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Room ${room.roomNumber}", fontWeight = FontWeight.Bold, color = TextDark) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = roomNum,
+                    onValueChange = { roomNum = it },
+                    label = { Text("Room No") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = rent,
+                    onValueChange = { rent = it },
+                    label = { Text("Monthly Rent (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Electricity Rate/Unit (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val r = rent.toDoubleOrNull() ?: room.baseRent
+                    val e = rate.toDoubleOrNull() ?: room.electricityRate
+                    onConfirm(roomNum, r, e)
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+            ) {
+                Text("Save Changes", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextMuted)
+            }
+        }
+    )
+}
+
+@Composable
 fun CheckoutTenantDialog(
     tenant: Tenant,
     todayDate: String,
@@ -447,18 +353,18 @@ fun CheckoutTenantDialog(
         title = { Text("Vacate Tenant: ${tenant.name}", fontWeight = FontWeight.Bold, color = TextDark) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Security Deposit Received: ₹${tenant.securityDeposit}", color = TextDark, fontWeight = FontWeight.Bold)
+                Text("Security Deposit: ₹${tenant.securityDeposit}", color = TextDark, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
                     value = checkoutDate,
                     onValueChange = { checkoutDate = it },
-                    label = { Text("Checkout Date") },
+                    label = { Text("Vacate Date") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = refundStr,
                     onValueChange = { refundStr = it },
-                    label = { Text("Refund Security Deposit (₹)") },
+                    label = { Text("Refund Amount (₹)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -474,7 +380,7 @@ fun CheckoutTenantDialog(
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = RedDanger)
             ) {
-                Text("Confirm Checkout", fontWeight = FontWeight.Bold)
+                Text("Confirm Vacate", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -485,3 +391,126 @@ fun CheckoutTenantDialog(
     )
 }
 
+@Composable
+fun AddPropertyDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, address: String, city: String, owner: String, phone: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var owner by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Property", fontWeight = FontWeight.Bold, color = TextDark) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Property Name") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Address") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = city,
+                    onValueChange = { city = it },
+                    label = { Text("City") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = owner,
+                    onValueChange = { owner = it },
+                    label = { Text("Owner Name") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        onConfirm(name, address, city, owner, phone)
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+            ) {
+                Text("Save Property", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextMuted)
+            }
+        }
+    )
+}
+
+@Composable
+fun RoomHistoryDialog(
+    room: RoomUnit,
+    bills: List<BillRecord>,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, color = TextDark) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (bills.isEmpty()) {
+                    Text("No billing history found for this room.", color = TextMuted, fontSize = 13.sp)
+                } else {
+                    bills.reversed().forEach { bill ->
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(bill.monthYear, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Paid: ₹${bill.amountPaid}", color = GreenSuccess, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                                Text("Units: ${bill.unitsConsumed} (Total: ₹${bill.totalBillAmount})", fontSize = 12.sp, color = TextMuted)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)) {
+                Text("Close")
+            }
+        }
+    )
+}
