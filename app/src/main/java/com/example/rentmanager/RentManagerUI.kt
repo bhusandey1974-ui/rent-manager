@@ -1,5 +1,9 @@
 package com.example.rentmanager
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -37,6 +41,29 @@ private val UIMutedText = Color(0xFF64748B)
 private val UIGreenSuccess = Color(0xFF10B981)
 private val UIRedDanger = Color(0xFFEF4444)
 val CleanFont = FontFamily.SansSerif
+
+fun shareToWhatsApp(context: Context, phone: String, message: String) {
+    try {
+        val cleanPhone = phone.replace("+", "").replace(" ", "").replace("-", "")
+        val formattedPhone = if (cleanPhone.length == 10) "91$cleanPhone" else cleanPhone
+        val uri = Uri.parse("https://api.whatsapp.com/send?phone=$formattedPhone&text=${Uri.encode(message)}")
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, message)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            context.startActivity(Intent.createChooser(fallbackIntent, "Share Receipt"))
+        } catch (ex: Exception) {
+            Toast.makeText(context, "Could not open WhatsApp", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -803,7 +830,14 @@ fun RevenueView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Billing Ledger (${filteredBills.size})", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = CleanFont, color = UIDarkText)
+                Text(
+                    text = "Billing Ledger (${filteredBills.size})",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = CleanFont,
+                    color = UIDarkText
+                )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("All", "Paid", "Pending").forEach { filter ->
                         val isSelected = ledgerFilter == filter
