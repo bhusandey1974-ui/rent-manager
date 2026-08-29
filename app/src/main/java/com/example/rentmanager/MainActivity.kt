@@ -1823,7 +1823,96 @@ fun RoomHistoryDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = CleanFont, color = UIDarkText)
+                Text(
+                    text = "Room ${room.roomNumber} History",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    fontFamily = CleanFont,
+                    color = UIDarkText
+                )
                 if (bills.isNotEmpty() || pastTenants.isNotEmpty()) {
                     IconButton(onClick = onClearHistory) {
-             
+                        Icon(
+                            imageVector = Icons.Default.DeleteSweep,
+                            contentDescription = "Clear History",
+                            tint = UIRedDanger
+                        )
+                    }
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (pastTenants.isNotEmpty()) {
+                    Text(
+                        text = "Past Occupants",
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = CleanFont,
+                        fontSize = 15.sp,
+                        color = UIDarkText
+                    )
+                    pastTenants.reversed().forEach { past ->
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(past.tenantName, fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 14.sp, color = UIDarkText)
+                                Text("📞 ${past.tenantPhone}", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
+                                Text("🗓 ${past.moveInDate} → ${past.vacateDate} (${past.totalDaysStayed} days)", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
+                                Text("💰 Total Paid: ₹${"%,.2f".format(past.totalPaid)}", fontSize = 12.sp, fontFamily = CleanFont, fontWeight = FontWeight.Bold, color = UIGreenSuccess)
+                            }
+                        }
+                    }
+                    Divider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
+                }
+
+                Text(
+                    text = "Billing Records",
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = CleanFont,
+                    fontSize = 15.sp,
+                    color = UIDarkText
+                )
+                if (bills.isEmpty()) {
+                    Text("No billing history found for this room.", color = UIMutedText, fontFamily = CleanFont, fontSize = 13.sp)
+                } else {
+                    bills.reversed().forEach { bill ->
+                        val units = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
+                        val totalBill = bill.baseRent + (units * bill.electricityRate) + bill.maintenanceCharge + bill.previousDueCarryover
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(bill.monthYear, fontWeight = FontWeight.Bold, fontFamily = CleanFont, fontSize = 14.sp)
+                                    Text("Paid: ₹${bill.amountPaid}", color = UIGreenSuccess, fontFamily = CleanFont, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                                Text("Units: $units (Total: ₹$totalBill)", fontSize = 12.sp, fontFamily = CleanFont, color = UIMutedText)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = UIBluePrimary)
+            ) {
+                Text("Close", fontFamily = CleanFont, fontSize = 14.sp)
+            }
+        }
+    )
+}
