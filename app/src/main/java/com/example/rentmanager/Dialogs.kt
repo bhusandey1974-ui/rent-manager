@@ -35,50 +35,70 @@ fun TenantDetailsDialog(
     tenant: Tenant,
     room: RoomUnit,
     onDismiss: () -> Unit,
+    onEdit: () -> Unit,
     onVacate: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Tenant Details",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                fontFamily = DlgFont,
-                color = DlgDark
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tenant Details",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    fontFamily = DlgFont,
+                    color = DlgDark
+                )
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit Tenant", tint = DlgBlue)
+                }
+            }
         },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE0F2FE)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = tenant.name.take(1).uppercase(),
-                            color = DlgBlue,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            fontFamily = DlgFont
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE0F2FE)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = tenant.name.take(1).uppercase(),
+                                color = DlgBlue,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                fontFamily = DlgFont
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(tenant.name, fontWeight = FontWeight.Bold, fontSize = 17.sp, fontFamily = DlgFont, color = DlgDark)
+                            Text("Assigned to Room ${room.roomNumber}", fontSize = 13.sp, fontFamily = DlgFont, color = DlgMuted)
+                        }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(tenant.name, fontWeight = FontWeight.Bold, fontSize = 17.sp, fontFamily = DlgFont, color = DlgDark)
-                        Text("Assigned to Room ${room.roomNumber}", fontSize = 13.sp, fontFamily = DlgFont, color = DlgMuted)
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Tenant Details", tint = DlgBlue)
                     }
                 }
 
                 Divider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
 
                 TenantInfoRow(icon = Icons.Default.Phone, label = "Phone", value = tenant.phone)
+                TenantInfoRow(icon = Icons.Default.Badge, label = "Aadhaar / ID", value = if (tenant.aadhaarNumber.isNotBlank()) tenant.aadhaarNumber else "Not Provided")
                 TenantInfoRow(icon = Icons.Default.CalendarToday, label = "Move-In Date", value = tenant.moveInDate)
                 TenantInfoRow(icon = Icons.Default.Savings, label = "Security Deposit", value = "₹${"%,.2f".format(tenant.securityDeposit)}")
                 TenantInfoRow(icon = Icons.Default.ElectricMeter, label = "Initial Meter", value = "${tenant.initialMeterReading} kWh")
@@ -116,6 +136,69 @@ fun TenantDetailsDialog(
                 border = BorderStroke(1.dp, DlgRed)
             ) {
                 Text("Vacate Tenant", color = DlgRed, fontFamily = DlgFont, fontWeight = FontWeight.Bold)
+            }
+        }
+    )
+}
+
+@Composable
+fun EditTenantDialog(
+    tenant: Tenant,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, phone: String, aadhaar: String) -> Unit
+) {
+    var name by remember { mutableStateOf(tenant.name) }
+    var phone by remember { mutableStateOf(tenant.phone) }
+    var aadhaar by remember { mutableStateOf(tenant.aadhaarNumber) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Tenant Info", fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = DlgFont, color = DlgDark) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Full Name", fontFamily = DlgFont, fontSize = 14.sp) },
+                    textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone Number", fontFamily = DlgFont, fontSize = 14.sp) },
+                    textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = aadhaar,
+                    onValueChange = { aadhaar = it },
+                    label = { Text("Aadhaar / ID Card", fontFamily = DlgFont, fontSize = 14.sp) },
+                    textStyle = TextStyle(fontFamily = DlgFont, fontSize = 15.sp),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank() && phone.isNotBlank()) {
+                        onConfirm(name, phone, aadhaar)
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DlgBlue)
+            ) {
+                Text("Save Changes", fontWeight = FontWeight.Bold, fontFamily = DlgFont)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = DlgMuted, fontFamily = DlgFont)
             }
         }
     )
@@ -540,16 +623,51 @@ fun CheckoutTenantDialog(
 fun RoomHistoryDialog(
     room: RoomUnit,
     bills: List<BillRecord>,
+    pastTenants: List<PastTenancyRecord>,
+    onClearHistory: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = DlgFont, color = DlgDark) },
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = DlgFont, color = DlgDark)
+                if (bills.isNotEmpty() || pastTenants.isNotEmpty()) {
+                    IconButton(onClick = onClearHistory) {
+                        Icon(Icons.Default.DeleteSweep, contentDescription = "Clear History", tint = DlgRed)
+                    }
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (pastTenants.isNotEmpty()) {
+                    Text("Past Occupants", fontWeight = FontWeight.Bold, fontFamily = DlgFont, fontSize = 15.sp, color = DlgDark)
+                    pastTenants.reversed().forEach { past ->
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(past.tenantName, fontWeight = FontWeight.Bold, fontFamily = DlgFont, fontSize = 14.sp, color = DlgDark)
+                                Text("📞 ${past.tenantPhone}", fontSize = 12.sp, fontFamily = DlgFont, color = DlgMuted)
+                                Text("🗓 ${past.moveInDate} → ${past.vacateDate} (${past.totalDaysStayed} days)", fontSize = 12.sp, fontFamily = DlgFont, color = DlgMuted)
+                                Text("💰 Total Paid: ₹${"%,.2f".format(past.totalPaid)}", fontSize = 12.sp, fontFamily = DlgFont, fontWeight = FontWeight.Bold, color = DlgGreen)
+                            }
+                        }
+                    }
+                    Divider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
+                }
+
+                Text("Billing Records", fontWeight = FontWeight.Bold, fontFamily = DlgFont, fontSize = 15.sp, color = DlgDark)
                 if (bills.isEmpty()) {
                     Text("No billing history found for this room.", color = DlgMuted, fontFamily = DlgFont, fontSize = 13.sp)
                 } else {
