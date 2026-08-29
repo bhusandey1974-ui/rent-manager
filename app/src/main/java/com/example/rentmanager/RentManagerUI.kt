@@ -650,7 +650,7 @@ fun RevenueView(
 
     val totalCollected = bills.sumOf { it.amountPaid }
     val totalRent = bills.sumOf { it.baseRent }
-    val totalElec = bills.sumOf { it.totalElectricityCharge }
+    val totalElec = bills.sumOf { (it.currentMeterReading - it.prevMeterReading).coerceAtLeast(0.0) * it.electricityRate }
     val totalDue = bills.sumOf { it.remainingDue }
 
     val filteredBills = remember(bills, ledgerFilter) {
@@ -816,6 +816,7 @@ fun RevenueView(
                 val room = rooms.find { it.id == bill.roomId }
                 val tenant = tenants.find { it.id == bill.tenantId }
                 val units = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
+                val totalBillAmount = bill.baseRent + (units * bill.electricityRate) + bill.maintenanceCharge + bill.previousDueCarryover
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -835,7 +836,7 @@ fun RevenueView(
                                 Text("Room ${room?.roomNumber ?: ""} • ${tenant?.name ?: "Tenant"}", fontSize = 12.sp, color = UIMutedText)
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("₹${"%,.2f".format(bill.totalBillAmount)}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = UIBluePrimary)
+                                Text("₹${"%,.2f".format(totalBillAmount)}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = UIBluePrimary)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = if (bill.remainingDue <= 0) "Paid: ₹${"%,.2f".format(bill.amountPaid)}" else "Due: ₹${"%,.2f".format(bill.remainingDue)}",
