@@ -280,20 +280,20 @@ fun RentManagerMainApp(vm: RentViewModel) {
         )
     }
 
-    showTenantDetailsDialog?.let { (tenant, room) ->
+    showTenantDetailsDialog?.let { pair ->
+        val t = pair.first
+        val r = pair.second
         TenantDetailsDialog(
-            tenant = tenant,
-            room = room,
+            tenant = t,
+            room = r,
             onDismiss = { showTenantDetailsDialog = null },
             onEdit = {
-                val currentT = tenant
                 showTenantDetailsDialog = null
-                showEditTenantDialog = currentT
+                showEditTenantDialog = t
             },
             onVacate = {
-                val currentT = tenant
                 showTenantDetailsDialog = null
-                showCheckoutDialog = currentT
+                showCheckoutDialog = t
             }
         )
     }
@@ -309,7 +309,9 @@ fun RentManagerMainApp(vm: RentViewModel) {
         )
     }
 
-    showBillDialog?.let { (room, tenant) ->
+    showBillDialog?.let { pair ->
+        val room = pair.first
+        val tenant = pair.second
         val lastBill = bills.filter { it.roomId == room.id }.maxByOrNull { it.timestamp }
         val prevReading = lastBill?.currentMeterReading ?: tenant.initialMeterReading
         val carriedDue = vm.getCumulativePendingDue(room.id)
@@ -416,4 +418,3 @@ fun RentManagerMainApp(vm: RentViewModel) {
         )
     }
 }
-
