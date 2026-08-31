@@ -189,13 +189,13 @@ fun RentManagerMainApp(vm: RentViewModel) {
                         bills = bills,
                         vm = vm,
                         onAddRoom = { showAddRoomDialog = true },
-                        onEditRoom = { showEditRoomDialog = it },
-                        onDeleteRoom = { showDeleteRoomConfirm = it },
-                        onAssignTenant = { showAssignTenantDialog = it },
-                        onTenantClick = { tenant, room -> showTenantDetailsDialog = Pair(tenant, room) },
-                        onLodgeBill = { room, tenant -> showBillDialog = Pair(room, tenant) },
-                        onVacate = { showCheckoutDialog = it },
-                        onHistory = { showRoomHistoryDialog = it }
+                        onEditRoom = { r: RoomUnit -> showEditRoomDialog = r },
+                        onDeleteRoom = { r: RoomUnit -> showDeleteRoomConfirm = r },
+                        onAssignTenant = { r: RoomUnit -> showAssignTenantDialog = r },
+                        onTenantClick = { t: Tenant, r: RoomUnit -> showTenantDetailsDialog = Pair(t, r) },
+                        onLodgeBill = { r: RoomUnit, t: Tenant -> showBillDialog = Pair(r, t) },
+                        onVacate = { t: Tenant -> showCheckoutDialog = t },
+                        onHistory = { r: RoomUnit -> showRoomHistoryDialog = r }
                     )
                 } else {
                     RevenueView(
@@ -203,7 +203,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
                         rooms = rooms,
                         tenants = tenants,
                         onClearAll = { showResetAllConfirm = true },
-                        onShareWhatsApp = { bill, tenant, room ->
+                        onShareWhatsApp = { bill: BillRecord, tenant: Tenant, room: RoomUnit ->
                             val text = vm.getWhatsAppReceiptText(bill, tenant, defaultProperty, room)
                             val encodedText = URLEncoder.encode(text, "UTF-8")
                             val cleanNumber = tenant.phone.replace("+", "").replace(" ", "").replace("-", "")
@@ -416,3 +416,4 @@ fun RentManagerMainApp(vm: RentViewModel) {
         )
     }
 }
+
