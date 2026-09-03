@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.RentManager" parent="Theme.Material3.DayNight.NoActionBar">
+<resources>
+    <style name="Theme.RentManager" parent="@android:style/Theme.DeviceDefault.NoActionBar">
         <!-- App Splash & Window Background -->
         <item name="android:windowBackground">@drawable/splash_gradient</item>
         <item name="android:windowSplashScreenBackground">#0F172A</item>
