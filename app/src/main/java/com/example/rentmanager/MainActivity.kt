@@ -24,15 +24,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,7 +44,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                typography = Typography(
+                    titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 20.sp),
+                    titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+                    bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
+                    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp),
+                    labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                )
+            ) {
                 MainAppScreen(vm)
             }
         }
@@ -106,11 +115,28 @@ fun MainAppScreen(vm: RentViewModel) {
                         }
                     },
                     actions = {
+                        // Soft & Clean "+ Add Property" Button in Top Right
+                        FilledTonalButton(
+                            onClick = { showAddRoomDialog = true },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color(0xFFEFF6FF),
+                                contentColor = Color(0xFF2563EB)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Property", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                        }
+
+                        // 3-dot settings menu
                         IconButton(onClick = { showSettingsMenu = true }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "Settings",
-                                tint = Color(0xFF0F172A)
+                                tint = Color(0xFF475569)
                             )
                         }
 
@@ -123,9 +149,7 @@ fun MainAppScreen(vm: RentViewModel) {
                                 leadingIcon = { Icon(Icons.Default.Logout, contentDescription = null) },
                                 onClick = {
                                     showSettingsMenu = false
-                                    vm.signOut {
-                                        isAuthenticated = false
-                                    }
+                                    vm.signOut { isAuthenticated = false }
                                 }
                             )
                             HorizontalDivider()
@@ -182,7 +206,7 @@ fun MainAppScreen(vm: RentViewModel) {
                         contentColor = Color.White,
                         shape = CircleShape
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Room")
+                        Icon(Icons.Default.Add, contentDescription = "Add Property")
                     }
                 }
             }
@@ -196,6 +220,7 @@ fun MainAppScreen(vm: RentViewModel) {
                 if (currentTab == NavigationTab.PROPERTIES) {
                     PropertiesTabContent(
                         vm = vm,
+                        onShowAddRoom = { showAddRoomDialog = true },
                         onAssignTenant = { roomToAssignTenant = it },
                         onLodgeBill = { roomToLodgeBill = it },
                         onVacate = { roomToVacate = it },
@@ -276,7 +301,7 @@ fun MainAppScreen(vm: RentViewModel) {
             )
         }
 
-        // 3. Add Room Dialog
+        // 3. Add Property / Room Dialog
         if (showAddRoomDialog) {
             var roomNum by remember { mutableStateOf("") }
             var baseRentStr by remember { mutableStateOf("") }
@@ -284,13 +309,13 @@ fun MainAppScreen(vm: RentViewModel) {
 
             AlertDialog(
                 onDismissRequest = { showAddRoomDialog = false },
-                title = { Text("Add New Room", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
+                title = { Text("Add New Property Unit", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = roomNum,
                             onValueChange = { roomNum = it },
-                            label = { Text("Room / Flat Number", fontFamily = FontFamily.SansSerif) },
+                            label = { Text("Property / Room Number", fontFamily = FontFamily.SansSerif) },
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp)
                         )
@@ -325,7 +350,7 @@ fun MainAppScreen(vm: RentViewModel) {
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                     ) {
-                        Text("Create Room", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                        Text("Save Property", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -336,7 +361,7 @@ fun MainAppScreen(vm: RentViewModel) {
             )
         }
 
-        // 4. Assign Tenant Dialog (with Optional Aadhaar and Address)
+        // 4. Assign Tenant Dialog (with Optional Aadhaar & Address)
         roomToAssignTenant?.let { room ->
             var name by remember { mutableStateOf("") }
             var phone by remember { mutableStateOf("") }
@@ -347,7 +372,7 @@ fun MainAppScreen(vm: RentViewModel) {
 
             AlertDialog(
                 onDismissRequest = { roomToAssignTenant = null },
-                title = { Text("Assign Tenant • Room ${room.roomNumber}", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
+                title = { Text("Assign Tenant • Unit ${room.roomNumber}", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
                 text = {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         item {
@@ -448,67 +473,172 @@ fun MainAppScreen(vm: RentViewModel) {
                 }
             )
         }
-                // 5. Lodge Bill Dialog
+                // 5. Lodge Bill Dialog (FIFO Dues, Advance Credit, and WhatsApp Sharing)
         roomToLodgeBill?.let { room ->
             val context = LocalContext.current
-            val tenant = vm.tenants.collectAsState().value.find { it.roomId == room.id && it.isActive }
-            val prevReading = remember(room.id) { vm.getLatestMeterReading(room.id) }
-            val carryoverDue = remember(room.id) { vm.getPendingDueForRoom(room.id) }
+            val currentTenant = vm.tenants.collectAsState().value.find { it.id == room.currentTenantId }
 
-            var curReadingStr by remember { mutableStateOf("") }
+            val calendar = Calendar.getInstance()
+            val defaultMonthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
+
+            var monthYear by remember { mutableStateOf(defaultMonthYear) }
+            var baseRentStr by remember { mutableStateOf(room.baseRent.toInt().toString()) }
+            var currMeterStr by remember { mutableStateOf("") }
+            var maintenanceStr by remember { mutableStateOf("0") }
             var paymentMode by remember { mutableStateOf("Cash") }
-            var amountPaidStr by remember { mutableStateOf("") }
-            val billingMonth = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date()) }
 
-            val curReading = curReadingStr.toDoubleOrNull() ?: prevReading
-            val unitsConsumed = (curReading - prevReading).coerceAtLeast(0.0)
-            val elecTotal = unitsConsumed * room.electricityRate
-            val totalBill = room.baseRent + elecTotal + carryoverDue
+            // Automatic Carryover: Positive = Due carryover, Negative = Advance credit
+            val previousCarryover = remember(room.id) { vm.getPendingDueForRoom(room.id) }
+
+            val currReading = currMeterStr.toDoubleOrNull() ?: room.lastMeterReading
+            val elecUnits = (currReading - room.lastMeterReading).coerceAtLeast(0.0)
+            val elecAmount = elecUnits * room.electricityRate
+            val currentBaseRent = baseRentStr.toDoubleOrNull() ?: 0.0
+            val maintenance = maintenanceStr.toDoubleOrNull() ?: 0.0
+
+            val currentPeriodCharge = currentBaseRent + elecAmount + maintenance
+            val totalPayable = currentPeriodCharge + previousCarryover
+
+            var amountPaidStr by remember { mutableStateOf(totalPayable.coerceAtLeast(0.0).toInt().toString()) }
+            val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
+            val netRemainingBalance = totalPayable - amountPaid
 
             AlertDialog(
                 onDismissRequest = { roomToLodgeBill = null },
-                title = { Text("Generate Bill • Room ${room.roomNumber}", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
+                title = { Text("Lodge Bill • Unit ${room.roomNumber}", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Billing Period: $billingMonth", fontSize = 12.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
-                        Text("Base Rent: ₹${room.baseRent.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.SansSerif)
-                        Text("Previous Reading: $prevReading", fontSize = 12.sp, color = Color(0xFF475569), fontFamily = FontFamily.SansSerif)
-
-                        OutlinedTextField(
-                            value = curReadingStr,
-                            onValueChange = { curReadingStr = it },
-                            label = { Text("Current Reading", fontFamily = FontFamily.SansSerif) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Text("Units: $unitsConsumed  •  Elec Cost: ₹${elecTotal.toInt()} (₹${room.electricityRate}/u)", fontSize = 12.sp, color = Color(0xFF475569), fontFamily = FontFamily.SansSerif)
-
-                        if (carryoverDue > 0.0) {
-                            Text("Pending Carryover Due: +₹${carryoverDue.toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706), fontFamily = FontFamily.SansSerif)
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            Text(
+                                text = "Tenant: ${currentTenant?.name ?: "Occupant"}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2563EB),
+                                fontFamily = FontFamily.SansSerif
+                            )
                         }
 
-                        Text("Total Amount: ₹${totalBill.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A), fontFamily = FontFamily.SansSerif)
+                        // Carryover Status Badge
+                        if (previousCarryover > 0.0) {
+                            item {
+                                Surface(
+                                    color = Color(0xFFFEF3C7),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "⚠️ Unpaid Dues Carried Over: ₹${previousCarryover.toInt()}",
+                                        color = Color(0xFFB45309),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.SansSerif,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                            }
+                        } else if (previousCarryover < 0.0) {
+                            item {
+                                Surface(
+                                    color = Color(0xFFECFDF5),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "🟢 Advance Adjusted: -₹${(-previousCarryover).toInt()}",
+                                        color = Color(0xFF047857),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.SansSerif,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                            }
+                        }
 
-                        OutlinedTextField(
-                            value = amountPaidStr,
-                            onValueChange = { amountPaidStr = it },
-                            label = { Text("Amount Paid Now (₹)", fontFamily = FontFamily.SansSerif) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        item {
+                            OutlinedTextField(
+                                value = monthYear,
+                                onValueChange = { monthYear = it },
+                                label = { Text("Billing Month", fontFamily = FontFamily.SansSerif) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
-                        // Mode Selector: Cash / UPI / Bank
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("Cash", "UPI", "Bank").forEach { mode ->
-                                FilterChip(
-                                    selected = paymentMode == mode,
-                                    onClick = { paymentMode = mode },
-                                    label = { Text(mode, fontSize = 11.sp, fontFamily = FontFamily.SansSerif) }
+                        item {
+                            OutlinedTextField(
+                                value = baseRentStr,
+                                onValueChange = { baseRentStr = it },
+                                label = { Text("Base Rent (₹)", fontFamily = FontFamily.SansSerif) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        item {
+                            OutlinedTextField(
+                                value = currMeterStr,
+                                onValueChange = { currMeterStr = it },
+                                label = { Text("Current Meter (Prev: ${room.lastMeterReading.toInt()})", fontFamily = FontFamily.SansSerif) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        item {
+                            Text(
+                                text = "Units: ${elecUnits.toInt()}u × ₹${room.electricityRate.toInt()} = ₹${elecAmount.toInt()}",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                fontFamily = FontFamily.SansSerif
+                            )
+                        }
+
+                        item {
+                            OutlinedTextField(
+                                value = amountPaidStr,
+                                onValueChange = { amountPaidStr = it },
+                                label = { Text("Amount Paid Now (₹)", fontFamily = FontFamily.SansSerif) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf("Cash", "UPI", "Bank").forEach { mode ->
+                                    FilterChip(
+                                        selected = paymentMode == mode,
+                                        onClick = { paymentMode = mode },
+                                        label = { Text(mode, fontFamily = FontFamily.SansSerif) }
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            HorizontalDivider(color = Color(0xFFE2E8F0))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Total Net Due:", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                                Text(
+                                    text = if (netRemainingBalance < 0.0) "Advance: ₹${(-netRemainingBalance).toInt()}" else "₹${netRemainingBalance.toInt()}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = if (netRemainingBalance > 0.0) Color(0xFFEF4444) else Color(0xFF10B981)
                                 )
                             }
                         }
@@ -517,65 +647,66 @@ fun MainAppScreen(vm: RentViewModel) {
                 confirmButton = {
                     Button(
                         onClick = {
-                            val paid = amountPaidStr.toDoubleOrNull() ?: totalBill
-                            val remaining = (totalBill - paid).coerceAtLeast(0.0)
-                            val tId = tenant?.id ?: ""
-
-                            vm.lodgeBill(
+                            val bill = BillRecord(
+                                id = UUID.randomUUID().toString(),
                                 roomId = room.id,
-                                tenantId = tId,
-                                monthYear = billingMonth,
-                                baseRent = room.baseRent,
-                                prevReading = prevReading,
-                                curReading = curReading,
-                                rate = room.electricityRate,
-                                maintenance = 0.0,
-                                carryoverDue = carryoverDue,
-                                amountPaid = paid,
-                                paymentMode = paymentMode
+                                tenantId = room.currentTenantId,
+                                monthYear = monthYear.trim(),
+                                baseRent = currentBaseRent,
+                                prevMeterReading = room.lastMeterReading,
+                                currentMeterReading = currReading,
+                                electricityRate = room.electricityRate,
+                                maintenanceCharge = maintenance,
+                                previousDueCarryover = previousCarryover,
+                                amountPaid = amountPaid,
+                                remainingDue = netRemainingBalance,
+                                paymentMode = paymentMode,
+                                timestamp = System.currentTimeMillis()
                             )
 
-                            // Launch WhatsApp with exact receipt layout
-                            val tName = tenant?.name ?: "Tenant"
-                            val paymentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
-                            val receiptText = """
-🏠 *RENT & ELECTRICITY RECEIPT*
-━━━━━━━━━━━━━━━━━━━━━━━━━
-👤 *Tenant:* $tName (Room ${room.roomNumber})
-📅 *Billing Period:* $billingMonth
-🗓️ *Date of Payment:* $paymentDate
+                            vm.lodgeBill(bill)
+                            roomToLodgeBill = null
 
-⚡ *Electricity Details:*
-• Previous Reading: $prevReading
-• Current Reading: $curReading
-• Units Consumed: $unitsConsumed
-• Rate / Unit: ₹${room.electricityRate}0
-• Total Electricity: ₹${elecTotal}0
-
-🏢 *Base Rent:* ₹${room.baseRent}0
-🧾 *Total Amount:* ₹${totalBill}0
-━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ *Amount Paid:* ₹${paid}0 ($paymentMode)
-⚠️ *Pending Due:* ₹${remaining}0
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Thank you!
-                            """.trimIndent()
-
-                            try {
-                                val cleanPhone = tenant?.phone?.replace("+", "")?.replace(" ", "") ?: ""
-                                val uri = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(receiptText)}")
-                                val intent = Intent(Intent.ACTION_VIEW, uri)
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "WhatsApp not installed. Bill saved successfully.", Toast.LENGTH_SHORT).show()
+                            // Generate WhatsApp Message
+                            val message = buildString {
+                                appendLine("🏠 *RENT & ELECTRICITY RECEIPT*")
+                                appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                appendLine("👤 *Tenant:* ${currentTenant?.name ?: "Occupant"} (Unit ${room.roomNumber})")
+                                appendLine("📅 *Billing Period:* $monthYear")
+                                appendLine("🏢 *Base Rent:* ₹${currentBaseRent.toInt()}")
+                                appendLine("⚡ *Electricity (${elecUnits.toInt()} units):* ₹${elecAmount.toInt()}")
+                                if (previousCarryover > 0.0) {
+                                    appendLine("⚠️ *Previous Carryover Due:* ₹${previousCarryover.toInt()}")
+                                } else if (previousCarryover < 0.0) {
+                                    appendLine("🟢 *Advance Credit Adjusted:* -₹${(-previousCarryover).toInt()}")
+                                }
+                                appendLine("🧾 *Total Net Billed:* ₹${totalPayable.toInt()}")
+                                appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                appendLine("✅ *Amount Paid Today:* ₹${amountPaid.toInt()} ($paymentMode)")
+                                if (netRemainingBalance > 0.0) {
+                                    appendLine("⚠️ *Pending Balance Due:* ₹${netRemainingBalance.toInt()}")
+                                } else if (netRemainingBalance < 0.0) {
+                                    appendLine("🟢 *Advance Balance Carried Forward:* ₹${(-netRemainingBalance).toInt()}")
+                                } else {
+                                    appendLine("🎉 *Balance:* Fully Cleared")
+                                }
+                                appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                appendLine("Thank you!")
                             }
 
-                            roomToLodgeBill = null
+                            val cleanPhone = currentTenant?.phoneNumber?.replace("+", "")?.replace(" ", "") ?: ""
+                            val uri = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(message)}")
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "WhatsApp not installed. Bill saved locally.", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                     ) {
-                        Text("Lodge & Send", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                        Text("Lodge & Send WhatsApp", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -586,23 +717,26 @@ Thank you!
             )
         }
 
-        // 6. Vacate Tenant Dialog
+        // 6. Vacate Room Dialog
         roomToVacate?.let { room ->
-            val tenant = vm.tenants.collectAsState().value.find { it.roomId == room.id && it.isActive }
-            var refundStr by remember { mutableStateOf(tenant?.depositAmount?.toString() ?: "0.0") }
-            val vacateDate = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date()) }
+            val activeTenant = vm.tenants.collectAsState().value.find { it.id == room.currentTenantId }
+            var finalMeterStr by remember { mutableStateOf(room.lastMeterReading.toInt().toString()) }
 
             AlertDialog(
                 onDismissRequest = { roomToVacate = null },
-                title = { Text("Vacate Tenant", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
+                title = { Text("Vacate Unit ${room.roomNumber}?", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Tenant: ${tenant?.name.orEmpty()}", fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.SansSerif)
-                        Text("Initial Deposit: ₹${tenant?.depositAmount ?: 0.0}", fontSize = 12.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Vacating will archive ${activeTenant?.name ?: "tenant"} and release security deposit tracking.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF475569),
+                            fontFamily = FontFamily.SansSerif
+                        )
                         OutlinedTextField(
-                            value = refundStr,
-                            onValueChange = { refundStr = it },
-                            label = { Text("Refunded Deposit Amount (₹)", fontFamily = FontFamily.SansSerif) },
+                            value = finalMeterStr,
+                            onValueChange = { finalMeterStr = it },
+                            label = { Text("Final Meter Reading", fontFamily = FontFamily.SansSerif) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp)
@@ -612,14 +746,15 @@ Thank you!
                 confirmButton = {
                     Button(
                         onClick = {
-                            val ref = refundStr.toDoubleOrNull() ?: 0.0
-                            vm.vacateTenant(room.id, vacateDate, ref)
+                            val fReading = finalMeterStr.toDoubleOrNull() ?: room.lastMeterReading
+                            val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+                            vm.vacateRoom(room.id, fReading, dateStr)
                             roomToVacate = null
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Confirm Vacate", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                        Text("Confirm Vacate", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
                     }
                 },
                 dismissButton = {
@@ -630,44 +765,29 @@ Thank you!
             )
         }
 
-        // 7. History Dialog
+        // 7. Tenant History Dialog
         roomForHistory?.let { room ->
-            val bills = vm.bills.collectAsState().value.filter { it.roomId == room.id }
-            val pasts = vm.pastTenancies.collectAsState().value.filter { it.roomId == room.id }
-            var tabIndex by remember { mutableStateOf(0) }
+            val tenants by vm.tenants.collectAsState()
+            val history = tenants.filter { it.roomId == room.id }
 
             AlertDialog(
                 onDismissRequest = { roomForHistory = null },
-                title = { Text("Room ${room.roomNumber} History", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
+                title = { Text("Unit ${room.roomNumber} History", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif) },
                 text = {
-                    Column {
-                        TabRow(selectedTabIndex = tabIndex) {
-                            Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Bills (${bills.size})", fontFamily = FontFamily.SansSerif) })
-                            Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Past Tenants (${pasts.size})", fontFamily = FontFamily.SansSerif) })
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyColumn(modifier = Modifier.height(260.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (tabIndex == 0) {
-                                items(bills) { b ->
-                                    Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            Text("${b.monthYear} • Paid: ₹${b.amountPaid.toInt()} (${b.paymentMode})", fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
-                                            if (b.remainingDue > 0.0) {
-                                                Text("Remaining Due: ₹${b.remainingDue.toInt()}", color = Color(0xFFD97706), fontSize = 11.sp, fontFamily = FontFamily.SansSerif)
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                items(pasts) { p ->
-                                    Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            Text(p.tenantName, fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
-                                            Text("📞 ${p.phone} • Stay: ${p.moveInDate} -> ${p.vacateDate}", fontSize = 11.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
-                                            if (p.address.isNotBlank()) {
-                                                Text("📍 ${p.address}", fontSize = 10.sp, color = Color(0xFF475569), fontFamily = FontFamily.SansSerif)
-                                            }
-                                        }
+                    if (history.isEmpty()) {
+                        Text("No tenant history recorded.", fontFamily = FontFamily.SansSerif, color = Color(0xFF64748B))
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(history) { t ->
+                                Surface(
+                                    color = Color(0xFFF1F5F9),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(t.name, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                                        Text("Phone: ${t.phoneNumber}", fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
+                                        Text("Stayed: ${t.moveInDate} - ${t.moveOutDate ?: "Present"}", fontSize = 11.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
                                     }
                                 }
                             }
@@ -686,6 +806,7 @@ Thank you!
 @Composable
 fun PropertiesTabContent(
     vm: RentViewModel,
+    onShowAddRoom: () -> Unit,
     onAssignTenant: (RoomUnit) -> Unit,
     onLodgeBill: (RoomUnit) -> Unit,
     onVacate: (RoomUnit) -> Unit,
@@ -695,33 +816,138 @@ fun PropertiesTabContent(
     val tenants by vm.tenants.collectAsState()
 
     if (rooms.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "No rooms added yet. Tap '+' to create your first room.",
-                fontSize = 13.sp,
-                fontFamily = FontFamily.SansSerif,
-                color = Color(0xFF94A3B8)
-            )
+        // Welcoming & Presentable First-Page Hero Card
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFFDBEAFE), Color(0xFFBFDBFE))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Apartment,
+                            contentDescription = null,
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text(
+                        text = "Welcome to Rent Manager",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = Color(0xFF0F172A)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Keep your rental records, meter readings, dues, and WhatsApp receipts organized in one place.",
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        color = Color(0xFF64748B),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFF1F5F9))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("1. Add Property", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB), fontFamily = FontFamily.SansSerif)
+                                Text("Rent & rate", fontSize = 10.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
+                            }
+                            Text("→", color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("2. Assign Tenant", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB), fontFamily = FontFamily.SansSerif)
+                                Text("Name & phone", fontSize = 10.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
+                            }
+                            Text("→", color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("3. Send Bill", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB), fontFamily = FontFamily.SansSerif)
+                                Text("WhatsApp receipt", fontSize = 10.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = { onShowAddRoom() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Add Your First Property",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                }
+            }
         }
     } else {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
         ) {
             items(rooms, key = { it.id }) { room ->
-                val tenant = tenants.find { it.roomId == room.id && it.isActive }
-                val isVacant = tenant == null
+                val tenant = tenants.find { it.id == room.currentTenantId }
+                val pendingBalance = vm.getPendingDueForRoom(room.id)
 
-                Surface(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    shadowElevation = 1.dp
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Title bar
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -730,149 +956,141 @@ fun PropertiesTabContent(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isVacant) Color(0xFF10B981) else Color(0xFF3B82F6))
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Room ${room.roomNumber}",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = Color(0xFF0F172A)
-                                )
-                            }
-
-                            Text(
-                                text = "₹${room.baseRent.toInt()}/mo",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = Color(0xFF2563EB)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Status or Tenant Card
-                        if (isVacant) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFECFDF5))
-                                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (room.isOccupied) Color(0xFFEFF6FF) else Color(0xFFF1F5F9)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Unit is Vacant", color = Color(0xFF059669), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.SansSerif)
-                                    Text("Rate: ₹${room.electricityRate}/u", color = Color(0xFF059669), fontSize = 11.sp, fontFamily = FontFamily.SansSerif)
+                                    Icon(
+                                        imageVector = Icons.Default.MeetingRoom,
+                                        contentDescription = null,
+                                        tint = if (room.isOccupied) Color(0xFF2563EB) else Color(0xFF64748B),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Unit ${room.roomNumber}",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.SansSerif,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Text(
+                                        text = "₹${room.baseRent.toInt()}/mo • ₹${room.electricityRate.toInt()}/u",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B),
+                                        fontFamily = FontFamily.SansSerif
+                                    )
                                 }
                             }
-                        } else {
-                            Surface(
-                                color = Color(0xFFF8FAFC),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF2563EB).copy(alpha = 0.12f)),
-                                        contentAlignment = Alignment.Center
+
+                            // Active Balance Badge
+                            if (room.isOccupied) {
+                                if (pendingBalance > 0.0) {
+                                    Surface(
+                                        color = Color(0xFFFEF3C7),
+                                        shape = RoundedCornerShape(6.dp)
                                     ) {
                                         Text(
-                                            text = tenant!!.name.take(1).uppercase(),
-                                            color = Color(0xFF2563EB),
+                                            text = "Due: ₹${pendingBalance.toInt()}",
+                                            color = Color(0xFFB45309),
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            fontFamily = FontFamily.SansSerif
+                                            fontFamily = FontFamily.SansSerif,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
-
-                                    Spacer(modifier = Modifier.width(10.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
+                                } else if (pendingBalance < 0.0) {
+                                    Surface(
+                                        color = Color(0xFFECFDF5),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
                                         Text(
-                                            text = tenant!!.name,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF0F172A),
-                                            fontFamily = FontFamily.SansSerif
-                                        )
-                                        Text(
-                                            text = "📞 ${tenant.phone}  •  In: ${tenant.moveInDate}",
+                                            text = "Advance: ₹${(-pendingBalance).toInt()}",
+                                            color = Color(0xFF047857),
                                             fontSize = 11.sp,
-                                            color = Color(0xFF64748B),
-                                            fontFamily = FontFamily.SansSerif
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.SansSerif,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Uniform 42dp Action Buttons Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedButton(
-                                onClick = { onViewHistory(room) },
-                                modifier = Modifier.weight(1f).height(42.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        if (room.isOccupied && tenant != null) {
+                            Text(
+                                text = "Tenant: ${tenant.name} (${tenant.phoneNumber})",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = FontFamily.SansSerif,
+                                color = Color(0xFF334155)
+                            )
+                            Text(
+                                text = "Last Meter Reading: ${room.lastMeterReading.toInt()} units",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B),
+                                fontFamily = FontFamily.SansSerif
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color(0xFF334155))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("History", fontSize = 12.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFF334155), maxLines = 1)
-                            }
-
-                            if (isVacant) {
-                                Button(
-                                    onClick = { onAssignTenant(room) },
-                                    modifier = Modifier.weight(2f).height(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
-                                ) {
-                                    Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Assign Tenant", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
-                                }
-                            } else {
                                 Button(
                                     onClick = { onLodgeBill(room) },
-                                    modifier = Modifier.weight(1.3f).height(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 4.dp),
+                                    modifier = Modifier.weight(1f).height(38.dp),
+                                    shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                                 ) {
-                                    Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(15.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Lodge Bill", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, maxLines = 1)
+                                    Text("Lodge Bill", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
                                 }
 
                                 OutlinedButton(
                                     onClick = { onVacate(room) },
-                                    modifier = Modifier.weight(0.9f).height(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 4.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
+                                    modifier = Modifier.weight(1f).height(38.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                                    border = BorderStroke(1.dp, Color(0xFFFECACA))
                                 ) {
-                                    Text("Vacate", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, color = Color(0xFFEF4444), maxLines = 1)
+                                    Text("Vacate", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "Currently Vacant",
+                                fontSize = 13.sp,
+                                color = Color(0xFF94A3B8),
+                                fontFamily = FontFamily.SansSerif
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { onAssignTenant(room) },
+                                    modifier = Modifier.weight(1f).height(38.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                                ) {
+                                    Text("Assign Tenant", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                                }
+
+                                OutlinedButton(
+                                    onClick = { onViewHistory(room) },
+                                    modifier = Modifier.weight(1f).height(38.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("History", fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
                                 }
                             }
                         }
