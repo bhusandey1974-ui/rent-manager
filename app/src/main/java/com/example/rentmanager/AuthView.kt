@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -37,7 +38,6 @@ enum class AuthMode {
     EMAIL, PHONE
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthView(
     onLoginSuccess: (userId: String) -> Unit,
@@ -65,7 +65,7 @@ fun AuthView(
     var resendToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
     var isOtpSent by remember { mutableStateOf(false) }
 
-    // Google Sign-In launcher setup
+    // Google Sign-In Setup
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(context.getString(R.string.default_web_client_id))
@@ -88,8 +88,7 @@ fun AuthView(
                     auth.signInWithCredential(credential)
                         .addOnSuccessListener { authRes ->
                             isLoading = false
-                            val uid = authRes.user?.uid.orEmpty()
-                            onLoginSuccess(uid)
+                            onLoginSuccess(authRes.user?.uid.orEmpty())
                         }
                         .addOnFailureListener { e ->
                             isLoading = false
@@ -104,7 +103,7 @@ fun AuthView(
         }
     }
 
-    // Phone OTP handlers
+    // Phone verification logic
     fun sendOtp() {
         val cleanNumber = phoneNumber.trim().replace(" ", "").replace("-", "")
         val formattedNumber = when {
@@ -118,7 +117,7 @@ fun AuthView(
             return
         }
         if (activity == null) {
-            errorMessage = "Context error: cannot launch phone verification"
+            errorMessage = "Cannot launch phone verification"
             return
         }
 
@@ -138,7 +137,7 @@ fun AuthView(
                         }
                         .addOnFailureListener { e ->
                             isLoading = false
-                            errorMessage = e.localizedMessage ?: "Auto verification failed"
+                            errorMessage = e.localizedMessage ?: "Verification failed"
                         }
                 }
 
@@ -183,7 +182,7 @@ fun AuthView(
             }
     }
 
-    // Email/Password handlers
+    // Email/Password logic
     fun handleEmailAuth() {
         val cleanEmail = email.trim()
         val cleanPass = password.trim()
@@ -226,11 +225,10 @@ fun AuthView(
                 }
         }
     }
-
-    Box(
+        Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(UIAppBg)
+            .background(Color(0xFFF8FAFC))
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp),
@@ -245,7 +243,7 @@ fun AuthView(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(UIBluePrimary),
+                    .background(Color(0xFF2563EB)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -262,23 +260,23 @@ fun AuthView(
                 text = "Rent Manager Sync",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = CleanFont,
-                color = UIDarkText
+                fontFamily = FontFamily.SansSerif,
+                color = Color(0xFF0F172A)
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Sign in to keep your properties and records backed up",
+                text = "Sign in to keep your records safely backed up",
                 fontSize = 13.sp,
-                fontFamily = CleanFont,
-                color = UIMutedText,
+                fontFamily = FontFamily.SansSerif,
+                color = Color(0xFF64748B),
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Tab switch: Email vs Mobile
+            // Switch Tabs: Email vs Mobile OTP
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -297,10 +295,10 @@ fun AuthView(
                 ) {
                     Text(
                         text = "Email",
-                        fontFamily = CleanFont,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = if (selectedMode == AuthMode.EMAIL) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 13.sp,
-                        color = if (selectedMode == AuthMode.EMAIL) UIBluePrimary else UIMutedText
+                        color = if (selectedMode == AuthMode.EMAIL) Color(0xFF2563EB) else Color(0xFF64748B)
                     )
                 }
 
@@ -315,23 +313,23 @@ fun AuthView(
                 ) {
                     Text(
                         text = "Mobile OTP",
-                        fontFamily = CleanFont,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = if (selectedMode == AuthMode.PHONE) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 13.sp,
-                        color = if (selectedMode == AuthMode.PHONE) UIBluePrimary else UIMutedText
+                        color = if (selectedMode == AuthMode.PHONE) Color(0xFF2563EB) else Color(0xFF64748B)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mode 1: Email Form
+            // Form 1: Email & Password
             if (selectedMode == AuthMode.EMAIL) {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; errorMessage = null },
-                    label = { Text("Email address", fontFamily = CleanFont) },
-                    leadingIcon = { Icon(Icons.Default.MailOutline, contentDescription = null, tint = UIMutedText) },
+                    label = { Text("Email address", fontFamily = FontFamily.SansSerif) },
+                    leadingIcon = { Icon(Icons.Default.MailOutline, contentDescription = null, tint = Color(0xFF64748B)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -343,14 +341,14 @@ fun AuthView(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; errorMessage = null },
-                    label = { Text("Password", fontFamily = CleanFont) },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = UIMutedText) },
+                    label = { Text("Password", fontFamily = FontFamily.SansSerif) },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF64748B)) },
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                 contentDescription = null,
-                                tint = UIMutedText
+                                tint = Color(0xFF64748B)
                             )
                         }
                     },
@@ -367,8 +365,8 @@ fun AuthView(
                         OutlinedTextField(
                             value = confirmPassword,
                             onValueChange = { confirmPassword = it; errorMessage = null },
-                            label = { Text("Confirm password", fontFamily = CleanFont) },
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = UIMutedText) },
+                            label = { Text("Confirm password", fontFamily = FontFamily.SansSerif) },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF64748B)) },
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
@@ -385,7 +383,7 @@ fun AuthView(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = UIBluePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -394,7 +392,7 @@ fun AuthView(
                             text = if (isRegisterMode) "Create Account" else "Sign In",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = CleanFont
+                            fontFamily = FontFamily.SansSerif
                         )
                     }
                 }
@@ -405,15 +403,15 @@ fun AuthView(
                     Text(
                         text = if (isRegisterMode) "Already have an account? " else "Don't have an account? ",
                         fontSize = 12.sp,
-                        fontFamily = CleanFont,
-                        color = UIMutedText
+                        fontFamily = FontFamily.SansSerif,
+                        color = Color(0xFF64748B)
                     )
                     Text(
                         text = if (isRegisterMode) "Sign In" else "Register",
                         fontSize = 12.sp,
-                        fontFamily = CleanFont,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Bold,
-                        color = UIBluePrimary,
+                        color = Color(0xFF2563EB),
                         modifier = Modifier.clickable {
                             isRegisterMode = !isRegisterMode
                             errorMessage = null
@@ -422,13 +420,13 @@ fun AuthView(
                 }
             }
 
-            // Mode 2: Phone OTP Form
+            // Form 2: Mobile OTP
             if (selectedMode == AuthMode.PHONE) {
                 OutlinedTextField(
                     value = phoneNumber,
                     onValueChange = { phoneNumber = it; errorMessage = null },
-                    label = { Text("Mobile number", fontFamily = CleanFont) },
-                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = UIMutedText) },
+                    label = { Text("Mobile number", fontFamily = FontFamily.SansSerif) },
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF64748B)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !isOtpSent && !isLoading,
@@ -442,8 +440,8 @@ fun AuthView(
                         OutlinedTextField(
                             value = otpCode,
                             onValueChange = { if (it.length <= 6) otpCode = it; errorMessage = null },
-                            label = { Text("6-Digit OTP", fontFamily = CleanFont) },
-                            leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = UIMutedText) },
+                            label = { Text("6-Digit OTP", fontFamily = FontFamily.SansSerif) },
+                            leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFF64748B)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             enabled = !isLoading,
@@ -460,7 +458,7 @@ fun AuthView(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = UIBluePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -469,18 +467,98 @@ fun AuthView(
                             text = if (isOtpSent) "Verify OTP & Continue" else "Send OTP",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = CleanFont
+                            fontFamily = FontFamily.SansSerif
                         )
-                          }
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                if (isOtpSent) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Edit phone number",
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2563EB),
+                        modifier = Modifier.clickable {
+                            isOtpSent = false
+                            otpCode = ""
+                            errorMessage = null
+                        }
+                    )
+                }
+            }
+
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = errorMessage!!,
+                    color = Color(0xFFEF4444),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Divider
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+                Text(
+                    text = "  OR  ",
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Medium
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Form 3: Google Sign-In
+            OutlinedButton(
+                onClick = {
+                    errorMessage = null
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        googleLauncher.launch(googleSignInClient.signInIntent)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Google",
+                    tint = Color(0xFFEA4335),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Continue with Google",
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = "Continue Offline (Local Storage)",
                 fontSize = 12.sp,
-                fontFamily = CleanFont,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Medium,
-                color = UIMutedText,
+                color = Color(0xFF64748B),
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { onSkipOffline() }
@@ -488,4 +566,4 @@ fun AuthView(
             )
         }
     }
-        }
+}
