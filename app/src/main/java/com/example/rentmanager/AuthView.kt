@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthView(
-    onLoginSuccess: (email: String) -> Unit,
+    onLoginSuccess: (email: String, password: String, isRegister: Boolean) -> Unit,
     onSkipOffline: () -> Unit
 ) {
     var isRegisterMode by remember { mutableStateOf(false) }
@@ -77,9 +77,9 @@ fun AuthView(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = if (isRegisterMode) 
-                    "Set up cloud backup to keep your records safe" 
-                else 
+                text = if (isRegisterMode)
+                    "Set up cloud backup to keep your records safe"
+                else
                     "Sign in to access your synced properties",
                 fontSize = 13.sp,
                 fontFamily = CleanFont,
@@ -173,12 +173,16 @@ fun AuthView(
 
             Button(
                 onClick = {
-                    if (email.isBlank() || password.isBlank()) {
+                    val cleanEmail = email.trim()
+                    val cleanPass = password.trim()
+                    if (cleanEmail.isBlank() || cleanPass.isBlank()) {
                         errorMessage = "Please fill in all required fields"
-                    } else if (isRegisterMode && password != confirmPassword) {
+                    } else if (cleanPass.length < 6) {
+                        errorMessage = "Password must be at least 6 characters"
+                    } else if (isRegisterMode && cleanPass != confirmPassword.trim()) {
                         errorMessage = "Passwords do not match"
                     } else {
-                        onLoginSuccess(email)
+                        onLoginSuccess(cleanEmail, cleanPass, isRegisterMode)
                     }
                 },
                 modifier = Modifier
@@ -233,4 +237,3 @@ fun AuthView(
         }
     }
 }
-
