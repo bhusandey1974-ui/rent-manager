@@ -77,9 +77,9 @@ fun AuthView(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = if (isRegisterMode)
-                    "Set up cloud backup to keep your records safe"
-                else
+                text = if (isRegisterMode) 
+                    "Set up cloud backup to keep your records safe" 
+                else 
                     "Sign in to access your synced properties",
                 fontSize = 13.sp,
                 fontFamily = CleanFont,
@@ -112,7 +112,7 @@ fun AuthView(
                 value = password,
                 onValueChange = { password = it; errorMessage = null },
                 label = { Text("Password", fontFamily = CleanFont) },
-                leadingIcon = { Icon(Icons.Default.LockOutline, contentDescription = null, tint = UIMutedText) },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = UIMutedText) },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
@@ -142,7 +142,7 @@ fun AuthView(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it; errorMessage = null },
                         label = { Text("Confirm password", fontFamily = CleanFont) },
-                        leadingIcon = { Icon(Icons.Default.LockOutline, contentDescription = null, tint = UIMutedText) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = UIMutedText) },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -237,3 +237,4 @@ fun AuthView(
         }
     }
 }
+
