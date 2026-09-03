@@ -3,6 +3,7 @@ package com.example.rentmanager
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.gson.Gson
@@ -10,17 +11,22 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.UUID
 
 class RentViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val context = application.applicationContext
+    private val context: Context = application.applicationContext
     private val prefs = context.getSharedPreferences("rent_manager_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
-
     private val firestore = FirebaseFirestore.getInstance()
-    private var currentUserId: String? = null
+    private val auth = FirebaseAuth.getInstance()
+
+    private var activeUserId: String = auth.currentUser?.uid.orEmpty()
+
+    // State flows
+    private val _properties = MutableStateFlow<List<Property>>(listOf(Property()))
+    val properties: StateFlow<List<Property>> = _properties.asStateFlow()
 
     private val _rooms = MutableStateFlow<List<RoomUnit>>(emptyList())
     val rooms: StateFlow<List<RoomUnit>> = _rooms.asStateFlow()
@@ -34,276 +40,339 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     private val _pastTenancies = MutableStateFlow<List<PastTenancyRecord>>(emptyList())
     val pastTenancies: StateFlow<List<PastTenancyRecord>> = _pastTenancies.asStateFlow()
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
     init {
-        loadLocalState()
+        loadLocalData()
+        if (activeUserId.isNotBlank()) {
+            loadCloudData(activeUserId)
+        }
     }
 
-    private fun loadLocalState() {
-        val roomsJson = prefs.getString("rooms_data", null)
-        val tenantsJson = prefs.getString("tenants_data", null)
-        val billsJson = prefs.getString("bills_data", null)
-        val pastJson = prefs.getString("past_tenancies_data", null)
+    fun setUserId(uid: String) {
+        activeUserId = uid
+        loadCloudData(uid)
+    }
 
-        roomsJson?.let {
+    // ==========================================
+    // LOCAL STORAGE (PREFERENCES)
+    // ==========================================
+    private fun loadLocalData() {
+        val roomsJson = prefs.getString("rooms_cache", null)
+        val tenantsJson = prefs.getString("tenants_cache", null)
+        val billsJson = prefs.getString("bills_cache", null)
+        val pastJson = prefs.getString("past_cache", null)
+
+        if (!roomsJson.isNullOrBlank()) {
             val type = object : TypeToken<List<RoomUnit>>() {}.type
-            _rooms.value = gson.fromJson(it, type) ?: emptyList()
+            _rooms.value = gson.fromJson(roomsJson, type) ?: emptyList()
         }
-        tenantsJson?.let {
+        if (!tenantsJson.isNullOrBlank()) {
             val type = object : TypeToken<List<Tenant>>() {}.type
-            _tenants.value = gson.fromJson(it, type) ?: emptyList()
+            _tenants.value = gson.fromJson(tenantsJson, type) ?: emptyList()
         }
-        billsJson?.let {
+        if (!billsJson.isNullOrBlank()) {
             val type = object : TypeToken<List<BillRecord>>() {}.type
-            _bills.value = gson.fromJson(it, type) ?: emptyList()
+            _bills.value = gson.fromJson(billsJson, type) ?: emptyList()
         }
-        pastJson?.let {
+        if (!pastJson.isNullOrBlank()) {
             val type = object : TypeToken<List<PastTenancyRecord>>() {}.type
-            _pastTenancies.value = gson.fromJson(it, type) ?: emptyList()
+            _pastTenancies.value = gson.fromJson(pastJson, type) ?: emptyList()
         }
     }
 
-    private fun saveLocalState() {
+    private fun persistLocally() {
         prefs.edit()
-            .putString("rooms_data", gson.toJson(_rooms.value))
-            .putString("tenants_data", gson.toJson(_tenants.value))
-            .putString("bills_data", gson.toJson(_bills.value))
-            .putString("past_tenancies_data", gson.toJson(_pastTenancies.value))
+            .putString("rooms_cache", gson.toJson(_rooms.value))
+            .putString("tenants_cache", gson.toJson(_tenants.value))
+            .putString("bills_cache", gson.toJson(_bills.value))
+            .putString("past_cache", gson.toJson(_pastTenancies.value))
             .apply()
     }
 
-    // Cloud Persistence Handlers
-    fun loadCloudData(userId: String) {
-        currentUserId = userId
-        firestore.collection("users").document(userId).get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    val roomsRaw = doc.getString("rooms_json")
-                    val tenantsRaw = doc.getString("tenants_json")
-                    val billsRaw = doc.getString("bills_json")
-                    val pastRaw = doc.getString("past_json")
+    // ==========================================
+    // CLOUD SYNC (FIRESTORE)
+    // ==========================================
+    fun loadCloudData(uid: String) {
+        if (uid.isBlank()) return
+        activeUserId = uid
+        _isSyncing.value = true
 
-                    roomsRaw?.let {
+        firestore.collection("users").document(uid).get()
+            .addOnSuccessListener { doc ->
+                _isSyncing.value = false
+                if (doc != null && doc.exists()) {
+                    val rJson = doc.getString("rooms_json")
+                    val tJson = doc.getString("tenants_json")
+                    val bJson = doc.getString("bills_json")
+                    val pJson = doc.getString("past_json")
+
+                    if (!rJson.isNullOrBlank()) {
                         val type = object : TypeToken<List<RoomUnit>>() {}.type
-                        _rooms.value = gson.fromJson(it, type) ?: emptyList()
+                        _rooms.value = gson.fromJson(rJson, type) ?: emptyList()
                     }
-                    tenantsRaw?.let {
+                    if (!tJson.isNullOrBlank()) {
                         val type = object : TypeToken<List<Tenant>>() {}.type
-                        _tenants.value = gson.fromJson(it, type) ?: emptyList()
+                        _tenants.value = gson.fromJson(tJson, type) ?: emptyList()
                     }
-                    billsRaw?.let {
+                    if (!bJson.isNullOrBlank()) {
                         val type = object : TypeToken<List<BillRecord>>() {}.type
-                        _bills.value = gson.fromJson(it, type) ?: emptyList()
+                        _bills.value = gson.fromJson(bJson, type) ?: emptyList()
                     }
-                    pastRaw?.let {
+                    if (!pJson.isNullOrBlank()) {
                         val type = object : TypeToken<List<PastTenancyRecord>>() {}.type
-                        _pastTenancies.value = gson.fromJson(it, type) ?: emptyList()
+                        _pastTenancies.value = gson.fromJson(pJson, type) ?: emptyList()
                     }
-                    saveLocalState()
+                    persistLocally()
                 } else {
-                    pushDataToCloud()
+                    syncToCloud()
                 }
+            }
+            .addOnFailureListener {
+                _isSyncing.value = false
             }
     }
 
-    fun pushDataToCloud() {
-        val uid = currentUserId ?: return
-        val data = hashMapOf(
+    private fun syncToCloud() {
+        persistLocally()
+        if (activeUserId.isBlank()) return
+
+        val payload = hashMapOf(
             "rooms_json" to gson.toJson(_rooms.value),
             "tenants_json" to gson.toJson(_tenants.value),
             "bills_json" to gson.toJson(_bills.value),
             "past_json" to gson.toJson(_pastTenancies.value),
-            "updatedAt" to System.currentTimeMillis()
+            "last_updated" to System.currentTimeMillis()
         )
-        firestore.collection("users").document(uid)
-            .set(data, SetOptions.merge())
-    }
 
-    // Room Actions
-    fun addRoom(propertyId: String, roomNumber: String, unitType: String, baseRent: Double, electricityRate: Double) {
+        firestore.collection("users").document(activeUserId)
+            .set(payload, SetOptions.merge())
+    }
+        // ==========================================
+    // ROOM & TENANT OPERATIONS
+    // ==========================================
+    fun addRoom(roomNumber: String, baseRent: Double, electricityRate: Double) {
         val newRoom = RoomUnit(
             id = UUID.randomUUID().toString(),
-            propertyId = propertyId,
+            propertyId = "default_prop",
             roomNumber = roomNumber,
-            unitType = unitType,
             baseRent = baseRent,
             electricityRate = electricityRate
         )
         _rooms.value = _rooms.value + newRoom
-        saveLocalState()
-        pushDataToCloud()
+        syncToCloud()
     }
 
-    fun editRoom(roomId: String, roomNumber: String, baseRent: Double, electricityRate: Double) {
-        _rooms.value = _rooms.value.map { room ->
-            if (room.id == roomId) {
-                room.copy(roomNumber = roomNumber, baseRent = baseRent, electricityRate = electricityRate)
-            } else room
+    fun updateRoom(roomId: String, roomNumber: String, baseRent: Double, electricityRate: Double) {
+        _rooms.value = _rooms.value.map {
+            if (it.id == roomId) it.copy(roomNumber = roomNumber, baseRent = baseRent, electricityRate = electricityRate)
+            else it
         }
-        saveLocalState()
-        pushDataToCloud()
+        syncToCloud()
     }
 
     fun deleteRoom(roomId: String) {
-        _rooms.value = _rooms.value.filter { it.id != roomId }
-        _tenants.value = _tenants.value.filter { it.roomId != roomId }
-        _bills.value = _bills.value.filter { it.roomId != roomId }
-        _pastTenancies.value = _pastTenancies.value.filter { it.roomId != roomId }
-        saveLocalState()
-        pushDataToCloud()
+        _rooms.value = _rooms.value.filterNot { it.id == roomId }
+        _tenants.value = _tenants.value.filterNot { it.roomId == roomId }
+        _bills.value = _bills.value.filterNot { it.roomId == roomId }
+        _pastTenancies.value = _pastTenancies.value.filterNot { it.roomId == roomId }
+        syncToCloud()
     }
 
-    // Tenant Actions
     fun assignTenant(
-        propertyId: String,
         roomId: String,
         name: String,
         phone: String,
-        aadhaar: String,
-        moveInDate: String,
+        aadhaarNumber: String,
+        address: String,
         depositAmount: Double,
-        initialMeterReading: Double
+        initialReading: Double,
+        moveInDate: String
     ) {
         val newTenant = Tenant(
             id = UUID.randomUUID().toString(),
-            propertyId = propertyId,
+            propertyId = "default_prop",
             roomId = roomId,
             name = name,
             phone = phone,
-            aadhaarNumber = aadhaar,
+            aadhaarNumber = aadhaarNumber,
+            address = address,
             moveInDate = moveInDate,
             depositAmount = depositAmount,
-            initialMeterReading = initialMeterReading,
+            initialMeterReading = initialReading,
             isActive = true
         )
-        _tenants.value = _tenants.value + newTenant
-        saveLocalState()
-        pushDataToCloud()
+        _tenants.value = _tenants.value.filterNot { it.roomId == roomId && it.isActive } + newTenant
+        syncToCloud()
     }
 
-    fun editTenant(tenantId: String, name: String, phone: String, aadhaar: String) {
-        _tenants.value = _tenants.value.map { tenant ->
-            if (tenant.id == tenantId) {
-                tenant.copy(name = name, phone = phone, aadhaarNumber = aadhaar)
-            } else tenant
-        }
-        saveLocalState()
-        pushDataToCloud()
-    }
+    fun vacateTenant(roomId: String, vacateDate: String, refundAmount: Double) {
+        val activeTenant = _tenants.value.find { it.roomId == roomId && it.isActive } ?: return
 
-    fun checkoutTenant(tenantId: String, vacateDate: String, refundAmount: Double) {
-        val currentTenant = _tenants.value.find { it.id == tenantId } ?: return
         val pastRecord = PastTenancyRecord(
             id = UUID.randomUUID().toString(),
-            roomId = currentTenant.roomId,
-            tenantName = currentTenant.name,
-            phone = currentTenant.phone,
-            moveInDate = currentTenant.moveInDate,
+            roomId = roomId,
+            tenantName = activeTenant.name,
+            phone = activeTenant.phone,
+            aadhaarNumber = activeTenant.aadhaarNumber,
+            address = activeTenant.address,
+            moveInDate = activeTenant.moveInDate,
             vacateDate = vacateDate,
             depositReturned = refundAmount
         )
+
         _pastTenancies.value = _pastTenancies.value + pastRecord
-        _tenants.value = _tenants.value.filter { it.id != tenantId }
-        saveLocalState()
-        pushDataToCloud()
+        _tenants.value = _tenants.value.filterNot { it.id == activeTenant.id }
+        syncToCloud()
     }
 
-    // Billing Actions
-    fun lodgeBillAndPayment(
-        propertyId: String,
+    // ==========================================
+    // BILLING & DUES LOGIC
+    // ==========================================
+    fun getLatestMeterReading(roomId: String): Double {
+        val roomBills = _bills.value.filter { it.roomId == roomId }.sortedByDescending { it.timestamp }
+        if (roomBills.isNotEmpty()) {
+            return roomBills.first().currentMeterReading
+        }
+        val tenant = _tenants.value.find { it.roomId == roomId && it.isActive }
+        return tenant?.initialMeterReading ?: 0.0
+    }
+
+    fun getPendingDueForRoom(roomId: String): Double {
+        val roomBills = _bills.value.filter { it.roomId == roomId }.sortedByDescending { it.timestamp }
+        return if (roomBills.isNotEmpty()) {
+            roomBills.first().remainingDue
+        } else {
+            0.0
+        }
+    }
+
+    fun lodgeBill(
         roomId: String,
         tenantId: String,
-        month: String,
+        monthYear: String,
         baseRent: Double,
-        prevUnit: Double,
-        curUnit: Double,
+        prevReading: Double,
+        curReading: Double,
         rate: Double,
         maintenance: Double,
-        previousDue: Double,
+        carryoverDue: Double,
         amountPaid: Double,
         paymentMode: String
     ) {
-        val electricityCharge = (curUnit - prevUnit).coerceAtLeast(0.0) * rate
-        val totalCalculated = baseRent + electricityCharge + maintenance + previousDue
-        val remainingDue = totalCalculated - amountPaid
+        val consumed = (curReading - prevReading).coerceAtLeast(0.0)
+        val electricityCost = consumed * rate
+        val totalCalculated = baseRent + electricityCost + maintenance + carryoverDue
+        val remainingDue = (totalCalculated - amountPaid).coerceAtLeast(0.0)
 
-        val bill = BillRecord(
+        val newBill = BillRecord(
             id = UUID.randomUUID().toString(),
-            propertyId = propertyId,
+            propertyId = "default_prop",
             roomId = roomId,
             tenantId = tenantId,
-            monthYear = month,
+            monthYear = monthYear,
             baseRent = baseRent,
-            prevMeterReading = prevUnit,
-            currentMeterReading = curUnit,
+            prevMeterReading = prevReading,
+            currentMeterReading = curReading,
             electricityRate = rate,
             maintenanceCharge = maintenance,
-            previousDueCarryover = previousDue,
+            previousDueCarryover = carryoverDue,
             amountPaid = amountPaid,
             remainingDue = remainingDue,
             paymentMode = paymentMode,
             timestamp = System.currentTimeMillis()
         )
-        _bills.value = _bills.value + bill
-        saveLocalState()
-        pushDataToCloud()
+
+        _bills.value = listOf(newBill) + _bills.value
+        syncToCloud()
     }
 
-    fun getCumulativePendingDue(roomId: String): Double {
-        val lastBill = _bills.value.filter { it.roomId == roomId }.maxByOrNull { it.timestamp }
-        return lastBill?.remainingDue ?: 0.0
+    // ==========================================
+    // METRICS CALCULATIONS
+    // ==========================================
+    fun calculateTotalOutstandingDues(): Double {
+        return _rooms.value.sumOf { getPendingDueForRoom(it.id) }
     }
 
-    fun clearRoomHistory(roomId: String) {
-        _bills.value = _bills.value.filter { it.roomId != roomId }
-        _pastTenancies.value = _pastTenancies.value.filter { it.roomId != roomId }
-        saveLocalState()
-        pushDataToCloud()
+    fun calculateLifetimeRevenue(): Double {
+        return _bills.value.sumOf { it.amountPaid }
     }
 
-    fun resetAllRevenueData() {
+    fun calculateLifetimeRentEarnings(): Double {
+        return _bills.value.sumOf { it.baseRent }
+    }
+
+    fun calculateLifetimeElectricityRevenue(): Double {
+        return _bills.value.sumOf {
+            val units = (it.currentMeterReading - it.prevMeterReading).coerceAtLeast(0.0)
+            units * it.electricityRate
+        }
+    }
+
+    private fun isCurrentYear(timestamp: Long): Boolean {
+        val calCurrent = Calendar.getInstance()
+        val calItem = Calendar.getInstance().apply { timeInMillis = timestamp }
+        return calCurrent.get(Calendar.YEAR) == calItem.get(Calendar.YEAR)
+    }
+
+    fun calculateYearlyRevenue(): Double {
+        return _bills.value.filter { isCurrentYear(it.timestamp) }.sumOf { it.amountPaid }
+    }
+
+    fun calculateYearlyRentEarnings(): Double {
+        return _bills.value.filter { isCurrentYear(it.timestamp) }.sumOf { it.baseRent }
+    }
+
+    fun calculateYearlyElectricityRevenue(): Double {
+        return _bills.value.filter { isCurrentYear(it.timestamp) }.sumOf {
+            val units = (it.currentMeterReading - it.prevMeterReading).coerceAtLeast(0.0)
+            units * it.electricityRate
+        }
+    }
+
+    fun resolveTenantName(tenantId: String, roomId: String): String {
+        val active = _tenants.value.find { it.id == tenantId || (it.roomId == roomId && it.isActive) }
+        if (active != null) return active.name
+
+        val past = _pastTenancies.value.find { it.roomId == roomId }
+        if (past != null) return past.tenantName
+
+        return "Tenant"
+    }
+
+    // ==========================================
+    // ACCOUNT & RESET ACTIONS
+    // ==========================================
+    fun signOut(onComplete: () -> Unit) {
+        auth.signOut()
+        activeUserId = ""
+        onComplete()
+    }
+
+    fun clearAllUserData(onComplete: (Boolean) -> Unit) {
+        val uid = activeUserId
+        if (uid.isNotBlank()) {
+            firestore.collection("users").document(uid).delete()
+                .addOnSuccessListener {
+                    clearLocalSession(onComplete)
+                }
+                .addOnFailureListener {
+                    clearLocalSession(onComplete)
+                }
+        } else {
+            clearLocalSession(onComplete)
+        }
+    }
+
+    private fun clearLocalSession(onComplete: (Boolean) -> Unit) {
+        prefs.edit().clear().apply()
+        _rooms.value = emptyList()
+        _tenants.value = emptyList()
         _bills.value = emptyList()
-        saveLocalState()
-        pushDataToCloud()
-    }
-
-    // Utility Helpers
-    fun getTodayDateFormatted(): String {
-        return SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
-    }
-
-    fun getPreviousMonthFormatted(): String {
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.MONTH, -1)
-        return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time)
-    }
-
-    fun getWhatsAppReceiptText(
-        bill: BillRecord,
-        tenant: Tenant,
-        property: Property,
-        room: RoomUnit
-    ): String {
-        val units = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
-        val electricityCost = units * bill.electricityRate
-        val totalAmount = bill.baseRent + electricityCost + bill.maintenanceCharge + bill.previousDueCarryover
-
-        return """
-        *RENT RECEIPT - ${property.name}*
-        ----------------------------------
-        Tenant: ${tenant.name}
-        Unit: Room ${room.roomNumber}
-        Billing Period: ${bill.monthYear}
-
-        Base Rent: ₹${"%,.2f".format(bill.baseRent)}
-        Electricity: ₹${"%,.2f".format(electricityCost)} ($units units @ ₹${bill.electricityRate}/u)
-        Maintenance: ₹${"%,.2f".format(bill.maintenanceCharge)}
-        Previous Dues: ₹${"%,.2f".format(bill.previousDueCarryover)}
-        ----------------------------------
-        Total Payable: ₹${"%,.2f".format(totalAmount)}
-        Amount Paid: ₹${"%,.2f".format(bill.amountPaid)} (${bill.paymentMode})
-        Remaining Balance: ₹${"%,.2f".format(bill.remainingDue)}
-        ----------------------------------
-        Thank you for your prompt payment!
-        """.trimIndent()
+        _pastTenancies.value = emptyList()
+        auth.signOut()
+        activeUserId = ""
+        onComplete(true)
     }
 }
