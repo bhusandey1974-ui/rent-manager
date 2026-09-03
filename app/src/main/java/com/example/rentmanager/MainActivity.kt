@@ -47,14 +47,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun RentManagerMainApp(vm: RentViewModel) {
     val context = LocalContext.current
+    val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
 
     val rooms by vm.rooms.collectAsState()
     val tenants by vm.tenants.collectAsState()
     val bills by vm.bills.collectAsState()
     val pastTenancies by vm.pastTenancies.collectAsState()
 
-    var isAuthenticated by remember { mutableStateOf(false) }
+    var isAuthenticated by remember { mutableStateOf(auth.currentUser != null) }
     var currentTab by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        auth.currentUser?.let { user ->
+            vm.loadCloudData(user.uid)
+        }
+    }
 
     var showAddRoomDialog by remember { mutableStateOf(false) }
     var showEditRoomDialog by remember { mutableStateOf<RoomUnit?>(null) }
@@ -72,8 +79,28 @@ fun RentManagerMainApp(vm: RentViewModel) {
 
     if (!isAuthenticated) {
         AuthView(
-            onLoginSuccess = { email ->
-                isAuthenticated = true
+            onLoginSuccess = { email, password, isRegister ->
+                if (isRegister) {
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnSuccessListener { result ->
+                            val uid = result.user?.uid.orEmpty()
+                            isAuthenticated = true
+                            vm.loadCloudData(uid)
+                        }
+                        .addOnFailureListener { err ->
+                            Toast.makeText(context, err.localizedMessage ?: "Registration failed", Toast.LENGTH_LONG).show()
+                        }
+                } else {
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnSuccessListener { result ->
+                            val uid = result.user?.uid.orEmpty()
+                            isAuthenticated = true
+                            vm.loadCloudData(uid)
+                        }
+                        .addOnFailureListener { err ->
+                            Toast.makeText(context, err.localizedMessage ?: "Login failed", Toast.LENGTH_LONG).show()
+                        }
+                }
             },
             onSkipOffline = {
                 isAuthenticated = true
