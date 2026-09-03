@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -81,129 +82,115 @@ fun RevenueView(
             .background(Color(0xFFF8FAFC))
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Executive Slate Metrics Card
+        // Soft, Clean & Elegant Royal Gradient Card (Replaced the harsh black)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+            shape = RoundedCornerShape(22.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (timeframe == RevenueTimeframe.YEAR_2026) "YEAR REVENUE (2026)" else "LIFETIME COLLECTION",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.SansSerif,
-                        color = Color(0xFF94A3B8),
-                        letterSpacing = 1.sp
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF1E3A8A), // Deep Navy
+                                Color(0xFF2563EB), // Vibrant Royal Blue
+                                Color(0xFF3B82F6)  // Light Sky Accent
+                            )
+                        )
                     )
-
+                    .padding(20.dp)
+            ) {
+                Column {
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF1E293B))
-                            .padding(2.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "2026",
+                            text = if (timeframe == RevenueTimeframe.YEAR_2026) "YEAR REVENUE (2026)" else "LIFETIME REVENUE",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontFamily = FontFamily.SansSerif,
-                            color = if (timeframe == RevenueTimeframe.YEAR_2026) Color.White else Color(0xFF94A3B8),
+                            color = Color(0xFFDBEAFE),
+                            letterSpacing = 1.sp
+                        )
+
+                        // Elegant Soft Pill Switcher
+                        Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (timeframe == RevenueTimeframe.YEAR_2026) Color(0xFF2563EB) else Color.Transparent)
-                                .clickable { timeframe = RevenueTimeframe.YEAR_2026 }
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                        Text(
-                            text = "All",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = if (timeframe == RevenueTimeframe.LIFETIME) Color.White else Color(0xFF94A3B8),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (timeframe == RevenueTimeframe.LIFETIME) Color(0xFF2563EB) else Color.Transparent)
-                                .clickable { timeframe = RevenueTimeframe.LIFETIME }
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = currencyFormat.format(totalCollected),
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                HorizontalDivider(color = Color(0xFF334155), thickness = 0.8.dp)
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Rent Collection",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = Color(0xFF94A3B8)
-                        )
-                        Text(
-                            text = currencyFormat.format(rentEarnings),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = Color.White
-                        )
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.2f))
+                                .padding(2.dp)
+                        ) {
+                            Text(
+                                text = "2026",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                                color = if (timeframe == RevenueTimeframe.YEAR_2026) Color(0xFF1E3A8A) else Color.White,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (timeframe == RevenueTimeframe.YEAR_2026) Color.White else Color.Transparent)
+                                    .clickable { timeframe = RevenueTimeframe.YEAR_2026 }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                            Text(
+                                text = "All",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                                color = if (timeframe == RevenueTimeframe.LIFETIME) Color(0xFF1E3A8A) else Color.White,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (timeframe == RevenueTimeframe.LIFETIME) Color.White else Color.Transparent)
+                                    .clickable { timeframe = RevenueTimeframe.LIFETIME }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
                     }
 
-                    Column {
-                        Text(
-                            text = "Electricity",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = Color(0xFF94A3B8)
-                        )
-                        Text(
-                            text = currencyFormat.format(electricityEarnings),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = Color.White
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Column {
-                        Text(
-                            text = "Active Due",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = Color(0xFF94A3B8)
-                        )
-                        Text(
-                            text = currencyFormat.format(totalOutstandingDues),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = if (totalOutstandingDues > 0.0) Color(0xFFFBBF24) else Color(0xFF34D399)
-                        )
+                    Text(
+                        text = currencyFormat.format(totalCollected),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.25f), thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Rent Collection", fontSize = 11.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFFDBEAFE))
+                            Text(currencyFormat.format(rentEarnings), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, color = Color.White)
+                        }
+
+                        Column {
+                            Text("Electricity", fontSize = 11.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFFDBEAFE))
+                            Text(currencyFormat.format(electricityEarnings), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, color = Color.White)
+                        }
+
+                        Column {
+                            Text("Active Due", fontSize = 11.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFFDBEAFE))
+                            Text(
+                                currencyFormat.format(totalOutstandingDues),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                                color = if (totalOutstandingDues > 0.0) Color(0xFFFDE68A) else Color(0xFFA7F3D0)
+                            )
+                        }
                     }
                 }
             }
@@ -211,7 +198,7 @@ fun RevenueView(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // Ledger filter bar
+        // Ledger Filter Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
