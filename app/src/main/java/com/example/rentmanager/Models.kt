@@ -22,6 +22,7 @@ data class Tenant(
     val name: String = "",
     val phone: String = "",
     val aadhaarNumber: String = "",
+    val address: String = "",
     val moveInDate: String = "",
     val depositAmount: Double = 0.0,
     val initialMeterReading: Double = 0.0,
@@ -51,7 +52,10 @@ data class PastTenancyRecord(
     val roomId: String = "",
     val tenantName: String = "",
     val phone: String = "",
+    val aadhaarNumber: String = "",
+    val address: String = "",
     val moveInDate: String = "",
     val vacateDate: String = "",
     val depositReturned: Double = 0.0
 )
+
