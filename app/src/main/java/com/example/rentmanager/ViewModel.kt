@@ -2,8 +2,9 @@ package com.example.rentmanager
 
 import android.app.Application
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,12 +12,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 class RentViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val prefs: SharedPreferences = application.getSharedPreferences("RentManagerData", Context.MODE_PRIVATE)
+    private val context = application.applicationContext
+    private val prefs = context.getSharedPreferences("rent_manager_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
+
+    private val firestore = FirebaseFirestore.getInstance()
+    private var currentUserId: String? = null
 
     private val _rooms = MutableStateFlow<List<RoomUnit>>(emptyList())
     val rooms: StateFlow<List<RoomUnit>> = _rooms.asStateFlow()
@@ -31,64 +35,112 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     val pastTenancies: StateFlow<List<PastTenancyRecord>> = _pastTenancies.asStateFlow()
 
     init {
-        loadData()
+        loadLocalState()
     }
 
-    private fun loadData() {
-        _rooms.value = loadList("ROOMS_KEY")
-        _tenants.value = loadList("TENANTS_KEY")
-        _bills.value = loadList("BILLS_KEY")
-        _pastTenancies.value = loadList("PAST_KEY")
-    }
+    private fun loadLocalState() {
+        val roomsJson = prefs.getString("rooms_data", null)
+        val tenantsJson = prefs.getString("tenants_data", null)
+        val billsJson = prefs.getString("bills_data", null)
+        val pastJson = prefs.getString("past_tenancies_data", null)
 
-    private fun saveData() {
-        saveList("ROOMS_KEY", _rooms.value)
-        saveList("TENANTS_KEY", _tenants.value)
-        saveList("BILLS_KEY", _bills.value)
-        saveList("PAST_KEY", _pastTenancies.value)
-    }
-
-    private inline fun <reified T> loadList(key: String): List<T> {
-        val json = prefs.getString(key, "[]") ?: "[]"
-        val type = object : TypeToken<List<T>>() {}.type
-        return try {
-            gson.fromJson(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
+        roomsJson?.let {
+            val type = object : TypeToken<List<RoomUnit>>() {}.type
+            _rooms.value = gson.fromJson(it, type) ?: emptyList()
+        }
+        tenantsJson?.let {
+            val type = object : TypeToken<List<Tenant>>() {}.type
+            _tenants.value = gson.fromJson(it, type) ?: emptyList()
+        }
+        billsJson?.let {
+            val type = object : TypeToken<List<BillRecord>>() {}.type
+            _bills.value = gson.fromJson(it, type) ?: emptyList()
+        }
+        pastJson?.let {
+            val type = object : TypeToken<List<PastTenancyRecord>>() {}.type
+            _pastTenancies.value = gson.fromJson(it, type) ?: emptyList()
         }
     }
 
-    private fun <T> saveList(key: String, list: List<T>) {
-        prefs.edit().putString(key, gson.toJson(list)).apply()
+    private fun saveLocalState() {
+        prefs.edit()
+            .putString("rooms_data", gson.toJson(_rooms.value))
+            .putString("tenants_data", gson.toJson(_tenants.value))
+            .putString("bills_data", gson.toJson(_bills.value))
+            .putString("past_tenancies_data", gson.toJson(_pastTenancies.value))
+            .apply()
     }
 
-    fun getTodayDateFormatted(): String {
-        return SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+    // Cloud Persistence Handlers
+    fun loadCloudData(userId: String) {
+        currentUserId = userId
+        firestore.collection("users").document(userId).get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val roomsRaw = doc.getString("rooms_json")
+                    val tenantsRaw = doc.getString("tenants_json")
+                    val billsRaw = doc.getString("bills_json")
+                    val pastRaw = doc.getString("past_json")
+
+                    roomsRaw?.let {
+                        val type = object : TypeToken<List<RoomUnit>>() {}.type
+                        _rooms.value = gson.fromJson(it, type) ?: emptyList()
+                    }
+                    tenantsRaw?.let {
+                        val type = object : TypeToken<List<Tenant>>() {}.type
+                        _tenants.value = gson.fromJson(it, type) ?: emptyList()
+                    }
+                    billsRaw?.let {
+                        val type = object : TypeToken<List<BillRecord>>() {}.type
+                        _bills.value = gson.fromJson(it, type) ?: emptyList()
+                    }
+                    pastRaw?.let {
+                        val type = object : TypeToken<List<PastTenancyRecord>>() {}.type
+                        _pastTenancies.value = gson.fromJson(it, type) ?: emptyList()
+                    }
+                    saveLocalState()
+                } else {
+                    pushDataToCloud()
+                }
+            }
     }
 
-    fun getPreviousMonthFormatted(): String {
-        val cal = Calendar.getInstance()
-        return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time)
+    fun pushDataToCloud() {
+        val uid = currentUserId ?: return
+        val data = hashMapOf(
+            "rooms_json" to gson.toJson(_rooms.value),
+            "tenants_json" to gson.toJson(_tenants.value),
+            "bills_json" to gson.toJson(_bills.value),
+            "past_json" to gson.toJson(_pastTenancies.value),
+            "updatedAt" to System.currentTimeMillis()
+        )
+        firestore.collection("users").document(uid)
+            .set(data, SetOptions.merge())
     }
 
+    // Room Actions
     fun addRoom(propertyId: String, roomNumber: String, unitType: String, baseRent: Double, electricityRate: Double) {
         val newRoom = RoomUnit(
+            id = UUID.randomUUID().toString(),
             propertyId = propertyId,
             roomNumber = roomNumber,
             unitType = unitType,
             baseRent = baseRent,
-            electricityRate = electricityRate,
-            isVacant = true
+            electricityRate = electricityRate
         )
         _rooms.value = _rooms.value + newRoom
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
     fun editRoom(roomId: String, roomNumber: String, baseRent: Double, electricityRate: Double) {
-        _rooms.value = _rooms.value.map {
-            if (it.id == roomId) it.copy(roomNumber = roomNumber, baseRent = baseRent, electricityRate = electricityRate) else it
+        _rooms.value = _rooms.value.map { room ->
+            if (room.id == roomId) {
+                room.copy(roomNumber = roomNumber, baseRent = baseRent, electricityRate = electricityRate)
+            } else room
         }
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
     fun deleteRoom(roomId: String) {
@@ -96,9 +148,11 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         _tenants.value = _tenants.value.filter { it.roomId != roomId }
         _bills.value = _bills.value.filter { it.roomId != roomId }
         _pastTenancies.value = _pastTenancies.value.filter { it.roomId != roomId }
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
+    // Tenant Actions
     fun assignTenant(
         propertyId: String,
         roomId: String,
@@ -106,69 +160,54 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         phone: String,
         aadhaar: String,
         moveInDate: String,
-        securityDeposit: Double,
-        initialReading: Double
+        depositAmount: Double,
+        initialMeterReading: Double
     ) {
         val newTenant = Tenant(
+            id = UUID.randomUUID().toString(),
             propertyId = propertyId,
             roomId = roomId,
             name = name,
             phone = phone,
             aadhaarNumber = aadhaar,
             moveInDate = moveInDate,
-            securityDeposit = securityDeposit,
-            initialMeterReading = initialReading,
+            depositAmount = depositAmount,
+            initialMeterReading = initialMeterReading,
             isActive = true
         )
-        _tenants.value = _tenants.value.filter { it.roomId != roomId } + newTenant
-        _rooms.value = _rooms.value.map {
-            if (it.id == roomId) it.copy(isVacant = false) else it
-        }
-        saveData()
+        _tenants.value = _tenants.value + newTenant
+        saveLocalState()
+        pushDataToCloud()
     }
 
     fun editTenant(tenantId: String, name: String, phone: String, aadhaar: String) {
-        _tenants.value = _tenants.value.map {
-            if (it.id == tenantId) it.copy(name = name, phone = phone, aadhaarNumber = aadhaar) else it
+        _tenants.value = _tenants.value.map { tenant ->
+            if (tenant.id == tenantId) {
+                tenant.copy(name = name, phone = phone, aadhaarNumber = aadhaar)
+            } else tenant
         }
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
     fun checkoutTenant(tenantId: String, vacateDate: String, refundAmount: Double) {
-        val tenant = _tenants.value.find { it.id == tenantId } ?: return
-        val roomBills = _bills.value.filter { it.tenantId == tenantId }
-        val totalPaid = roomBills.sumOf { it.amountPaid }
-
-        val totalDays = try {
-            val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-            val d1 = sdf.parse(tenant.moveInDate)
-            val d2 = sdf.parse(vacateDate)
-            if (d1 != null && d2 != null) {
-                val diff = d2.time - d1.time
-                TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS).coerceAtLeast(1)
-            } else 1L
-        } catch (e: Exception) {
-            1L
-        }
-
-        val record = PastTenancyRecord(
-            roomId = tenant.roomId,
-            tenantName = tenant.name,
-            tenantPhone = tenant.phone,
-            moveInDate = tenant.moveInDate,
+        val currentTenant = _tenants.value.find { it.id == tenantId } ?: return
+        val pastRecord = PastTenancyRecord(
+            id = UUID.randomUUID().toString(),
+            roomId = currentTenant.roomId,
+            tenantName = currentTenant.name,
+            phone = currentTenant.phone,
+            moveInDate = currentTenant.moveInDate,
             vacateDate = vacateDate,
-            totalDaysStayed = totalDays,
-            totalPaid = totalPaid
+            depositReturned = refundAmount
         )
-
-        _pastTenancies.value = _pastTenancies.value + record
+        _pastTenancies.value = _pastTenancies.value + pastRecord
         _tenants.value = _tenants.value.filter { it.id != tenantId }
-        _rooms.value = _rooms.value.map {
-            if (it.id == tenant.roomId) it.copy(isVacant = true) else it
-        }
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
+    // Billing Actions
     fun lodgeBillAndPayment(
         propertyId: String,
         roomId: String,
@@ -183,12 +222,12 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         amountPaid: Double,
         paymentMode: String
     ) {
-        val units = (curUnit - prevUnit).coerceAtLeast(0.0)
-        val electricityTotal = units * rate
-        val grandTotal = baseRent + electricityTotal + maintenance + previousDue
-        val remaining = (grandTotal - amountPaid).coerceAtLeast(0.0)
+        val electricityCharge = (curUnit - prevUnit).coerceAtLeast(0.0) * rate
+        val totalCalculated = baseRent + electricityCharge + maintenance + previousDue
+        val remainingDue = totalCalculated - amountPaid
 
         val bill = BillRecord(
+            id = UUID.randomUUID().toString(),
             propertyId = propertyId,
             roomId = roomId,
             tenantId = tenantId,
@@ -200,11 +239,13 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             maintenanceCharge = maintenance,
             previousDueCarryover = previousDue,
             amountPaid = amountPaid,
-            remainingDue = remaining,
-            paymentMode = paymentMode
+            remainingDue = remainingDue,
+            paymentMode = paymentMode,
+            timestamp = System.currentTimeMillis()
         )
         _bills.value = _bills.value + bill
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
     fun getCumulativePendingDue(roomId: String): Double {
@@ -212,44 +253,57 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         return lastBill?.remainingDue ?: 0.0
     }
 
-    fun resetAllRevenueData() {
-        _bills.value = emptyList()
-        saveData()
-    }
-
     fun clearRoomHistory(roomId: String) {
         _bills.value = _bills.value.filter { it.roomId != roomId }
         _pastTenancies.value = _pastTenancies.value.filter { it.roomId != roomId }
-        saveData()
+        saveLocalState()
+        pushDataToCloud()
     }
 
-    fun getWhatsAppReceiptText(bill: BillRecord, tenant: Tenant, property: Property, room: RoomUnit): String {
+    fun resetAllRevenueData() {
+        _bills.value = emptyList()
+        saveLocalState()
+        pushDataToCloud()
+    }
+
+    // Utility Helpers
+    fun getTodayDateFormatted(): String {
+        return SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+    }
+
+    fun getPreviousMonthFormatted(): String {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.MONTH, -1)
+        return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time)
+    }
+
+    fun getWhatsAppReceiptText(
+        bill: BillRecord,
+        tenant: Tenant,
+        property: Property,
+        room: RoomUnit
+    ): String {
         val units = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
-        val totalElec = units * bill.electricityRate
-        val totalAmount = bill.baseRent + totalElec + bill.maintenanceCharge + bill.previousDueCarryover
-        val paymentDate = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(bill.timestamp))
+        val electricityCost = units * bill.electricityRate
+        val totalAmount = bill.baseRent + electricityCost + bill.maintenanceCharge + bill.previousDueCarryover
 
         return """
-🏠 *RENT & ELECTRICITY RECEIPT*
-━━━━━━━━━━━━━━━━━━━━━━━━━
-👤 *Tenant:* ${tenant.name} (Room ${room.roomNumber})
-📅 *Billing Period:* ${bill.monthYear}
-🗓️ *Payment Date:* $paymentDate
+        *RENT RECEIPT - ${property.name}*
+        ----------------------------------
+        Tenant: ${tenant.name}
+        Unit: Room ${room.roomNumber}
+        Billing Period: ${bill.monthYear}
 
-⚡ *Electricity Details:*
-• Previous Reading: ${bill.prevMeterReading}
-• Current Reading: ${bill.currentMeterReading}
-• Units Consumed: $units
-• Rate / Unit: ₹${"%.2f".format(bill.electricityRate)}
-• Total Electricity: ₹${"%.2f".format(totalElec)}
-
-🏢 *Base Rent:* ₹${"%.2f".format(bill.baseRent)}
-🧾 *Total Amount:* ₹${"%.2f".format(totalAmount)}
-━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ *Amount Paid:* ₹${"%.2f".format(bill.amountPaid)} (${bill.paymentMode})
-⚠️ *Pending Due:* ₹${"%.2f".format(bill.remainingDue)}
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Thank you!
+        Base Rent: ₹${"%,.2f".format(bill.baseRent)}
+        Electricity: ₹${"%,.2f".format(electricityCost)} ($units units @ ₹${bill.electricityRate}/u)
+        Maintenance: ₹${"%,.2f".format(bill.maintenanceCharge)}
+        Previous Dues: ₹${"%,.2f".format(bill.previousDueCarryover)}
+        ----------------------------------
+        Total Payable: ₹${"%,.2f".format(totalAmount)}
+        Amount Paid: ₹${"%,.2f".format(bill.amountPaid)} (${bill.paymentMode})
+        Remaining Balance: ₹${"%,.2f".format(bill.remainingDue)}
+        ----------------------------------
+        Thank you for your prompt payment!
         """.trimIndent()
     }
 }
