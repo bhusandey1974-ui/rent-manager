@@ -1,10 +1,7 @@
 package com.example.rentmanager
 
 import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,9 +24,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.*
 import java.util.concurrent.TimeUnit
@@ -64,44 +58,6 @@ fun AuthView(
     var verificationId by remember { mutableStateOf<String?>(null) }
     var resendToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
     var isOtpSent by remember { mutableStateOf(false) }
-
-    // Google Sign-In Setup
-    val gso = remember {
-        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-    }
-    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
-
-    val googleLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                val idToken = account?.idToken
-                if (idToken != null) {
-                    isLoading = true
-                    val credential = GoogleAuthProvider.getCredential(idToken, null)
-                    auth.signInWithCredential(credential)
-                        .addOnSuccessListener { authRes ->
-                            isLoading = false
-                            onLoginSuccess(authRes.user?.uid.orEmpty())
-                        }
-                        .addOnFailureListener { e ->
-                            isLoading = false
-                            errorMessage = e.localizedMessage ?: "Google sign-in failed"
-                        }
-                } else {
-                    errorMessage = "Missing Google ID token"
-                }
-            } catch (e: Exception) {
-                errorMessage = e.localizedMessage ?: "Google sign-in failed"
-            }
-        }
-    }
 
     // Phone verification logic
     fun sendOtp() {
@@ -502,56 +458,6 @@ fun AuthView(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Divider
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
-                Text(
-                    text = "  OR  ",
-                    color = Color(0xFF64748B),
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Medium
-                )
-                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Form 3: Google Sign-In
-            OutlinedButton(
-                onClick = {
-                    errorMessage = null
-                    googleSignInClient.signOut().addOnCompleteListener {
-                        googleLauncher.launch(googleSignInClient.signInIntent)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Google",
-                    tint = Color(0xFFEA4335),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Continue with Google",
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = "Continue Offline (Local Storage)",
