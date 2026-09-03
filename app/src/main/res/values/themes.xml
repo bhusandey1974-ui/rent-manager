@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.RentManager" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- Pure clean white window background for launch -->
-        <item name="android:windowBackground">@android:color/white</item>
-        <item name="android:statusBarColor">@android:color/white</item>
+        <!-- Elegant Gradient Window Background -->
+        <item name="android:windowBackground">@drawable/splash_gradient</item>
+        
+        <!-- Status & Navigation Bar Styling -->
+        <item name="android:statusBarColor">#E0F2FE</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
         <item name="android:windowLightNavigationBar">true</item>
+
+        <!-- Android 12+ Splash Screen Attributes -->
+        <item name="android:windowSplashScreenBackground">#E0F2FE</item>
     </style>
 </resources>
