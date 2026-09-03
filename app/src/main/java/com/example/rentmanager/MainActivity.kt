@@ -43,7 +43,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RentManagerMainApp(vm: RentViewModel) {
@@ -54,6 +53,7 @@ fun RentManagerMainApp(vm: RentViewModel) {
     val bills by vm.bills.collectAsState()
     val pastTenancies by vm.pastTenancies.collectAsState()
 
+    var isAuthenticated by remember { mutableStateOf(false) }
     var currentTab by remember { mutableIntStateOf(0) }
 
     var showAddRoomDialog by remember { mutableStateOf(false) }
@@ -70,162 +70,173 @@ fun RentManagerMainApp(vm: RentViewModel) {
 
     val defaultProperty = remember { Property(name = "Main Complex", address = "Building 1") }
 
-    Scaffold(
-        containerColor = UIAppBg,
-        topBar = {
-            Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+    if (!isAuthenticated) {
+        AuthView(
+            onLoginSuccess = { email ->
+                isAuthenticated = true
+            },
+            onSkipOffline = {
+                isAuthenticated = true
+            }
+        )
+    } else {
+        Scaffold(
+            containerColor = UIAppBg,
+            topBar = {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 0.5.dp
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(UIBluePrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Apartment,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = if (currentTab == 0) "Rent Manager" else "Revenue & Ledger",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = CleanFont,
-                                color = UIDarkText
-                            )
-                            Text(
-                                text = if (currentTab == 0) "${rooms.size} Units Registered" else "Lifetime Ledger",
-                                fontSize = 12.sp,
-                                fontFamily = CleanFont,
-                                color = UIMutedText
-                            )
-                        }
-                    }
-
-                    if (currentTab == 0) {
-                        IconButton(
-                            onClick = { showAddRoomDialog = true },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFF1F5F9))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DomainAdd,
-                                contentDescription = "Add Unit",
-                                tint = UIBluePrimary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = Color.White,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    selected = currentTab == 0,
-                    onClick = { currentTab = 0 },
-                    icon = { Icon(Icons.Default.Domain, contentDescription = "Properties") },
-                    label = { Text("Properties", fontFamily = CleanFont, fontWeight = if (currentTab == 0) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = UIBluePrimary,
-                        selectedTextColor = UIBluePrimary,
-                        indicatorColor = Color(0xFFE0F2FE),
-                        unselectedIconColor = UIMutedText,
-                        unselectedTextColor = UIMutedText
-                    )
-                )
-                NavigationBarItem(
-                    selected = currentTab == 1,
-                    onClick = { currentTab = 1 },
-                    icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Revenue") },
-                    label = { Text("Revenue", fontFamily = CleanFont, fontWeight = if (currentTab == 1) FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = UIBluePrimary,
-                        selectedTextColor = UIBluePrimary,
-                        indicatorColor = Color(0xFFE0F2FE),
-                        unselectedIconColor = UIMutedText,
-                        unselectedTextColor = UIMutedText
-                    )
-                )
-            }
-        },
-        floatingActionButton = {
-            if (currentTab == 0) {
-                FloatingActionButton(
-                    onClick = { showAddRoomDialog = true },
-                    containerColor = UIBluePrimary,
-                    contentColor = Color.White,
-                    shape = CircleShape
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Room", modifier = Modifier.size(26.dp))
-                }
-            }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            AnimatedContent(
-                targetState = currentTab,
-                label = "TabTransition"
-            ) { target ->
-                if (target == 0) {
-                    PropertiesView(
-                        rooms = rooms,
-                        tenants = tenants,
-                        bills = bills,
-                        vm = vm,
-                        onAddRoom = { showAddRoomDialog = true },
-                        onEditRoom = { r: RoomUnit -> showEditRoomDialog = r },
-                        onDeleteRoom = { r: RoomUnit -> showDeleteRoomConfirm = r },
-                        onAssignTenant = { r: RoomUnit -> showAssignTenantDialog = r },
-                        onTenantClick = { t: Tenant, r: RoomUnit -> showTenantDetailsDialog = Pair(t, r) },
-                        onLodgeBill = { r: RoomUnit, t: Tenant -> showBillDialog = Pair(r, t) },
-                        onVacate = { t: Tenant -> showCheckoutDialog = t },
-                        onHistory = { r: RoomUnit -> showRoomHistoryDialog = r }
-                    )
-                } else {
-                    RevenueView(
-                        bills = bills,
-                        rooms = rooms,
-                        tenants = tenants,
-                        onClearAll = { showResetAllConfirm = true },
-                        onShareWhatsApp = { bill: BillRecord, tenant: Tenant, room: RoomUnit ->
-                            val text = vm.getWhatsAppReceiptText(bill, tenant, defaultProperty, room)
-                            val encodedText = URLEncoder.encode(text, "UTF-8")
-                            val cleanNumber = tenant.phone.replace("+", "").replace(" ", "").replace("-", "")
-                            val finalNumber = if (cleanNumber.length == 10) "91$cleanNumber" else cleanNumber
-                            val uri = "https://wa.me/$finalNumber?text=$encodedText"
-
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Could not launch WhatsApp", Toast.LENGTH_SHORT).show()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(UIBluePrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Apartment,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = if (currentTab == 0) "Rent Manager" else "Revenue & Ledger",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = CleanFont,
+                                    color = UIDarkText
+                                )
+                                Text(
+                                    text = if (currentTab == 0) "${rooms.size} Units Registered" else "Lifetime Ledger",
+                                    fontSize = 12.sp,
+                                    fontFamily = CleanFont,
+                                    color = UIMutedText
+                                )
                             }
                         }
+
+                        if (currentTab == 0) {
+                            IconButton(
+                                onClick = { showAddRoomDialog = true },
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFF1F5F9))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DomainAdd,
+                                    contentDescription = "Add Unit",
+                                    tint = UIBluePrimary
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = Color.White,
+                    tonalElevation = 8.dp
+                ) {
+                    NavigationBarItem(
+                        selected = currentTab == 0,
+                        onClick = { currentTab = 0 },
+                        icon = { Icon(Icons.Default.Domain, contentDescription = "Properties") },
+                        label = { Text("Properties", fontFamily = CleanFont, fontWeight = if (currentTab == 0) FontWeight.Bold else FontWeight.Normal) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = UIBluePrimary,
+                            selectedTextColor = UIBluePrimary,
+                            indicatorColor = Color(0xFFE0F2FE),
+                            unselectedIconColor = UIMutedText,
+                            unselectedTextColor = UIMutedText
+                        )
                     )
+                    NavigationBarItem(
+                        selected = currentTab == 1,
+                        onClick = { currentTab = 1 },
+                        icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Revenue") },
+                        label = { Text("Revenue", fontFamily = CleanFont, fontWeight = if (currentTab == 1) FontWeight.Bold else FontWeight.Normal) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = UIBluePrimary,
+                            selectedTextColor = UIBluePrimary,
+                            indicatorColor = Color(0xFFE0F2FE),
+                            unselectedIconColor = UIMutedText,
+                            unselectedTextColor = UIMutedText
+                        )
+                    )
+                }
+            },
+            floatingActionButton = {
+                if (currentTab == 0) {
+                    FloatingActionButton(
+                        onClick = { showAddRoomDialog = true },
+                        containerColor = UIBluePrimary,
+                        contentColor = Color.White,
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Room", modifier = Modifier.size(26.dp))
+                    }
+                }
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                AnimatedContent(
+                    targetState = currentTab,
+                    label = "TabTransition"
+                ) { target ->
+                    if (target == 0) {
+                        PropertiesView(
+                            rooms = rooms,
+                            tenants = tenants,
+                            bills = bills,
+                            vm = vm,
+                            onAddRoom = { showAddRoomDialog = true },
+                            onEditRoom = { r: RoomUnit -> showEditRoomDialog = r },
+                            onDeleteRoom = { r: RoomUnit -> showDeleteRoomConfirm = r },
+                            onAssignTenant = { r: RoomUnit -> showAssignTenantDialog = r },
+                            onTenantClick = { t: Tenant, r: RoomUnit -> showTenantDetailsDialog = Pair(t, r) },
+                            onLodgeBill = { r: RoomUnit, t: Tenant -> showBillDialog = Pair(r, t) },
+                            onVacate = { t: Tenant -> showCheckoutDialog = t },
+                            onHistory = { r: RoomUnit -> showRoomHistoryDialog = r }
+                        )
+                    } else {
+                        RevenueView(
+                            bills = bills,
+                            rooms = rooms,
+                            tenants = tenants,
+                            onClearAll = { showResetAllConfirm = true },
+                            onShareWhatsApp = { bill: BillRecord, tenant: Tenant, room: RoomUnit ->
+                                val text = vm.getWhatsAppReceiptText(bill, tenant, defaultProperty, room)
+                                val encodedText = URLEncoder.encode(text, "UTF-8")
+                                val cleanNumber = tenant.phone.replace("+", "").replace(" ", "").replace("-", "")
+                                val finalNumber = if (cleanNumber.length == 10) "91$cleanNumber" else cleanNumber
+                                val uri = "https://wa.me/$finalNumber?text=$encodedText"
+
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Could not launch WhatsApp", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -848,8 +859,7 @@ fun RevenueView(
                 }
             }
         }
-
-        if (filteredBills.isEmpty()) {
+                if (filteredBills.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
