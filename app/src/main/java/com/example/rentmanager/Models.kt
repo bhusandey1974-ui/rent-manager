@@ -34,9 +34,26 @@ data class BillRecord(
     val currentMeterReading: Double = 0.0,
     val electricityRate: Double = 0.0,
     val maintenanceCharge: Double = 0.0,
-    val previousDueCarryover: Double = 0.0, // Positive = Due, Negative = Advance credit
+    val previousDueCarryover: Double = 0.0,
     val amountPaid: Double = 0.0,
-    val remainingDue: Double = 0.0,         // Positive = Remaining due, Negative = Carried forward advance
+    val remainingDue: Double = 0.0,
     val paymentMode: String = "Cash",
     val timestamp: Long = System.currentTimeMillis()
+)
+
+data class MoveOutSettlement(
+    val roomId: String = "",
+    val tenantId: String = "",
+    val tenantName: String = "",
+    val moveInDate: String = "",
+    val moveOutDate: String = "",
+    val depositHeld: Double = 0.0,
+    val unpaidDues: Double = 0.0,
+    val finalMeterReading: Double = 0.0,
+    val finalElectricityUnits: Double = 0.0,
+    val finalElectricityCharge: Double = 0.0,
+    val damageDeductions: Double = 0.0,
+    val deductionReason: String = "",
+    val netRefundAmount: Double = 0.0,
+    val isTenantOwing: Boolean = false
 )
