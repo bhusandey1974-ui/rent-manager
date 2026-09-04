@@ -1,13 +1,31 @@
 package com.example.rentmanager
 
-data class RoomUnit(
+data class Property(
     val id: String = "",
+    val name: String = "",
+    val address: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class RateHistoryRecord(
+    val id: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val previousRent: Double = 0.0,
+    val newRent: Double = 0.0,
+    val previousElectricityRate: Double = 0.0,
+    val newElectricityRate: Double = 0.0
+)
+
+data class Room(
+    val id: String = "",
+    val propertyId: String = "default_property",
     val roomNumber: String = "",
     val baseRent: Double = 0.0,
-    val electricityRate: Double = 0.0,
-    val lastMeterReading: Double = 0.0,
+    val electricityRate: Double = 10.0,
+    val initialMeterReading: Double = 0.0,
     val isOccupied: Boolean = false,
-    val currentTenantId: String = ""
+    val currentTenantId: String = "",
+    val rateHistory: List<RateHistoryRecord> = emptyList()
 )
 
 data class Tenant(
@@ -16,44 +34,29 @@ data class Tenant(
     val name: String = "",
     val phoneNumber: String = "",
     val aadhaarNumber: String = "",
-    val address: String = "",
-    val depositAmount: Double = 0.0,
-    val initialReading: Double = 0.0,
-    val moveInDate: String = "",
-    val moveOutDate: String? = null,
-    val isActive: Boolean = true
+    val permanentAddress: String = "",
+    val moveInDate: Long = System.currentTimeMillis(),
+    val moveOutDate: Long? = null,
+    val isCurrent: Boolean = true
 )
 
-data class BillRecord(
+data class Bill(
     val id: String = "",
     val roomId: String = "",
     val tenantId: String = "",
-    val monthYear: String = "",
+    val billingPeriod: String = "",
+    val previousReading: Double = 0.0,
+    val currentReading: Double = 0.0,
+    val unitsConsumed: Double = 0.0,
+    val electricityRate: Double = 10.0,
+    val electricityAmount: Double = 0.0,
     val baseRent: Double = 0.0,
-    val prevMeterReading: Double = 0.0,
-    val currentMeterReading: Double = 0.0,
-    val electricityRate: Double = 0.0,
-    val maintenanceCharge: Double = 0.0,
-    val previousDueCarryover: Double = 0.0,
+    val maintenanceAmount: Double = 0.0,
+    val totalPayable: Double = 0.0,
+    val rentPaid: Double = 0.0,
+    val electricityPaid: Double = 0.0,
     val amountPaid: Double = 0.0,
-    val remainingDue: Double = 0.0,
     val paymentMode: String = "Cash",
+    val remainingDue: Double = 0.0,
     val timestamp: Long = System.currentTimeMillis()
-)
-
-data class MoveOutSettlement(
-    val roomId: String = "",
-    val tenantId: String = "",
-    val tenantName: String = "",
-    val moveInDate: String = "",
-    val moveOutDate: String = "",
-    val depositHeld: Double = 0.0,
-    val unpaidDues: Double = 0.0,
-    val finalMeterReading: Double = 0.0,
-    val finalElectricityUnits: Double = 0.0,
-    val finalElectricityCharge: Double = 0.0,
-    val damageDeductions: Double = 0.0,
-    val deductionReason: String = "",
-    val netRefundAmount: Double = 0.0,
-    val isTenantOwing: Boolean = false
 )
