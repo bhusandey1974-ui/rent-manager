@@ -55,6 +55,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.google.firebase.auth.FirebaseAuth
 import com.example.rentmanager.AppColors
+import com.example.rentmanager.UIRedDanger
+import com.example.rentmanager.UIGreenSuccess
+import com.example.rentmanager.RentViewModel
+import com.example.rentmanager.AppColors
 import com.example.rentmanager.ReceiptFormatter
 import com.example.rentmanager.Room
 import com.example.rentmanager.Tenant
