@@ -168,10 +168,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             id = UUID.randomUUID().toString(),
             roomId = roomId,
             name = tenantName.trim(),
-            phoneNumber = tenantPhone.trim(),
-            entryDate = System.currentTimeMillis(),
-            securityDeposit = deposit,
-            isCurrent = true
+            phoneNumber = tenantPhone.trim()
         )
         _tenants.value = _tenants.value + newTenant
 
@@ -196,8 +193,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             if (t.id == tenantId) {
                 val updated = t.copy(
                     name = name.trim(),
-                    phoneNumber = phone.trim(),
-                    securityDeposit = deposit
+                    phoneNumber = phone.trim()
                 )
                 syncTenantToCloud(updated)
                 updated
@@ -207,19 +203,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun vacateRoom(roomId: String) {
-        val room = _rooms.value.find { it.id == roomId } ?: return
-        val tenantId = room.currentTenantId
-
-        if (tenantId.isNotBlank()) {
-            _tenants.value = _tenants.value.map { t ->
-                if (t.id == tenantId) t.copy(isCurrent = false, exitDate = System.currentTimeMillis()) else t
-            }
-        }
-
         _rooms.value = _rooms.value.map { r ->
             if (r.id == roomId) r.copy(isOccupied = false, currentTenantId = "") else r
         }
-
         saveToLocalStorage()
     }
         // ==========================================
@@ -355,10 +341,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                     obj.put("roomId", it.roomId)
                     obj.put("name", it.name)
                     obj.put("phoneNumber", it.phoneNumber)
-                    obj.put("entryDate", it.entryDate)
-                    if (it.exitDate != null) obj.put("exitDate", it.exitDate)
-                    obj.put("securityDeposit", it.securityDeposit)
-                    obj.put("isCurrent", it.isCurrent)
                     tenantArr.put(obj)
                 }
                 prefs.edit().putString("saved_tenants", tenantArr.toString()).apply()
@@ -442,11 +424,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                         id = obj.getString("id"),
                         roomId = obj.getString("roomId"),
                         name = obj.getString("name"),
-                        phoneNumber = obj.optString("phoneNumber", obj.optString("phone", "")),
-                        entryDate = obj.getLong("entryDate"),
-                        exitDate = if (obj.has("exitDate")) obj.getLong("exitDate") else null,
-                        securityDeposit = obj.optDouble("securityDeposit", 0.0),
-                        isCurrent = obj.optBoolean("isCurrent", true)
+                        phoneNumber = obj.optString("phoneNumber", "")
                     ))
                 }
                 _tenants.value = list
@@ -540,3 +518,4 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             .document(bill.id).set(bill, SetOptions.merge())
     }
 }
+
