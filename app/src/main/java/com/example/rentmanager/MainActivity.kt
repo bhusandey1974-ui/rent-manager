@@ -32,11 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentmanager.ui.components.SettingsDialog
-import com.example.rentmanager.ui.screens.AuthView
-import com.example.rentmanager.ui.screens.PropertiesView
-import com.example.rentmanager.ui.screens.RevenueView
-import com.example.rentmanager.ui.theme.RentManagerTheme
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
