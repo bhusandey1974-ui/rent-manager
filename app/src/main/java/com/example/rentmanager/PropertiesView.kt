@@ -1,35 +1,77 @@
 package com.example.rentmanager
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AddHomeWork
+import androidx.compose.material.icons.filled.Apartment
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentmanager.ui.components.AddRoomDialog
+import com.example.rentmanager.ui.components.AssignTenantDialog
+import com.example.rentmanager.ui.components.DeleteConfirmationDialog
+import com.example.rentmanager.ui.components.LodgeBillDialog
+
+enum class PropertyFilter { ALL, OCCUPIED, VACANT, HAS_DUES }
 
 @Composable
 fun PropertiesTabContent(
     vm: RentViewModel,
     onShowAddRoom: () -> Unit,
-    onAssignTenant: (RoomUnit) -> Unit,
-    onLodgeBill: (RoomUnit) -> Unit,
-    onVacate: (RoomUnit) -> Unit,
-    onViewHistory: (RoomUnit) -> Unit
+    onAssignTenant: (Room) -> Unit,
+    onLodgeBill: (Room) -> Unit,
+    onVacate: (Room) -> Unit,
+    onViewHistory: (Room) -> Unit
 ) {
     val rooms by vm.rooms.collectAsState()
     val tenants by vm.tenants.collectAsState()
@@ -37,7 +79,7 @@ fun PropertiesTabContent(
     var searchQuery by remember { mutableStateOf("") }
     var activeFilter by remember { mutableStateOf(PropertyFilter.ALL) }
 
-    val filteredRooms = remember(rooms, activeFilter, searchQuery) {
+    val filteredRooms = remember(rooms, activeFilter, searchQuery, tenants) {
         rooms.filter { room ->
             val matchesQuery = room.roomNumber.contains(searchQuery, ignoreCase = true) ||
                 tenants.find { it.id == room.currentTenantId }?.name?.contains(searchQuery, ignoreCase = true) == true
@@ -46,14 +88,13 @@ fun PropertiesTabContent(
                 PropertyFilter.ALL -> true
                 PropertyFilter.OCCUPIED -> room.isOccupied
                 PropertyFilter.VACANT -> !room.isOccupied
-                PropertyFilter.HAS_DUES -> vm.getPendingDueForRoom(room.id) > 0.0
+                PropertyFilter.HAS_DUES -> vm.getPendingDueForCurrentTenant(room.id) > 0.0
             }
 
             matchesQuery && matchesFilter
         }
     }
-
-    if (rooms.isEmpty()) {
+        if (rooms.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -134,7 +175,6 @@ fun PropertiesTabContent(
         }
     } else {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Controls: Search Bar & Segmented Filter Chips
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
@@ -180,8 +220,7 @@ fun PropertiesTabContent(
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item {
                             FilterChip(
                                 selected = activeFilter == PropertyFilter.ALL,
@@ -221,7 +260,7 @@ fun PropertiesTabContent(
                             )
                         }
                         item {
-                            val dueCount = rooms.count { vm.getPendingDueForRoom(it.id) > 0.0 }
+                            val dueCount = rooms.count { vm.getPendingDueForCurrentTenant(it.id) > 0.0 }
                             FilterChip(
                                 selected = activeFilter == PropertyFilter.HAS_DUES,
                                 onClick = { activeFilter = PropertyFilter.HAS_DUES },
@@ -236,7 +275,7 @@ fun PropertiesTabContent(
                     }
                 }
             }
-                        // Room Dashboard Cards
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -246,7 +285,7 @@ fun PropertiesTabContent(
             ) {
                 items(filteredRooms, key = { it.id }) { room ->
                     val tenant = tenants.find { it.id == room.currentTenantId }
-                    val pendingBalance = vm.getPendingDueForRoom(room.id)
+                    val pendingBalance = vm.getPendingDueForCurrentTenant(room.id)
 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -294,7 +333,6 @@ fun PropertiesTabContent(
                                     }
                                 }
 
-                                // Status Badge
                                 if (room.isOccupied) {
                                     if (pendingBalance > 0.0) {
                                         Surface(color = Color(0xFFFEF2F2), shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, Color(0xFFFECACA))) {
@@ -343,9 +381,9 @@ fun PropertiesTabContent(
                                     }
                                 }
                             }
+                                                        Spacer(modifier = Modifier.height(14.dp))
 
-                            Spacer(modifier = Modifier.height(14.dp))
-                                                        if (room.isOccupied && tenant != null) {
+                            if (room.isOccupied && tenant != null) {
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = Color(0xFFF8FAFC),
@@ -368,70 +406,7 @@ fun PropertiesTabContent(
                                                     color = Color(0xFF1E293B)
                                                 )
                                             }
-                                            Text(
-                                                text = tenant.phoneNumber,
-                                                fontSize = 12.sp,
-                                                color = Color(0xFF64748B),
-                                                fontFamily = FontFamily.SansSerif
-                                            )
                                         }
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.ElectricMeter, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "Last Meter: ${room.lastMeterReading.toInt()} units",
-                                                fontSize = 11.sp,
-                                                color = Color(0xFF64748B),
-                                                fontFamily = FontFamily.SansSerif
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Button(
-                                        onClick = { onLodgeBill(room) },
-                                        modifier = Modifier
-                                            .weight(1.2f)
-                                            .height(38.dp),
-                                        shape = RoundedCornerShape(9.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF))
-                                    ) {
-                                        Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(15.dp))
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Text("Lodge Bill", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = { onVacate(room) },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(38.dp),
-                                        shape = RoundedCornerShape(9.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                                        border = BorderStroke(1.dp, Color(0xFFFECACA))
-                                    ) {
-                                        Text("Vacate", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
-                                    }
-
-                                    FilledTonalIconButton(
-                                        onClick = { onViewHistory(room) },
-                                        modifier = Modifier.size(38.dp),
-                                        shape = RoundedCornerShape(9.dp),
-                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                            containerColor = Color(0xFFF1F5F9),
-                                            contentColor = Color(0xFF475569)
-                                        )
-                                    ) {
-                                        Icon(Icons.Default.History, contentDescription = "History", modifier = Modifier.size(18.dp))
                                     }
                                 }
                             } else {
@@ -439,38 +414,59 @@ fun PropertiesTabContent(
                                     text = "Ready for occupancy",
                                     fontSize = 13.sp,
                                     color = Color(0xFF94A3B8),
-                                    fontFamily = FontFamily.SansSerif
+                                    fontFamily = FontFamily.SansSerif,
+                                    modifier = Modifier.padding(vertical = 4.dp)
                                 )
+                            }
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (room.isOccupied) {
                                     Button(
-                                        onClick = { onAssignTenant(room) },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(38.dp),
-                                        shape = RoundedCornerShape(9.dp),
+                                        onClick = { onLodgeBill(room) },
+                                        modifier = Modifier.weight(1f).height(40.dp),
+                                        shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF))
                                     ) {
-                                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(15.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Assign Tenant", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                                        Text("Lodge Bill", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     }
 
                                     OutlinedButton(
-                                        onClick = { onViewHistory(room) },
-                                        modifier = Modifier
-                                            .weight(0.8f)
-                                            .height(38.dp),
-                                        shape = RoundedCornerShape(9.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                                        onClick = { onVacate(room) },
+                                        modifier = Modifier.weight(1f).height(40.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF64748B))
                                     ) {
-                                        Text("History", fontSize = 12.sp, color = Color(0xFF475569), fontFamily = FontFamily.SansSerif)
+                                        Text("Vacate", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     }
+                                } else {
+                                    Button(
+                                        onClick = { onAssignTenant(room) },
+                                        modifier = Modifier.weight(1f).height(40.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF))
+                                    ) {
+                                        Text("Assign Tenant", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = { onViewHistory(room) },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                ) {
+                                    Icon(
+                                        Icons.Default.History,
+                                        contentDescription = "View History",
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         }
@@ -480,4 +476,81 @@ fun PropertiesTabContent(
         }
     }
 }
+@Composable
+fun PropertiesView(
+    vm: RentViewModel,
+    onNavigateToRevenue: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val tenants by vm.tenants.collectAsState()
 
+    var showAddRoomDialog by remember { mutableStateOf(false) }
+    var roomForAssigning by remember { mutableStateOf<Room?>(null) }
+    var roomForBilling by remember { mutableStateOf<Room?>(null) }
+    var roomToVacate by remember { mutableStateOf<Room?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        PropertiesTabContent(
+            vm = vm,
+            onShowAddRoom = { showAddRoomDialog = true },
+            onAssignTenant = { room: Room -> roomForAssigning = room },
+            onLodgeBill = { room: Room -> roomForBilling = room },
+            onVacate = { room: Room -> roomToVacate = room },
+            onViewHistory = { room: Room -> onNavigateToRevenue() }
+        )
+
+        if (showAddRoomDialog) {
+            AddRoomDialog(
+                onDismiss = { showAddRoomDialog = false },
+                onConfirm = { roomNumber, baseRent, rate, initialReading ->
+                    vm.addRoom(roomNumber, baseRent, rate, initialReading)
+                    showAddRoomDialog = false
+                }
+            )
+        }
+
+        roomForAssigning?.let { room ->
+            AssignTenantDialog(
+                roomNumber = room.roomNumber,
+                onDismiss = { roomForAssigning = null },
+                onConfirm = { name, phone, deposit ->
+                    vm.assignTenant(room.id, name, phone, deposit)
+                    roomForAssigning = null
+                }
+            )
+        }
+
+        roomForBilling?.let { room ->
+            val tenant = tenants.find { it.id == room.currentTenantId }
+            if (tenant != null) {
+                val prevReading = vm.getLastRecordedMeterReading(room.id)
+                val priorBalance = vm.getPendingDueForCurrentTenant(room.id)
+
+                LodgeBillDialog(
+                    context = context,
+                    room = room,
+                    tenant = tenant,
+                    previousReading = prevReading,
+                    priorDueOrAdvance = priorBalance,
+                    onDismiss = { roomForBilling = null },
+                    onBillLodged = { period, currReading, maint, paid, mode ->
+                        vm.lodgeBill(room.id, period, currReading, maint, paid, mode)
+                        roomForBilling = null
+                    }
+                )
+            }
+        }
+
+        roomToVacate?.let { room ->
+            DeleteConfirmationDialog(
+                title = "Vacate Room ${room.roomNumber}",
+                message = "Are you sure you want to mark this room as vacant? The active tenancy will end.",
+                onDismiss = { roomToVacate = null },
+                onConfirm = {
+                    vm.vacateRoom(room.id)
+                    roomToVacate = null
+                }
+            )
+        }
+    }
+}
