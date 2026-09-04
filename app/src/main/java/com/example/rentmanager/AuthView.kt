@@ -1,289 +1,334 @@
-package com.example.rentmanager
+package com.example.rentmanager.ui.screens
 
-import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Apartment
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentmanager.AppColors
 import com.google.firebase.auth.FirebaseAuth
-
-enum class AuthMode {
-    SIGN_IN, SIGN_UP
-}
 
 @Composable
 fun AuthView(
-    onLoginSuccess: (String) -> Unit,
-    onSkipOffline: () -> Unit
+    onAuthSuccess: () -> Unit,
+    onContinueAsGuest: () -> Unit
 ) {
-    val context = LocalContext.current
     val auth = remember { FirebaseAuth.getInstance() }
 
-    var mode by remember { mutableStateOf(AuthMode.SIGN_IN) }
+    var isSignUp by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8FAFC)),
-        contentAlignment = Alignment.Center
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = AppColors.ScaffoldBackground
     ) {
-        Card(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                .fillMaxSize()
+                .padding(20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWhite),
+                border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                // Header Emblem
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Apartment,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Rent Manager",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif,
-                    color = Color(0xFF0F172A)
-                )
-
-                Text(
-                    text = if (mode == AuthMode.SIGN_IN) "Sign in to sync your rental ledgers" else "Create an account for cloud backup",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = Color(0xFF64748B)
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Mode Selector Toggle
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF1F5F9))
-                        .padding(3.dp)
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Logo Header
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (mode == AuthMode.SIGN_IN) Color.White else Color.Transparent)
-                            .clickable {
-                                mode = AuthMode.SIGN_IN
-                                errorMessage = null
-                            }
-                            .padding(vertical = 8.dp),
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(AppColors.AzurePrimary, AppColors.AzureDark)
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Sign In",
-                            fontSize = 13.sp,
-                            fontWeight = if (mode == AuthMode.SIGN_IN) FontWeight.Bold else FontWeight.Medium,
-                            fontFamily = FontFamily.SansSerif,
-                            color = if (mode == AuthMode.SIGN_IN) Color(0xFF1E40AF) else Color(0xFF64748B)
+                        Icon(
+                            imageVector = Icons.Rounded.Apartment,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(34.dp)
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (mode == AuthMode.SIGN_UP) Color.White else Color.Transparent)
-                            .clickable {
-                                mode = AuthMode.SIGN_UP
-                                errorMessage = null
-                            }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Register",
-                            fontSize = 13.sp,
-                            fontWeight = if (mode == AuthMode.SIGN_UP) FontWeight.Bold else FontWeight.Medium,
-                            fontFamily = FontFamily.SansSerif,
-                            color = if (mode == AuthMode.SIGN_UP) Color(0xFF1E40AF) else Color(0xFF64748B)
-                        )
-                    }
-                }
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                Spacer(modifier = Modifier.height(18.dp))
-
-                if (errorMessage != null) {
-                    Surface(
-                        color = Color(0xFFFEF2F2),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = errorMessage ?: "",
-                            color = Color(0xFFDC2626),
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            modifier = Modifier.padding(10.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email Address", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-                                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp)) },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                tint = Color(0xFF64748B),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Button(
-                    onClick = {
-                        val cleanEmail = email.trim()
-                        val cleanPass = password.trim()
-                        if (cleanEmail.isEmpty() || cleanPass.isEmpty()) {
-                            errorMessage = "Please enter both email and password."
-                            return@Button
-                        }
-                        isLoading = true
-                        errorMessage = null
-
-                        if (mode == AuthMode.SIGN_IN) {
-                            auth.signInWithEmailAndPassword(cleanEmail, cleanPass)
-                                .addOnSuccessListener { result ->
-                                    isLoading = false
-                                    result.user?.uid?.let(onLoginSuccess)
-                                }
-                                .addOnFailureListener { err ->
-                                    isLoading = false
-                                    errorMessage = err.localizedMessage ?: "Sign in failed"
-                                }
-                        } else {
-                            auth.createUserWithEmailAndPassword(cleanEmail, cleanPass)
-                                .addOnSuccessListener { result ->
-                                    isLoading = false
-                                    result.user?.uid?.let(onLoginSuccess)
-                                }
-                                .addOnFailureListener { err ->
-                                    isLoading = false
-                                    errorMessage = err.localizedMessage ?: "Registration failed"
-                                }
-                        }
-                    },
-                    enabled = !isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF))
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(
-                            text = if (mode == AuthMode.SIGN_IN) "Sign In" else "Create Account",
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                HorizontalDivider(color = Color(0xFFE2E8F0))
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                TextButton(
-                    onClick = onSkipOffline,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Continue Offline (Local Storage)",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B),
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.SemiBold
+                        text = if (isSignUp) "Create Account" else "Welcome Back",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
                     )
+
+                    Text(
+                        text = if (isSignUp) "Sign up to sync property records across devices" else "Sign in to manage rooms, bills & tenants",
+                        fontSize = 12.sp,
+                        color = AppColors.TextSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Email Input
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            errorMessage = null
+                        },
+                        label = { Text("Email Address") },
+                        placeholder = { Text("landlord@example.com") },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Email, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Password Input
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            errorMessage = null
+                        },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Lock, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    contentDescription = "Toggle password visibility",
+                                    tint = AppColors.TextMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                                        // Confirm Password (Sign-up only)
+                    AnimatedVisibility(visible = isSignUp) {
+                        Column {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            OutlinedTextField(
+                                value = confirmPassword,
+                                onValueChange = {
+                                    confirmPassword = it
+                                    errorMessage = null
+                                },
+                                label = { Text("Confirm Password") },
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.Lock, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
+                                },
+                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AppColors.AzurePrimary,
+                                    unfocusedBorderColor = AppColors.BorderSubtle,
+                                    focusedLabelColor = AppColors.AzurePrimary
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Error Message
+                    AnimatedVisibility(visible = errorMessage != null) {
+                        errorMessage?.let { msg ->
+                            Text(
+                                text = msg,
+                                color = AppColors.CrimsonAlert,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 10.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Primary Action Button (Sign In / Sign Up)
+                    Button(
+                        onClick = {
+                            val cleanEmail = email.trim()
+                            val cleanPass = password.trim()
+
+                            if (cleanEmail.isBlank() || cleanPass.isBlank()) {
+                                errorMessage = "Email and password cannot be empty."
+                                return@Button
+                            }
+
+                            if (isSignUp && cleanPass != confirmPassword.trim()) {
+                                errorMessage = "Passwords do not match."
+                                return@Button
+                            }
+
+                            if (cleanPass.length < 6) {
+                                errorMessage = "Password must be at least 6 characters."
+                                return@Button
+                            }
+
+                            isLoading = true
+                            errorMessage = null
+
+                            if (isSignUp) {
+                                auth.createUserWithEmailAndPassword(cleanEmail, cleanPass)
+                                    .addOnSuccessListener {
+                                        isLoading = false
+                                        onAuthSuccess()
+                                    }
+                                    .addOnFailureListener { e ->
+                                        isLoading = false
+                                        errorMessage = e.localizedMessage ?: "Failed to create account."
+                                    }
+                            } else {
+                                auth.signInWithEmailAndPassword(cleanEmail, cleanPass)
+                                    .addOnSuccessListener {
+                                        isLoading = false
+                                        onAuthSuccess()
+                                    }
+                                    .addOnFailureListener { e ->
+                                        isLoading = false
+                                        errorMessage = e.localizedMessage ?: "Invalid email or password."
+                                    }
+                            }
+                        },
+                        enabled = !isLoading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.AzurePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(
+                                text = if (isSignUp) "Sign Up" else "Sign In",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Toggle Sign In vs Sign Up
+                    TextButton(
+                        onClick = {
+                            isSignUp = !isSignUp
+                            errorMessage = null
+                        }
+                    ) {
+                        Text(
+                            text = if (isSignUp) "Already have an account? Sign In" else "Don't have an account? Sign Up",
+                            fontSize = 12.sp,
+                            color = AppColors.AzurePrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Divider(modifier = Modifier.padding(vertical = 8.dp), color = AppColors.BorderSubtle)
+
+                    // Skip / Continue with Local Storage Only
+                    OutlinedButton(
+                        onClick = onContinueAsGuest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Continue in Offline / Local Mode", color = AppColors.TextSecondary, fontSize = 12.sp)
+                    }
                 }
             }
         }
