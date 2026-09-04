@@ -83,6 +83,57 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ==========================================
+    // AUTH & ACCOUNT MANAGEMENT
+    // ==========================================
+
+    fun getCurrentUserEmail(): String? {
+        return auth.currentUser?.email
+    }
+
+    fun isCloudConnected(): Boolean {
+        return auth.currentUser != null
+    }
+
+    fun signOut(onComplete: () -> Unit) {
+        auth.signOut()
+        _properties.value = emptyList()
+        _rooms.value = emptyList()
+        _tenants.value = emptyList()
+        _bills.value = emptyList()
+        _selectedPropertyId.value = null
+        loadFromLocalStorage()
+        onComplete()
+    }
+
+    fun clearAllData(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            val uid = auth.currentUser?.uid
+            if (uid != null) {
+                try {
+                    val userDoc = firestore.collection("users").document(uid)
+                    userDoc.collection("properties").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
+                    userDoc.collection("rooms").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
+                    userDoc.collection("tenants").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
+                    userDoc.collection("bills").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            prefs.edit().clear().apply()
+
+            val defaultProp = Property(id = "default_property", name = "Main Property", address = "Primary Location")
+            _properties.value = listOf(defaultProp)
+            _selectedPropertyId.value = defaultProp.id
+            _rooms.value = emptyList()
+            _tenants.value = emptyList()
+            _bills.value = emptyList()
+
+            onComplete()
+        }
+    }
+
+    // ==========================================
     // PROPERTY OPERATIONS
     // ==========================================
 
@@ -99,8 +150,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         saveToLocalStorage()
         syncPropertyToCloud(newProperty)
     }
-
-    // ==========================================
+        // ==========================================
     // ROOM OPERATIONS (CREATE, EDIT, DELETE)
     // ==========================================
 
@@ -154,7 +204,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         saveToLocalStorage()
         deleteRoomFromCloud(roomId)
     }
-        // ==========================================
+
+    // ==========================================
     // TENANT OPERATIONS (ASSIGN, EDIT, VACATE)
     // ==========================================
 
@@ -210,7 +261,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ==========================================
-    // BILLING & FINANCIAL LOGIC (SCOPED TO TENANT)
+    // BILLING & FINANCIAL LOGIC
     // ==========================================
 
     fun getPendingDueForCurrentTenant(roomId: String): Double {
@@ -302,8 +353,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     fun getRoomForBill(bill: Bill): Room? {
         return _rooms.value.find { it.id == bill.roomId }
     }
-
-    // ==========================================
+        // ==========================================
     // LOCAL STORAGE PERSISTENCE
     // ==========================================
 
@@ -520,3 +570,4 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             .document(bill.id).set(bill, SetOptions.merge())
     }
 }
+
