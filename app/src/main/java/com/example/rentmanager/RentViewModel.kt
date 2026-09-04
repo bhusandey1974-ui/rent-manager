@@ -35,66 +35,12 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         auth.currentUser?.uid?.let { loadCloudData(it) }
     }
 
-    // --- CORE ACCOUNTING ENGINE ---
-
-    /**
-     * Calculates electricity units consumed safely.
-     * If meter rolled over (e.g. 9980 to 20 on a 4-digit meter), handles rollover gracefully.
-     */
     fun calculateElectricityUnits(currentReading: Double, prevReading: Double, rolloverMax: Double = 10000.0): Double {
         return if (currentReading >= prevReading) {
             currentReading - prevReading
         } else {
             (rolloverMax - prevReading) + currentReading
         }
-    }
-
-    /**
-     * Prorates rent for mid-month move-ins.
-     */
-    fun calculateProratedRent(baseRent: Double, dayOfMonth: Int, totalDaysInMonth: Int = 30): Double {
-        if (dayOfMonth <= 1) return baseRent
-        val daysRemaining = (totalDaysInMonth - dayOfMonth + 1).coerceAtLeast(1)
-        return (baseRent / totalDaysInMonth) * daysRemaining
-    }
-
-    /**
-     * Reconciles final account balances upon tenant vacating.
-     */
-    fun calculateFinalSettlement(
-        room: RoomUnit,
-        tenant: Tenant,
-        finalMeterReading: Double,
-        damageDeductions: Double = 0.0,
-        deductionReason: String = "",
-        moveOutDateStr: String
-    ): MoveOutSettlement {
-        val elecUnits = calculateElectricityUnits(finalMeterReading, room.lastMeterReading)
-        val elecCost = elecUnits * room.electricityRate
-        val pendingDue = getPendingDueForRoom(room.id)
-        val totalDeductions = (if (pendingDue > 0) pendingDue else 0.0) + elecCost + damageDeductions
-        val advanceCredit = if (pendingDue < 0) -pendingDue else 0.0
-        val effectiveDeposit = tenant.depositAmount + advanceCredit
-
-        val netRefund = effectiveDeposit - totalDeductions
-        val isOwing = netRefund < 0.0
-
-        return MoveOutSettlement(
-            roomId = room.id,
-            tenantId = tenant.id,
-            tenantName = tenant.name,
-            moveInDate = tenant.moveInDate,
-            moveOutDate = moveOutDateStr,
-            depositHeld = tenant.depositAmount,
-            unpaidDues = pendingDue,
-            finalMeterReading = finalMeterReading,
-            finalElectricityUnits = elecUnits,
-            finalElectricityCharge = elecCost,
-            damageDeductions = damageDeductions,
-            deductionReason = deductionReason,
-            netRefundAmount = if (isOwing) -netRefund else netRefund,
-            isTenantOwing = isOwing
-        )
     }
 
     fun getPendingDueForRoom(roomId: String): Double {
@@ -120,34 +66,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 "lastMeterReading", bill.currentMeterReading
             )
         }
-    }
-        /**
-     * Record a mid-cycle partial or full payment against existing room dues.
-     */
-    fun recordDirectPayment(roomId: String, paymentAmount: Double, paymentMode: String) {
-        val currentDue = getPendingDueForRoom(roomId)
-        val newDue = currentDue - paymentAmount
-
-        val activeRoom = _rooms.value.find { it.id == roomId } ?: return
-        val currentReading = activeRoom.lastMeterReading
-
-        val settlementBill = BillRecord(
-            id = UUID.randomUUID().toString(),
-            roomId = roomId,
-            tenantId = activeRoom.currentTenantId,
-            monthYear = "Payment Settlement",
-            baseRent = 0.0,
-            prevMeterReading = currentReading,
-            currentMeterReading = currentReading,
-            electricityRate = activeRoom.electricityRate,
-            maintenanceCharge = 0.0,
-            previousDueCarryover = currentDue,
-            amountPaid = paymentAmount,
-            remainingDue = newDue,
-            paymentMode = paymentMode,
-            timestamp = System.currentTimeMillis()
-        )
-        lodgeBill(settlementBill)
     }
 
     fun addRoom(roomNumber: String, baseRent: Double, electricityRate: Double) {
@@ -257,8 +175,22 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         val byRoom = _tenants.value.find { it.roomId == roomId && it.isActive }
         return byRoom?.name ?: "Occupant"
     }
+        // --- FINANCIAL METRICS (Lifetime & Yearly) ---
 
-    // --- FINANCIAL METRICS ---
+    fun calculateLifetimeRevenue(): Double {
+        return _bills.value.sumOf { it.amountPaid }
+    }
+
+    fun calculateLifetimeRentEarnings(): Double {
+        return _bills.value.sumOf { it.baseRent }
+    }
+
+    fun calculateLifetimeElectricityRevenue(): Double {
+        return _bills.value.sumOf {
+            val units = calculateElectricityUnits(it.currentMeterReading, it.prevMeterReading)
+            units * it.electricityRate
+        }
+    }
 
     fun calculateYearlyRevenue(): Double {
         val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
@@ -291,7 +223,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             if (due > 0.0) due else 0.0
         }
     }
-        // --- LOCAL CACHE PERSISTENCE ---
+
+    // --- CACHE & PERSISTENCE ---
 
     private fun saveLocalData() {
         val roomsJson = JSONArray().apply {
