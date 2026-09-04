@@ -33,17 +33,6 @@ data class Room(
     val currentTenantId: String = ""
 )
 
-data class Tenant(
-    val id: String = "",
-    val roomId: String = "",
-    val name: String = "",
-    val phone: String = "",
-    val entryDate: Long = System.currentTimeMillis(),
-    val exitDate: Long? = null,
-    val securityDeposit: Double = 0.0,
-    val isCurrent: Boolean = true
-)
-
 data class Bill(
     val id: String = "",
     val roomId: String = "",
@@ -59,7 +48,7 @@ data class Bill(
     val totalPayable: Double = 0.0,
     val amountPaid: Double = 0.0,
     val paymentMode: String = "Cash",
-    val remainingDue: Double = 0.0, // Positive = Due, Negative = Advance
+    val remainingDue: Double = 0.0,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -111,7 +100,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ==========================================
-    // ROOM & TENANT OPERATIONS
+    // ROOM OPERATIONS (CREATE, EDIT, DELETE)
     // ==========================================
 
     fun addRoom(
@@ -137,6 +126,38 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         syncRoomToCloud(newRoom)
     }
 
+    fun updateRoom(
+        roomId: String,
+        roomNumber: String,
+        baseRent: Double,
+        electricityRate: Double,
+        initialReading: Double
+    ) {
+        _rooms.value = _rooms.value.map { r ->
+            if (r.id == roomId) {
+                val updated = r.copy(
+                    roomNumber = roomNumber.trim(),
+                    baseRent = baseRent,
+                    electricityRate = electricityRate,
+                    initialMeterReading = initialReading
+                )
+                syncRoomToCloud(updated)
+                updated
+            } else r
+        }
+        saveToLocalStorage()
+    }
+
+    fun deleteRoom(roomId: String) {
+        _rooms.value = _rooms.value.filter { it.id != roomId }
+        saveToLocalStorage()
+        deleteRoomFromCloud(roomId)
+    }
+
+    // ==========================================
+    // TENANT OPERATIONS (ASSIGN, EDIT, VACATE)
+    // ==========================================
+
     fun assignTenant(
         roomId: String,
         tenantName: String,
@@ -147,7 +168,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             id = UUID.randomUUID().toString(),
             roomId = roomId,
             name = tenantName.trim(),
-            phone = tenantPhone.trim(),
+            phoneNumber = tenantPhone.trim(),
             entryDate = System.currentTimeMillis(),
             securityDeposit = deposit,
             isCurrent = true
@@ -165,18 +186,36 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         _rooms.value.find { it.id == roomId }?.let { syncRoomToCloud(it) }
     }
 
+    fun updateTenant(
+        tenantId: String,
+        name: String,
+        phone: String,
+        deposit: Double
+    ) {
+        _tenants.value = _tenants.value.map { t ->
+            if (t.id == tenantId) {
+                val updated = t.copy(
+                    name = name.trim(),
+                    phoneNumber = phone.trim(),
+                    securityDeposit = deposit
+                )
+                syncTenantToCloud(updated)
+                updated
+            } else t
+        }
+        saveToLocalStorage()
+    }
+
     fun vacateRoom(roomId: String) {
         val room = _rooms.value.find { it.id == roomId } ?: return
         val tenantId = room.currentTenantId
 
-        // Mark active tenant as vacated
         if (tenantId.isNotBlank()) {
             _tenants.value = _tenants.value.map { t ->
                 if (t.id == tenantId) t.copy(isCurrent = false, exitDate = System.currentTimeMillis()) else t
             }
         }
 
-        // Room is reset for the next tenant
         _rooms.value = _rooms.value.map { r ->
             if (r.id == roomId) r.copy(isOccupied = false, currentTenantId = "") else r
         }
@@ -187,10 +226,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     // BILLING & FINANCIAL LOGIC (SCOPED TO TENANT)
     // ==========================================
 
-    /**
-     * Retrieves the pending balance (Due > 0 or Advance < 0) for the current active tenant ONLY.
-     * Prevents previous tenant refunds/advances (e.g. -₹17) from leaking to a new tenant.
-     */
     fun getPendingDueForCurrentTenant(roomId: String): Double {
         val currentRoom = _rooms.value.find { it.id == roomId } ?: return 0.0
         val activeTenantId = currentRoom.currentTenantId
@@ -229,7 +264,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         val units = (currentReading - prevReading).coerceAtLeast(0.0)
         val electricityTotal = units * room.electricityRate
 
-        // Scoped strictly to active tenant's prior dues/advances
         val priorAdjustment = getPendingDueForCurrentTenant(roomId)
         val grossTotal = room.baseRent + electricityTotal + maintenanceAmount + priorAdjustment
         val remaining = grossTotal - amountPaid
@@ -259,13 +293,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         return newBill
     }
 
-    // ==========================================
-    // HISTORICAL SETTLED INDICATORS FOR LEDGER
-    // ==========================================
-
-    /**
-     * Checks if an older bill that had a due (remainingDue > 0) was settled in a later bill.
-     */
     fun wasHistoricalDueSettled(bill: Bill): Boolean {
         if (bill.remainingDue <= 0.0) return false
         val laterBills = _bills.value
@@ -274,9 +301,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         return laterBills.any { it.amountPaid >= bill.remainingDue || it.remainingDue <= 0.0 }
     }
 
-    /**
-     * Checks if an older bill that had an advance credit (remainingDue < 0) was absorbed later.
-     */
     fun wasHistoricalAdvanceConsumed(bill: Bill): Boolean {
         if (bill.remainingDue >= 0.0) return false
         val laterBills = _bills.value
@@ -298,7 +322,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     private fun saveToLocalStorage() {
         viewModelScope.launch {
             try {
-                // Save Properties
                 val propArr = JSONArray()
                 _properties.value.forEach {
                     val obj = JSONObject()
@@ -310,7 +333,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 prefs.edit().putString("saved_properties", propArr.toString()).apply()
 
-                // Save Rooms
                 val roomArr = JSONArray()
                 _rooms.value.forEach {
                     val obj = JSONObject()
@@ -326,14 +348,13 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 prefs.edit().putString("saved_rooms", roomArr.toString()).apply()
 
-                // Save Tenants
                 val tenantArr = JSONArray()
                 _tenants.value.forEach {
                     val obj = JSONObject()
                     obj.put("id", it.id)
                     obj.put("roomId", it.roomId)
                     obj.put("name", it.name)
-                    obj.put("phone", it.phone)
+                    obj.put("phoneNumber", it.phoneNumber)
                     obj.put("entryDate", it.entryDate)
                     if (it.exitDate != null) obj.put("exitDate", it.exitDate)
                     obj.put("securityDeposit", it.securityDeposit)
@@ -342,7 +363,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 prefs.edit().putString("saved_tenants", tenantArr.toString()).apply()
 
-                // Save Bills
                 val billArr = JSONArray()
                 _bills.value.forEach {
                     val obj = JSONObject()
@@ -373,7 +393,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadFromLocalStorage() {
         try {
-            // Load Properties
             val propStr = prefs.getString("saved_properties", null)
             if (!propStr.isNullOrEmpty()) {
                 val arr = JSONArray(propStr)
@@ -393,7 +412,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 _properties.value = listOf(defaultProp)
             }
 
-            // Load Rooms
             val roomStr = prefs.getString("saved_rooms", null)
             if (!roomStr.isNullOrEmpty()) {
                 val arr = JSONArray(roomStr)
@@ -414,7 +432,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 _rooms.value = list
             }
 
-            // Load Tenants
             val tenantStr = prefs.getString("saved_tenants", null)
             if (!tenantStr.isNullOrEmpty()) {
                 val arr = JSONArray(tenantStr)
@@ -425,7 +442,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                         id = obj.getString("id"),
                         roomId = obj.getString("roomId"),
                         name = obj.getString("name"),
-                        phone = obj.getString("phone"),
+                        phoneNumber = obj.optString("phoneNumber", obj.optString("phone", "")),
                         entryDate = obj.getLong("entryDate"),
                         exitDate = if (obj.has("exitDate")) obj.getLong("exitDate") else null,
                         securityDeposit = obj.optDouble("securityDeposit", 0.0),
@@ -435,7 +452,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 _tenants.value = list
             }
 
-            // Load Bills
             val billStr = prefs.getString("saved_bills", null)
             if (!billStr.isNullOrEmpty()) {
                 val arr = JSONArray(billStr)
@@ -504,6 +520,12 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         val uid = auth.currentUser?.uid ?: return
         firestore.collection("users").document(uid).collection("rooms")
             .document(room.id).set(room, SetOptions.merge())
+    }
+
+    private fun deleteRoomFromCloud(roomId: String) {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("rooms")
+            .document(roomId).delete()
     }
 
     private fun syncTenantToCloud(tenant: Tenant) {
