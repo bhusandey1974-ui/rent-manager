@@ -198,18 +198,17 @@ fun MainAppScreen(vm: RentViewModel) {
                     PropertiesTabContent(
                         vm = vm,
                         onShowAddRoom = { showAddRoomDialog = true },
-                        onAssignTenant = { roomToAssignTenant = it },
-                        onLodgeBill = { roomToLodgeBill = it },
-                        onVacate = { roomToVacate = it },
-                        onViewHistory = { roomForHistory = it }
+                        onAssignTenant = { room: RoomUnit -> roomToAssignTenant = room },
+                        onLodgeBill = { room: RoomUnit -> roomToLodgeBill = room },
+                        onVacate = { room: RoomUnit -> roomToVacate = room },
+                        onViewHistory = { room: RoomUnit -> roomForHistory = room }
                     )
                 } else {
                     RevenueView(vm = vm)
                 }
             }
         }
-
-        // Dialogs
+                // Dialog Wiring
         if (showResetStep1Dialog) {
             AlertDialog(
                 onDismissRequest = { showResetStep1Dialog = false },
@@ -251,7 +250,7 @@ fun MainAppScreen(vm: RentViewModel) {
         if (showAddRoomDialog) {
             AddRoomDialog(
                 onDismiss = { showAddRoomDialog = false },
-                onConfirm = { rNum, rRent, rElec ->
+                onConfirm = { rNum: String, rRent: Double, rElec: Double ->
                     vm.addRoom(rNum, rRent, rElec)
                     showAddRoomDialog = false
                 }
@@ -262,7 +261,7 @@ fun MainAppScreen(vm: RentViewModel) {
             AssignTenantDialog(
                 room = room,
                 onDismiss = { roomToAssignTenant = null },
-                onConfirm = { name, phone, aadhaar, address, deposit, meter, date ->
+                onConfirm = { name: String, phone: String, aadhaar: String, address: String, deposit: Double, meter: Double, date: String ->
                     vm.assignTenant(room.id, name, phone, aadhaar, address, deposit, meter, date)
                     roomToAssignTenant = null
                 }
@@ -278,7 +277,7 @@ fun MainAppScreen(vm: RentViewModel) {
                 previousCarryover = carryover,
                 context = context,
                 onDismiss = { roomToLodgeBill = null },
-                onConfirm = { bill ->
+                onConfirm = { bill: BillRecord ->
                     vm.lodgeBill(bill)
                     roomToLodgeBill = null
                 }
@@ -294,7 +293,7 @@ fun MainAppScreen(vm: RentViewModel) {
                 pendingDues = pendingDues,
                 context = context,
                 onDismiss = { roomToVacate = null },
-                onConfirm = { finalReading, dateStr ->
+                onConfirm = { finalReading: Double, dateStr: String ->
                     vm.vacateRoom(room.id, finalReading, dateStr)
                     roomToVacate = null
                 }
