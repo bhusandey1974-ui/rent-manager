@@ -1,325 +1,388 @@
-package com.example.rentmanager
+package com.example.rentmanager.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.NumberFormat
+import com.example.rentmanager.AppColors
+import com.example.rentmanager.Bill
+import com.example.rentmanager.ReceiptFormatter
+import com.example.rentmanager.RentViewModel
 import java.text.SimpleDateFormat
-import java.util.*
-
-enum class LedgerFilter {
-    ALL, PAID, PENDING
-}
-
-enum class RevenueTimeframe {
-    YEAR_2026, LIFETIME
-}
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun RevenueView(
-    vm: RentViewModel,
-    modifier: Modifier = Modifier
+    viewModel: RentViewModel,
+    context: Context
 ) {
-    val bills by vm.bills.collectAsState()
-    val rooms by vm.rooms.collectAsState()
+    val bills by viewModel.bills.collectAsState()
+    val rooms by viewModel.rooms.collectAsState()
+    val tenants by viewModel.tenants.collectAsState()
 
-    var filter by remember { mutableStateOf(LedgerFilter.ALL) }
-    var timeframe by remember { mutableStateOf(RevenueTimeframe.YEAR_2026) }
+    var selectedFilter by remember { mutableStateOf("All") } // "All", "Paid", "Due"
 
-    val currencyFormat = remember {
-        NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
-            maximumFractionDigits = 2
+    val totalRevenue = bills.sumOf { it.amountPaid }
+    val rentCollection = bills.sumOf { it.baseRent }
+    val electricityTotal = bills.sumOf { it.electricityAmount }
+    val activeDue = bills.filter { !viewModel.wasHistoricalDueSettled(it) && it.remainingDue > 0.0 }
+        .sumOf { it.remainingDue }
+
+    val filteredBills = remember(bills, selectedFilter) {
+        val sorted = bills.sortedByDescending { it.timestamp }
+        when (selectedFilter) {
+            "Paid" -> sorted.filter { it.remainingDue <= 0.0 || viewModel.wasHistoricalDueSettled(it) }
+            "Due" -> sorted.filter { it.remainingDue > 0.0 && !viewModel.wasHistoricalDueSettled(it) }
+            else -> sorted
         }
     }
 
-    val totalCollected = if (timeframe == RevenueTimeframe.YEAR_2026) {
-        vm.calculateYearlyRevenue()
-    } else {
-        vm.calculateLifetimeRevenue()
-    }
-
-    val rentEarnings = if (timeframe == RevenueTimeframe.YEAR_2026) {
-        vm.calculateYearlyRentEarnings()
-    } else {
-        vm.calculateLifetimeRentEarnings()
-    }
-
-    val electricityEarnings = if (timeframe == RevenueTimeframe.YEAR_2026) {
-        vm.calculateYearlyElectricityRevenue()
-    } else {
-        vm.calculateLifetimeElectricityRevenue()
-    }
-
-    val totalOutstandingDues = vm.calculateTotalOutstandingDues()
-
-    val filteredBills = remember(bills, filter) {
-        when (filter) {
-            LedgerFilter.ALL -> bills
-            LedgerFilter.PAID -> bills.filter { it.remainingDue <= 0.0 }
-            LedgerFilter.PENDING -> bills.filter { it.remainingDue > 0.0 }
-        }
-    }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
-            .padding(horizontal = 16.dp)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = AppColors.ScaffoldBackground
     ) {
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Soft, Clean & Elegant Royal Gradient Card (Replaced the harsh black)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF1E3A8A), // Deep Navy
-                                Color(0xFF2563EB), // Vibrant Royal Blue
-                                Color(0xFF3B82F6)  // Light Sky Accent
-                            )
-                        )
-                    )
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (timeframe == RevenueTimeframe.YEAR_2026) "YEAR REVENUE (2026)" else "LIFETIME REVENUE",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = Color(0xFFDBEAFE),
-                            letterSpacing = 1.sp
-                        )
-
-                        // Elegant Soft Pill Switcher
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color.White.copy(alpha = 0.2f))
-                                .padding(2.dp)
-                        ) {
-                            Text(
-                                text = "2026",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = if (timeframe == RevenueTimeframe.YEAR_2026) Color(0xFF1E3A8A) else Color.White,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (timeframe == RevenueTimeframe.YEAR_2026) Color.White else Color.Transparent)
-                                    .clickable { timeframe = RevenueTimeframe.YEAR_2026 }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                            Text(
-                                text = "All",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = if (timeframe == RevenueTimeframe.LIFETIME) Color(0xFF1E3A8A) else Color.White,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (timeframe == RevenueTimeframe.LIFETIME) Color.White else Color.Transparent)
-                                    .clickable { timeframe = RevenueTimeframe.LIFETIME }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = currencyFormat.format(totalCollected),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
-                        color = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.25f), thickness = 0.8.dp)
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text("Rent Collection", fontSize = 11.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFFDBEAFE))
-                            Text(currencyFormat.format(rentEarnings), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, color = Color.White)
-                        }
-
-                        Column {
-                            Text("Electricity", fontSize = 11.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFFDBEAFE))
-                            Text(currencyFormat.format(electricityEarnings), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, color = Color.White)
-                        }
-
-                        Column {
-                            Text("Active Due", fontSize = 11.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFFDBEAFE))
-                            Text(
-                                currencyFormat.format(totalOutstandingDues),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = if (totalOutstandingDues > 0.0) Color(0xFFFDE68A) else Color(0xFFA7F3D0)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // Ledger Filter Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Billing Ledger (${filteredBills.size})",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.SansSerif,
-                color = Color(0xFF0F172A)
-            )
-
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFE2E8F0))
-                    .padding(2.dp)
-            ) {
-                listOf(LedgerFilter.ALL to "All", LedgerFilter.PAID to "Paid", LedgerFilter.PENDING to "Due").forEach { (f, label) ->
-                    Text(
-                        text = label,
-                        fontSize = 11.sp,
-                        fontWeight = if (filter == f) FontWeight.Bold else FontWeight.Medium,
-                        fontFamily = FontFamily.SansSerif,
-                        color = if (filter == f) Color.White else Color(0xFF64748B),
+            // Main Revenue Gradient Hero Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = BorderStroke(1.dp, AppColors.AzureBorder)
+                ) {
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (filter == f) Color(0xFF2563EB) else Color.Transparent)
-                            .clickable { filter = f }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-                if (filteredBills.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No records found",
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = Color(0xFF94A3B8)
-                )
-            }
-        } else {
-            val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 20.dp)
-            ) {
-                items(filteredBills, key = { it.id }) { bill ->
-                    val room = rooms.find { it.id == bill.roomId }
-                    val roomLabel = room?.roomNumber ?: "Room"
-                    val tenantName = vm.resolveTenantName(bill.tenantId, bill.roomId)
-
-                    val elecUnits = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
-                    val elecTotal = elecUnits * bill.electricityRate
-                    val currentPeriodCharge = bill.baseRent + elecTotal + bill.maintenanceCharge
-                    val totalBilled = currentPeriodCharge + bill.previousDueCarryover
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        shadowElevation = 1.dp
+                            .fillMaxWidth()
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(AppColors.AzurePrimary, AppColors.AzureDark)
+                                )
+                            )
+                            .padding(20.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "$tenantName (Room $roomLabel)",
-                                    fontSize = 15.sp,
+                                    text = "YEAR REVENUE (2026)",
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = Color(0xFF0F172A)
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    letterSpacing = 1.sp
                                 )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color.White.copy(alpha = 0.2f))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("2026", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
 
-                                if (bill.remainingDue <= 0.0) {
-                                    Box(
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalRevenue)}",
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            // Three Stat Columns
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text("Rent Collection", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                                    Text("₹${String.format(Locale.ENGLISH, "%,.2f", rentCollection)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                                Column {
+                                    Text("Electricity", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                                    Text("₹${String.format(Locale.ENGLISH, "%,.2f", electricityTotal)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                                Column {
+                                    Text("Active Due", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                                    Text("₹${String.format(Locale.ENGLISH, "%,.2f", activeDue)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Ledger Section Title & Clean Filter Switcher
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Billing Ledger (${filteredBills.size})",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
+                    )
+
+                    // Pill Filters (Zero lavender)
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(AppColors.SurfaceWhite)
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf("All", "Paid", "Due").forEach { filter ->
+                            val isSelected = selectedFilter == filter
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isSelected) AppColors.AzurePrimary else Color.Transparent)
+                                    .clickable { selectedFilter = filter }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = filter,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color.White else AppColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+                        // Ledger Cards List
+            if (filteredBills.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No billing records found.", color = AppColors.TextMuted, fontSize = 14.sp)
+                    }
+                }
+            } else {
+                items(filteredBills) { bill ->
+                    val tenant = viewModel.getTenantForBill(bill)
+                    val room = viewModel.getRoomForBill(bill)
+
+                    val isDueSettled = viewModel.wasHistoricalDueSettled(bill)
+                    val isAdvanceConsumed = viewModel.wasHistoricalAdvanceConsumed(bill)
+
+                    val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.ENGLISH).format(Date(bill.timestamp))
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWhite),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            // Top Row: Tenant Name, WhatsApp Icon & Status Badge
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${tenant?.name ?: "Unknown"} (Room ${room?.roomNumber ?: "-"})",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppColors.TextPrimary
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    // 1-Tap Direct WhatsApp Resend Pill
+                                    IconButton(
+                                        onClick = {
+                                            if (tenant != null && room != null) {
+                                                val msg = ReceiptFormatter.formatReceipt(
+                                                    tenantName = tenant.name,
+                                                    roomNumber = room.roomNumber,
+                                                    billingPeriod = bill.billingPeriod,
+                                                    paymentDateMillis = bill.timestamp,
+                                                    previousReading = bill.previousReading,
+                                                    currentReading = bill.currentReading,
+                                                    unitsConsumed = bill.unitsConsumed,
+                                                    ratePerUnit = bill.electricityRate,
+                                                    totalElectricity = bill.electricityAmount,
+                                                    baseRent = bill.baseRent,
+                                                    totalAmount = bill.totalPayable,
+                                                    amountPaid = bill.amountPaid,
+                                                    paymentMode = bill.paymentMode,
+                                                    remainingDue = bill.remainingDue
+                                                )
+                                                ReceiptFormatter.sendViaWhatsApp(context, tenant.phone, msg)
+                                            }
+                                        },
                                         modifier = Modifier
+                                            .size(28.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFFECFDF5))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            .background(AppColors.WhatsAppContainer)
                                     ) {
-                                        Text(
-                                            text = "PAID • ${bill.paymentMode}",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = Color(0xFF059669)
+                                        Icon(
+                                            imageVector = Icons.Rounded.Chat,
+                                            contentDescription = "Send WhatsApp Receipt",
+                                            tint = AppColors.WhatsAppGreen,
+                                            modifier = Modifier.size(15.dp)
                                         )
                                     }
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFFEF3C7))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Text(
-                                            text = "DUE: ₹${bill.remainingDue.toInt()}",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = Color(0xFFD97706)
-                                        )
+                                }
+
+                                // Dynamic Lifecycle Badges (Active Due vs Settled Dot)
+                                when {
+                                    // Past due that was settled in a subsequent bill
+                                    bill.remainingDue > 0.0 && isDueSettled -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(AppColors.HistoryContainer)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(AppColors.HistorySettledDot)
+                                                )
+                                                Spacer(modifier = Modifier.width(5.dp))
+                                                Text("Settled in next bill", fontSize = 11.sp, color = AppColors.HistoryText)
+                                            }
+                                        }
+                                    }
+
+                                    // Active unresolved due
+                                    bill.remainingDue > 0.0 -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(AppColors.AmberContainer)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = "DUE: ₹${String.format(Locale.ENGLISH, "%.0f", bill.remainingDue)}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AppColors.AmberWarning
+                                            )
+                                        }
+                                    }
+
+                                    // Past advance credit that was consumed
+                                    bill.remainingDue < 0.0 && isAdvanceConsumed -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(AppColors.HistoryContainer)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(AppColors.HistoryAdvanceDot)
+                                                )
+                                                Spacer(modifier = Modifier.width(5.dp))
+                                                Text("Advance Credited", fontSize = 11.sp, color = AppColors.HistoryText)
+                                            }
+                                        }
+                                    }
+
+                                    // Active floating advance credit
+                                    bill.remainingDue < 0.0 -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(AppColors.AzureContainer)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = "ADVANCE: ₹${String.format(Locale.ENGLISH, "%.0f", -bill.remainingDue)}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AppColors.AzurePrimary
+                                            )
+                                        }
+                                    }
+
+                                    // Exact fully paid
+                                    else -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(AppColors.EmeraldContainer)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = "PAID · ${bill.paymentMode}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = AppColors.EmeraldSuccess
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -327,16 +390,14 @@ fun RevenueView(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Period: ${bill.monthYear}  •  ${dateFormat.format(Date(bill.timestamp))}",
+                                text = "Period: ${bill.billingPeriod}   ·   $dateStr",
                                 fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = Color(0xFF64748B)
+                                color = AppColors.TextSecondary
                             )
 
                             Spacer(modifier = Modifier.height(10.dp))
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.8.dp)
-                            Spacer(modifier = Modifier.height(10.dp))
 
+                            // Breakdown & Paid Total
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -344,50 +405,23 @@ fun RevenueView(
                             ) {
                                 Column {
                                     Text(
-                                        text = "Rent: ₹${bill.baseRent.toInt()}  •  Elec: ₹${elecTotal.toInt()} (${elecUnits.toInt()}u)",
+                                        text = "Rent: ₹${String.format(Locale.ENGLISH, "%.0f", bill.baseRent)}  ·  Elec: ₹${String.format(Locale.ENGLISH, "%.0f", bill.electricityAmount)} (${String.format(Locale.ENGLISH, "%.0f", bill.unitsConsumed)}u)",
                                         fontSize = 12.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = Color(0xFF475569)
+                                        color = AppColors.TextSecondary
                                     )
-
-                                    if (bill.previousDueCarryover > 0.0) {
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = "₹${currentPeriodCharge.toInt()} ",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                fontFamily = FontFamily.SansSerif,
-                                                color = Color(0xFF64748B)
-                                            )
-                                            Text(
-                                                text = "+ ₹${bill.previousDueCarryover.toInt()} Due",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.SansSerif,
-                                                color = Color(0xFFD97706),
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(4.dp))
-                                                    .background(Color(0xFFFEF3C7))
-                                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                                            )
-                                        }
-                                    }
                                 }
 
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = currencyFormat.format(totalBilled),
+                                        text = "₹${String.format(Locale.ENGLISH, "%,.2f", bill.totalPayable)}",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = Color(0xFF0F172A)
+                                        color = AppColors.TextPrimary
                                     )
                                     Text(
-                                        text = "Paid: ₹${bill.amountPaid.toInt()} (${bill.paymentMode})",
+                                        text = "Paid: ₹${String.format(Locale.ENGLISH, "%,.2f", bill.amountPaid)} (${bill.paymentMode})",
                                         fontSize = 11.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = Color(0xFF059669)
+                                        color = AppColors.EmeraldSuccess
                                     )
                                 }
                             }
@@ -398,4 +432,3 @@ fun RevenueView(
         }
     }
 }
-
