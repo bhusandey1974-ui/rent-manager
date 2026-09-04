@@ -58,7 +58,6 @@ import com.example.rentmanager.AppColors
 import com.example.rentmanager.UIRedDanger
 import com.example.rentmanager.UIGreenSuccess
 import com.example.rentmanager.RentViewModel
-import com.example.rentmanager.AppColors
 import com.example.rentmanager.ReceiptFormatter
 import com.example.rentmanager.Room
 import com.example.rentmanager.Tenant
