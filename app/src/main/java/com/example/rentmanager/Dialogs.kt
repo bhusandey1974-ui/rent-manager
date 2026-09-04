@@ -1547,7 +1547,7 @@ fun SettingsDialog(
     if (showDeleteConfirmation) {
         DeleteConfirmationDialog(
             onConfirm = {
-                vm.deleteAllData()
+                vm.clearAllData(onComplete = {})
                 showDeleteConfirmation = false
                 onDismiss()
             },
