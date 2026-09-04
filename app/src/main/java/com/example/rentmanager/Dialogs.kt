@@ -3,7 +3,6 @@ package com.example.rentmanager.ui.components
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,18 +13,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DoorFront
+import androidx.compose.material.icons.rounded.ElectricBolt
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -109,7 +110,7 @@ fun AddPropertyDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Property / Building Name") },
-                    placeholder = { Text("e.g. Green Villa") },
+                    placeholder = { Text("e.g. Green Heights") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppColors.AzurePrimary,
@@ -119,13 +120,13 @@ fun AddPropertyDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
                     label = { Text("Address / Location") },
-                    placeholder = { Text("e.g. 12th Cross Road") },
+                    placeholder = { Text("e.g. Street 4, Sector 2") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppColors.AzurePrimary,
@@ -162,7 +163,7 @@ fun AddPropertyDialog(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Create")
+                        Text("Create Property")
                     }
                 }
             }
@@ -176,8 +177,8 @@ fun AddRoomDialog(
 ) {
     var roomNumber by remember { mutableStateOf("") }
     var baseRent by remember { mutableStateOf("") }
-    var electricityRate by remember { mutableStateOf("10.0") }
-    var initialReading by remember { mutableStateOf("0.0") }
+    var electricityRate by remember { mutableStateOf("10") }
+    var initialReading by remember { mutableStateOf("0") }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -210,7 +211,7 @@ fun AddRoomDialog(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Add Room",
+                            text = "Add New Room",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppColors.TextPrimary
@@ -227,7 +228,7 @@ fun AddRoomDialog(
                     value = roomNumber,
                     onValueChange = { roomNumber = it },
                     label = { Text("Room / Flat Number") },
-                    placeholder = { Text("e.g. 101 or Room 1") },
+                    placeholder = { Text("e.g. 101, B-4") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppColors.AzurePrimary,
@@ -327,6 +328,7 @@ fun AddRoomDialog(
         }
     }
 }
+
 @Composable
 fun AssignTenantDialog(
     roomNumber: String,
@@ -368,7 +370,7 @@ fun AssignTenantDialog(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Assign to Room $roomNumber",
+                            text = "Assign Room $roomNumber",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppColors.TextPrimary
@@ -385,6 +387,7 @@ fun AssignTenantDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Tenant Name") },
+                    placeholder = { Text("Full Name") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppColors.AzurePrimary,
@@ -400,6 +403,7 @@ fun AssignTenantDialog(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text("Mobile Number (for WhatsApp)") },
+                    placeholder = { Text("10-digit number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -455,7 +459,7 @@ fun AssignTenantDialog(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Assign")
+                        Text("Assign Tenant")
                     }
                 }
             }
@@ -470,25 +474,19 @@ fun LodgeBillDialog(
     previousReading: Double,
     priorDueOrAdvance: Double,
     onDismiss: () -> Unit,
-    onBillLodged: (
-        billingPeriod: String,
-        currentReading: Double,
-        maintenance: Double,
-        amountPaid: Double,
-        paymentMode: String
-    ) -> Unit
+    onBillLodged: (billingPeriod: String, currentReading: Double, maintenanceAmount: Double, amountPaid: Double, paymentMode: String) -> Unit
 ) {
-    var billingPeriod by remember { mutableStateOf("July 2026") }
+    var billingPeriod by remember { mutableStateOf("Current Month") }
     var currentReadingStr by remember { mutableStateOf("") }
     var maintenanceStr by remember { mutableStateOf("0") }
     var amountPaidStr by remember { mutableStateOf("") }
     var paymentMode by remember { mutableStateOf("Cash") }
 
-    val currentReading = currentReadingStr.toDoubleOrNull() ?: previousReading
-    val unitsConsumed = (currentReading - previousReading).coerceAtLeast(0.0)
-    val electricityTotal = unitsConsumed * room.electricityRate
-    val maintenance = maintenanceStr.toDoubleOrNull() ?: 0.0
-    val totalPayable = room.baseRent + electricityTotal + maintenance + priorDueOrAdvance
+    val currReading = currentReadingStr.toDoubleOrNull() ?: previousReading
+    val units = (currReading - previousReading).coerceAtLeast(0.0)
+    val elecAmount = units * room.electricityRate
+    val maintAmount = maintenanceStr.toDoubleOrNull() ?: 0.0
+    val totalPayable = room.baseRent + elecAmount + maintAmount + priorDueOrAdvance
     val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
     val remainingDue = totalPayable - amountPaid
 
@@ -500,12 +498,7 @@ fun LodgeBillDialog(
             border = BorderStroke(1.dp, AppColors.BorderSubtle),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // Header
+            Column(modifier = Modifier.padding(20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -527,12 +520,19 @@ fun LodgeBillDialog(
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Lodge Bill - Room ${room.roomNumber}",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppColors.TextPrimary
-                        )
+                        Column {
+                            Text(
+                                text = "Lodge Bill - Room ${room.roomNumber}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextPrimary
+                            )
+                            Text(
+                                text = "Tenant: ${tenant.name}",
+                                fontSize = 12.sp,
+                                color = AppColors.TextSecondary
+                            )
+                        }
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                         Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
@@ -541,208 +541,146 @@ fun LodgeBillDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Prior Balance Notice
-                if (priorDueOrAdvance > 0.0) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(AppColors.AmberContainer)
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "⚠️ Previous Due added: +₹${String.format(Locale.ENGLISH, "%.2f", priorDueOrAdvance)}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AppColors.AmberWarning
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                } else if (priorDueOrAdvance < 0.0) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(AppColors.AzureContainer)
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "🎁 Advance Credit applied: -₹${String.format(Locale.ENGLISH, "%.2f", -priorDueOrAdvance)}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AppColors.AzurePrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                // Billing Period
                 OutlinedTextField(
                     value = billingPeriod,
                     onValueChange = { billingPeriod = it },
-                    label = { Text("Billing Period") },
+                    label = { Text("Billing Period / Month") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppColors.AzurePrimary,
-                        unfocusedBorderColor = AppColors.BorderSubtle
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Meter Reading Inputs
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
-                        value = String.format(Locale.ENGLISH, "%.1f", previousReading),
+                        value = previousReading.toString(),
                         onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Prev Meter") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = AppColors.BorderSubtle,
-                            unfocusedContainerColor = AppColors.SlateBackground
-                        ),
+                        label = { Text("Previous Reading") },
+                        enabled = false,
                         modifier = Modifier.weight(1f)
                     )
 
                     OutlinedTextField(
                         value = currentReadingStr,
                         onValueChange = { currentReadingStr = it },
-                        label = { Text("Current Meter") },
+                        label = { Text("Current Reading") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = AppColors.AzurePrimary,
-                            unfocusedBorderColor = AppColors.BorderSubtle
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = maintenanceStr,
+                        onValueChange = { maintenanceStr = it },
+                        label = { Text("Maintenance / Other (₹)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    OutlinedTextField(
+                        value = amountPaidStr,
+                        onValueChange = { amountPaidStr = it },
+                        label = { Text("Amount Paid (₹)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
                         ),
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Units: ${String.format(Locale.ENGLISH, "%.1f", unitsConsumed)} × ₹${room.electricityRate} = ₹${String.format(Locale.ENGLISH, "%.2f", electricityTotal)}",
-                    fontSize = 12.sp,
-                    color = AppColors.TextSecondary
-                )
-
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Maintenance / Other
-                OutlinedTextField(
-                    value = maintenanceStr,
-                    onValueChange = { maintenanceStr = it },
-                    label = { Text("Maintenance / Other (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AppColors.AzurePrimary,
-                        unfocusedBorderColor = AppColors.BorderSubtle
-                    ),
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.AzureContainer),
                     modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Total Payable Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(AppColors.AzureContainer)
-                        .padding(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Total Amount Due:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppColors.AzureDark)
-                        Text(
-                            "₹${String.format(Locale.ENGLISH, "%.2f", totalPayable)}",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppColors.AzureDark
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Amount Paid & Payment Mode
-                OutlinedTextField(
-                    value = amountPaidStr,
-                    onValueChange = { amountPaidStr = it },
-                    label = { Text("Amount Paid Now (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AppColors.AzurePrimary,
-                        unfocusedBorderColor = AppColors.BorderSubtle
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Payment Mode Selector (Zero lavender)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("Cash", "UPI", "Bank").forEach { mode ->
-                        val isSelected = paymentMode == mode
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) AppColors.AzurePrimary else AppColors.SlateBackground)
-                                .clickable { paymentMode = mode }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = mode,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else AppColors.TextSecondary
-                            )
+                            Text("Rent + Elec (${units}u) + Maint:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            Text("₹${String.format(Locale.ENGLISH, "%.2f", room.baseRent + elecAmount + maintAmount)}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        if (priorDueOrAdvance != 0.0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(if (priorDueOrAdvance > 0) "Previous Due:" else "Previous Advance:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", priorDueOrAdvance)}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Divider(modifier = Modifier.padding(vertical = 4.dp), color = AppColors.AzureBorder)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Total Payable:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                            Text("₹${String.format(Locale.ENGLISH, "%.2f", totalPayable)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = AppColors.AzurePrimary)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Remaining Due:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            Text("₹${String.format(Locale.ENGLISH, "%.2f", remainingDue)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (remainingDue > 0) AppColors.AmberWarning else AppColors.EmeraldSuccess)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Save & Send WhatsApp Button
                 Button(
                     onClick = {
-                        onBillLodged(
-                            billingPeriod,
-                            currentReading,
-                            maintenance,
-                            amountPaid,
-                            paymentMode
-                        )
-                        // Launch WhatsApp directly with formatted receipt
+                        onBillLodged(billingPeriod, currReading, maintAmount, amountPaid, paymentMode)
                         val receiptMsg = ReceiptFormatter.formatReceipt(
                             tenantName = tenant.name,
                             roomNumber = room.roomNumber,
                             billingPeriod = billingPeriod,
+                            paymentDateMillis = System.currentTimeMillis(),
                             previousReading = previousReading,
-                            currentReading = currentReading,
-                            unitsConsumed = unitsConsumed,
+                            currentReading = currReading,
+                            unitsConsumed = units,
                             ratePerUnit = room.electricityRate,
-                            totalElectricity = electricityTotal,
+                            totalElectricity = elecAmount,
                             baseRent = room.baseRent,
                             totalAmount = totalPayable,
                             amountPaid = amountPaid,
                             paymentMode = paymentMode,
                             remainingDue = remainingDue
                         )
-                        ReceiptFormatter.sendViaWhatsApp(context, tenant.phone, receiptMsg)
+                        ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
@@ -915,7 +853,6 @@ fun EditRoomDialog(
         }
     }
 }
-
 @Composable
 fun EditTenantDialog(
     tenant: Tenant,
@@ -924,7 +861,7 @@ fun EditTenantDialog(
 ) {
     var name by remember { mutableStateOf(tenant.name) }
     var phone by remember { mutableStateOf(tenant.phoneNumber) }
-    var deposit by remember { mutableStateOf(if (tenant.securityDeposit > 0) tenant.securityDeposit.toString() else "") }
+    var deposit by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -1033,7 +970,7 @@ fun EditTenantDialog(
 
                     Button(
                         onClick = {
-                            val depVal = deposit.toDoubleOrNull() ?: tenant.securityDeposit
+                            val depVal = deposit.toDoubleOrNull() ?: 0.0
                             if (name.isNotBlank()) onConfirm(name, phone, depVal)
                         },
                         enabled = name.isNotBlank(),
@@ -1051,7 +988,6 @@ fun EditTenantDialog(
         }
     }
 }
-
 @Composable
 fun DeleteConfirmationDialog(
     title: String = "Delete Room",
