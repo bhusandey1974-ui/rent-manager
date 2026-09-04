@@ -81,7 +81,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     fun setSelectedProperty(propertyId: String?) {
         _selectedPropertyId.value = propertyId
     }
-        // ==========================================
+
+    // ==========================================
     // PROPERTY OPERATIONS
     // ==========================================
 
@@ -153,8 +154,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         saveToLocalStorage()
         deleteRoomFromCloud(roomId)
     }
-
-    // ==========================================
+        // ==========================================
     // TENANT OPERATIONS (ASSIGN, EDIT, VACATE)
     // ==========================================
 
@@ -208,7 +208,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         }
         saveToLocalStorage()
     }
-        // ==========================================
+
+    // ==========================================
     // BILLING & FINANCIAL LOGIC (SCOPED TO TENANT)
     // ==========================================
 
@@ -301,7 +302,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     fun getRoomForBill(bill: Bill): Room? {
         return _rooms.value.find { it.id == bill.roomId }
     }
-        // ==========================================
+
+    // ==========================================
     // LOCAL STORAGE PERSISTENCE
     // ==========================================
 
@@ -518,4 +520,3 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             .document(bill.id).set(bill, SetOptions.merge())
     }
 }
-
