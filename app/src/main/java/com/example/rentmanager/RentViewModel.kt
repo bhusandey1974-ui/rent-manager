@@ -35,7 +35,263 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         auth.currentUser?.uid?.let { loadCloudData(it) }
     }
 
-    // --- Persistence & Sync ---
+    // --- CORE ACCOUNTING ENGINE ---
+
+    /**
+     * Calculates electricity units consumed safely.
+     * If meter rolled over (e.g. 9980 to 20 on a 4-digit meter), handles rollover gracefully.
+     */
+    fun calculateElectricityUnits(currentReading: Double, prevReading: Double, rolloverMax: Double = 10000.0): Double {
+        return if (currentReading >= prevReading) {
+            currentReading - prevReading
+        } else {
+            (rolloverMax - prevReading) + currentReading
+        }
+    }
+
+    /**
+     * Prorates rent for mid-month move-ins.
+     */
+    fun calculateProratedRent(baseRent: Double, dayOfMonth: Int, totalDaysInMonth: Int = 30): Double {
+        if (dayOfMonth <= 1) return baseRent
+        val daysRemaining = (totalDaysInMonth - dayOfMonth + 1).coerceAtLeast(1)
+        return (baseRent / totalDaysInMonth) * daysRemaining
+    }
+
+    /**
+     * Reconciles final account balances upon tenant vacating.
+     */
+    fun calculateFinalSettlement(
+        room: RoomUnit,
+        tenant: Tenant,
+        finalMeterReading: Double,
+        damageDeductions: Double = 0.0,
+        deductionReason: String = "",
+        moveOutDateStr: String
+    ): MoveOutSettlement {
+        val elecUnits = calculateElectricityUnits(finalMeterReading, room.lastMeterReading)
+        val elecCost = elecUnits * room.electricityRate
+        val pendingDue = getPendingDueForRoom(room.id)
+        val totalDeductions = (if (pendingDue > 0) pendingDue else 0.0) + elecCost + damageDeductions
+        val advanceCredit = if (pendingDue < 0) -pendingDue else 0.0
+        val effectiveDeposit = tenant.depositAmount + advanceCredit
+
+        val netRefund = effectiveDeposit - totalDeductions
+        val isOwing = netRefund < 0.0
+
+        return MoveOutSettlement(
+            roomId = room.id,
+            tenantId = tenant.id,
+            tenantName = tenant.name,
+            moveInDate = tenant.moveInDate,
+            moveOutDate = moveOutDateStr,
+            depositHeld = tenant.depositAmount,
+            unpaidDues = pendingDue,
+            finalMeterReading = finalMeterReading,
+            finalElectricityUnits = elecUnits,
+            finalElectricityCharge = elecCost,
+            damageDeductions = damageDeductions,
+            deductionReason = deductionReason,
+            netRefundAmount = if (isOwing) -netRefund else netRefund,
+            isTenantOwing = isOwing
+        )
+    }
+
+    fun getPendingDueForRoom(roomId: String): Double {
+        val roomBills = _bills.value
+            .filter { it.roomId == roomId }
+            .sortedByDescending { it.timestamp }
+        return if (roomBills.isNotEmpty()) roomBills.first().remainingDue else 0.0
+    }
+
+    fun lodgeBill(bill: BillRecord) {
+        _bills.value = listOf(bill) + _bills.value
+        _rooms.value = _rooms.value.map { room ->
+            if (room.id == bill.roomId) {
+                room.copy(lastMeterReading = bill.currentMeterReading)
+            } else room
+        }
+        saveLocalData()
+
+        auth.currentUser?.uid?.let { uid ->
+            val userRef = firestore.collection("users").document(uid)
+            userRef.collection("bills").document(bill.id).set(bill)
+            userRef.collection("rooms").document(bill.roomId).update(
+                "lastMeterReading", bill.currentMeterReading
+            )
+        }
+    }
+        /**
+     * Record a mid-cycle partial or full payment against existing room dues.
+     */
+    fun recordDirectPayment(roomId: String, paymentAmount: Double, paymentMode: String) {
+        val currentDue = getPendingDueForRoom(roomId)
+        val newDue = currentDue - paymentAmount
+
+        val activeRoom = _rooms.value.find { it.id == roomId } ?: return
+        val currentReading = activeRoom.lastMeterReading
+
+        val settlementBill = BillRecord(
+            id = UUID.randomUUID().toString(),
+            roomId = roomId,
+            tenantId = activeRoom.currentTenantId,
+            monthYear = "Payment Settlement",
+            baseRent = 0.0,
+            prevMeterReading = currentReading,
+            currentMeterReading = currentReading,
+            electricityRate = activeRoom.electricityRate,
+            maintenanceCharge = 0.0,
+            previousDueCarryover = currentDue,
+            amountPaid = paymentAmount,
+            remainingDue = newDue,
+            paymentMode = paymentMode,
+            timestamp = System.currentTimeMillis()
+        )
+        lodgeBill(settlementBill)
+    }
+
+    fun addRoom(roomNumber: String, baseRent: Double, electricityRate: Double) {
+        val newRoom = RoomUnit(
+            id = UUID.randomUUID().toString(),
+            roomNumber = roomNumber,
+            baseRent = baseRent,
+            electricityRate = electricityRate,
+            lastMeterReading = 0.0,
+            isOccupied = false,
+            currentTenantId = ""
+        )
+        _rooms.value = _rooms.value + newRoom
+        saveLocalData()
+
+        auth.currentUser?.uid?.let { uid ->
+            firestore.collection("users").document(uid)
+                .collection("rooms").document(newRoom.id).set(newRoom)
+        }
+    }
+
+    fun assignTenant(
+        roomId: String,
+        name: String,
+        phone: String,
+        aadhaarNumber: String,
+        address: String,
+        depositAmount: Double,
+        initialReading: Double,
+        moveInDate: String
+    ) {
+        val tenantId = UUID.randomUUID().toString()
+        val newTenant = Tenant(
+            id = tenantId,
+            roomId = roomId,
+            name = name,
+            phoneNumber = phone,
+            aadhaarNumber = aadhaarNumber,
+            address = address,
+            depositAmount = depositAmount,
+            initialReading = initialReading,
+            moveInDate = moveInDate,
+            isActive = true
+        )
+
+        _tenants.value = _tenants.value + newTenant
+        _rooms.value = _rooms.value.map { room ->
+            if (room.id == roomId) {
+                room.copy(
+                    isOccupied = true,
+                    currentTenantId = tenantId,
+                    lastMeterReading = initialReading
+                )
+            } else room
+        }
+        saveLocalData()
+
+        auth.currentUser?.uid?.let { uid ->
+            val userRef = firestore.collection("users").document(uid)
+            userRef.collection("tenants").document(tenantId).set(newTenant)
+            _rooms.value.find { it.id == roomId }?.let { updatedRoom ->
+                userRef.collection("rooms").document(roomId).set(updatedRoom)
+            }
+        }
+    }
+
+    fun vacateRoom(roomId: String, finalReading: Double, moveOutDate: String) {
+        val currentRoom = _rooms.value.find { it.id == roomId } ?: return
+        val currentTenantId = currentRoom.currentTenantId
+
+        _tenants.value = _tenants.value.map { tenant ->
+            if (tenant.id == currentTenantId) {
+                tenant.copy(isActive = false, moveOutDate = moveOutDate)
+            } else tenant
+        }
+
+        _rooms.value = _rooms.value.map { room ->
+            if (room.id == roomId) {
+                room.copy(
+                    isOccupied = false,
+                    currentTenantId = "",
+                    lastMeterReading = finalReading
+                )
+            } else room
+        }
+        saveLocalData()
+
+        auth.currentUser?.uid?.let { uid ->
+            val userRef = firestore.collection("users").document(uid)
+            userRef.collection("rooms").document(roomId).update(
+                "isOccupied", false,
+                "currentTenantId", "",
+                "lastMeterReading", finalReading
+            )
+            if (currentTenantId.isNotBlank()) {
+                userRef.collection("tenants").document(currentTenantId).update(
+                    "isActive", false,
+                    "moveOutDate", moveOutDate
+                )
+            }
+        }
+    }
+
+    fun resolveTenantName(tenantId: String, roomId: String): String {
+        val byId = _tenants.value.find { it.id == tenantId }
+        if (byId != null) return byId.name
+        val byRoom = _tenants.value.find { it.roomId == roomId && it.isActive }
+        return byRoom?.name ?: "Occupant"
+    }
+
+    // --- FINANCIAL METRICS ---
+
+    fun calculateYearlyRevenue(): Double {
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
+        return _bills.value
+            .filter { it.monthYear.contains(currentYear) }
+            .sumOf { it.amountPaid }
+    }
+
+    fun calculateYearlyRentEarnings(): Double {
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
+        return _bills.value
+            .filter { it.monthYear.contains(currentYear) }
+            .sumOf { it.baseRent }
+    }
+
+    fun calculateYearlyElectricityRevenue(): Double {
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
+        return _bills.value
+            .filter { it.monthYear.contains(currentYear) }
+            .sumOf {
+                val units = calculateElectricityUnits(it.currentMeterReading, it.prevMeterReading)
+                units * it.electricityRate
+            }
+    }
+
+    fun calculateTotalOutstandingDues(): Double {
+        val activeRooms = _rooms.value.filter { it.isOccupied }
+        return activeRooms.sumOf { room ->
+            val due = getPendingDueForRoom(room.id)
+            if (due > 0.0) due else 0.0
+        }
+    }
+        // --- LOCAL CACHE PERSISTENCE ---
 
     private fun saveLocalData() {
         val roomsJson = JSONArray().apply {
@@ -203,197 +459,6 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-        // --- Room & Property Operations ---
-
-    fun addRoom(roomNumber: String, baseRent: Double, electricityRate: Double) {
-        val newRoom = RoomUnit(
-            id = UUID.randomUUID().toString(),
-            roomNumber = roomNumber,
-            baseRent = baseRent,
-            electricityRate = electricityRate,
-            lastMeterReading = 0.0,
-            isOccupied = false,
-            currentTenantId = ""
-        )
-        _rooms.value = _rooms.value + newRoom
-        saveLocalData()
-
-        auth.currentUser?.uid?.let { uid ->
-            firestore.collection("users").document(uid)
-                .collection("rooms").document(newRoom.id).set(newRoom)
-        }
-    }
-
-    fun assignTenant(
-        roomId: String,
-        name: String,
-        phone: String,
-        aadhaarNumber: String,
-        address: String,
-        depositAmount: Double,
-        initialReading: Double,
-        moveInDate: String
-    ) {
-        val tenantId = UUID.randomUUID().toString()
-        val newTenant = Tenant(
-            id = tenantId,
-            roomId = roomId,
-            name = name,
-            phoneNumber = phone,
-            aadhaarNumber = aadhaarNumber,
-            address = address,
-            depositAmount = depositAmount,
-            initialReading = initialReading,
-            moveInDate = moveInDate,
-            isActive = true
-        )
-
-        _tenants.value = _tenants.value + newTenant
-        _rooms.value = _rooms.value.map { room ->
-            if (room.id == roomId) {
-                room.copy(
-                    isOccupied = true,
-                    currentTenantId = tenantId,
-                    lastMeterReading = initialReading
-                )
-            } else room
-        }
-        saveLocalData()
-
-        auth.currentUser?.uid?.let { uid ->
-            val userRef = firestore.collection("users").document(uid)
-            userRef.collection("tenants").document(tenantId).set(newTenant)
-            _rooms.value.find { it.id == roomId }?.let { updatedRoom ->
-                userRef.collection("rooms").document(roomId).set(updatedRoom)
-            }
-        }
-    }
-
-    fun vacateRoom(roomId: String, finalReading: Double, moveOutDate: String) {
-        val currentRoom = _rooms.value.find { it.id == roomId } ?: return
-        val currentTenantId = currentRoom.currentTenantId
-
-        _tenants.value = _tenants.value.map { tenant ->
-            if (tenant.id == currentTenantId) {
-                tenant.copy(isActive = false, moveOutDate = moveOutDate)
-            } else tenant
-        }
-
-        _rooms.value = _rooms.value.map { room ->
-            if (room.id == roomId) {
-                room.copy(
-                    isOccupied = false,
-                    currentTenantId = "",
-                    lastMeterReading = finalReading
-                )
-            } else room
-        }
-        saveLocalData()
-
-        auth.currentUser?.uid?.let { uid ->
-            val userRef = firestore.collection("users").document(uid)
-            userRef.collection("rooms").document(roomId).update(
-                "isOccupied", false,
-                "currentTenantId", "",
-                "lastMeterReading", finalReading
-            )
-            if (currentTenantId.isNotBlank()) {
-                userRef.collection("tenants").document(currentTenantId).update(
-                    "isActive", false,
-                    "moveOutDate", moveOutDate
-                )
-            }
-        }
-    }
-
-    // --- Ledger, FIFO Due & Advance Engine ---
-
-    fun getPendingDueForRoom(roomId: String): Double {
-        val roomBills = _bills.value
-            .filter { it.roomId == roomId }
-            .sortedByDescending { it.timestamp }
-        return if (roomBills.isNotEmpty()) {
-            roomBills.first().remainingDue
-        } else {
-            0.0
-        }
-    }
-
-    fun lodgeBill(bill: BillRecord) {
-        _bills.value = listOf(bill) + _bills.value
-        _rooms.value = _rooms.value.map { room ->
-            if (room.id == bill.roomId) {
-                room.copy(lastMeterReading = bill.currentMeterReading)
-            } else room
-        }
-        saveLocalData()
-
-        auth.currentUser?.uid?.let { uid ->
-            val userRef = firestore.collection("users").document(uid)
-            userRef.collection("bills").document(bill.id).set(bill)
-            userRef.collection("rooms").document(bill.roomId).update(
-                "lastMeterReading", bill.currentMeterReading
-            )
-        }
-    }
-
-    fun resolveTenantName(tenantId: String, roomId: String): String {
-        val byId = _tenants.value.find { it.id == tenantId }
-        if (byId != null) return byId.name
-        val byRoom = _tenants.value.find { it.roomId == roomId && it.isActive }
-        return byRoom?.name ?: "Occupant"
-    }
-
-    // --- Revenue Metrics Calculations ---
-
-    fun calculateYearlyRevenue(): Double {
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
-        return _bills.value
-            .filter { it.monthYear.contains(currentYear) }
-            .sumOf { it.amountPaid }
-    }
-
-    fun calculateLifetimeRevenue(): Double {
-        return _bills.value.sumOf { it.amountPaid }
-    }
-
-    fun calculateYearlyRentEarnings(): Double {
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
-        return _bills.value
-            .filter { it.monthYear.contains(currentYear) }
-            .sumOf { it.baseRent }
-    }
-
-    fun calculateLifetimeRentEarnings(): Double {
-        return _bills.value.sumOf { it.baseRent }
-    }
-
-    fun calculateYearlyElectricityRevenue(): Double {
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
-        return _bills.value
-            .filter { it.monthYear.contains(currentYear) }
-            .sumOf {
-                val units = (it.currentMeterReading - it.prevMeterReading).coerceAtLeast(0.0)
-                units * it.electricityRate
-            }
-    }
-
-    fun calculateLifetimeElectricityRevenue(): Double {
-        return _bills.value.sumOf {
-            val units = (it.currentMeterReading - it.prevMeterReading).coerceAtLeast(0.0)
-            units * it.electricityRate
-        }
-    }
-
-    fun calculateTotalOutstandingDues(): Double {
-        val activeRooms = _rooms.value.filter { it.isOccupied }
-        return activeRooms.sumOf { room ->
-            val due = getPendingDueForRoom(room.id)
-            if (due > 0.0) due else 0.0
-        }
-    }
-
-    // --- Account Reset ---
 
     fun clearAllUserData(onComplete: () -> Unit) {
         viewModelScope.launch {
@@ -426,4 +491,3 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         onComplete()
     }
 }
-
