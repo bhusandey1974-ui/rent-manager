@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.google.firebase.auth.FirebaseAuth
 import com.example.rentmanager.AppColors
 import com.example.rentmanager.ReceiptFormatter
 import com.example.rentmanager.Room
@@ -1430,6 +1431,163 @@ fun DeleteConfirmationDialog(
                             containerColor = AppColors.CrimsonAlert,
                             contentColor = Color.White
                         )
+                    ) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun SettingsDialog(
+    vm: RentViewModel,
+    onDismiss: () -> Unit,
+    onSignOutSuccess: () -> Unit
+) {
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = auth.currentUser
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Settings & Account",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = AppColors.TextPrimary
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Account status
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Person,
+                        contentDescription = null,
+                        tint = AppColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = currentUser?.email ?: "Local Offline Mode",
+                        fontSize = 14.sp,
+                        color = AppColors.TextPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = if (currentUser != null) "Cloud sync enabled" else "No cloud sync",
+                    fontSize = 12.sp,
+                    color = if (currentUser != null) UIGreenSuccess else AppColors.TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Sign out
+                Button(
+                    onClick = {
+                        auth.signOut()
+                        onSignOutSuccess()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.AzurePrimary
+                    )
+                ) {
+                    Text(if (currentUser != null) "Sign Out" else "Exit Guest Mode")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Danger zone
+                Text(
+                    text = "Danger Zone",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = UIRedDanger
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { showDeleteConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, UIRedDanger)
+                ) {
+                    Text("Delete All Property Data", color = UIRedDanger)
+                }
+            }
+        }
+    }
+
+    if (showDeleteConfirmation) {
+        DeleteConfirmationDialog(
+            onConfirm = {
+                vm.deleteAllData()
+                showDeleteConfirmation = false
+                onDismiss()
+            },
+            onDismiss = { showDeleteConfirmation = false }
+        )
+    }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Delete All Data?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = UIRedDanger
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "This will permanently delete all properties, rooms, tenants, and bills from this device and the cloud. This cannot be undone.",
+                    fontSize = 13.sp,
+                    color = AppColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    OutlinedButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(containerColor = UIRedDanger)
                     ) {
                         Text("Delete")
                     }
