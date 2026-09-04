@@ -186,7 +186,7 @@ fun RevenueView(vm: RentViewModel) {
                     title = "Electricity",
                     amount = revenueSummary.electricityCollected,
                     icon = Icons.Rounded.Bolt,
-                    accentColor = AppColors.AmberDark,
+                    accentColor = AppColors.AmberWarning,
                     modifier = Modifier.weight(1f)
                 )
 
