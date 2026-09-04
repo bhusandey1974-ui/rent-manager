@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -108,7 +109,6 @@ fun AddRoomDialog(
         }
     )
 }
-
 @Composable
 fun AssignTenantDialog(
     room: RoomUnit,
@@ -152,7 +152,6 @@ fun AssignTenantDialog(
         },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Feature 1: Prorated Rent Helper
                 if (currentDay > 1) {
                     item {
                         Surface(
@@ -161,26 +160,20 @@ fun AssignTenantDialog(
                             border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "⚡ Mid-Month Move-In (Day $currentDay of $maxDays)",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E40AF),
-                                        fontFamily = FontFamily.SansSerif
-                                    )
-                                    Text(
-                                        text = "Suggested prorated rent for $daysLeft days: ₹$proratedRent",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF334155),
-                                        fontFamily = FontFamily.SansSerif
-                                    )
-                                }
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "⚡ Mid-Month Move-In (Day $currentDay of $maxDays)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E40AF),
+                                    fontFamily = FontFamily.SansSerif
+                                )
+                                Text(
+                                    text = "Suggested prorated rent for $daysLeft days: ₹$proratedRent",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF334155),
+                                    fontFamily = FontFamily.SansSerif
+                                )
                             }
                         }
                     }
@@ -403,12 +396,11 @@ fun LodgeBillDialog(
                     }
                 }
 
-                // Feature 4: Other / Maintenance Charges
                 item {
                     OutlinedTextField(
                         value = maintenanceStr,
                         onValueChange = { maintenanceStr = it },
-                        label = { Text("Maintenance / Water / Other Charges (₹)", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
+                        label = { Text("Maintenance / Water Charges (₹)", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
                         leadingIcon = { Icon(Icons.Default.Handyman, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -473,39 +465,26 @@ fun LodgeBillDialog(
                     )
                 }
 
-                // Payment Mode Selection + Feature 3 (UPI Prompt)
                 item {
-                    Column {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(
-                                Triple("Cash", Icons.Default.AttachMoney, "Cash"),
-                                Triple("UPI", Icons.Default.QrCode, "UPI"),
-                                Triple("Bank", Icons.Default.AccountBalance, "Bank")
-                            ).forEach { (mode, icon, _) ->
-                                val isSelected = paymentMode == mode
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) Color(0xFFEFF6FF) else Color.White,
-                                    border = BorderStroke(1.dp, if (isSelected) Color(0xFF1E40AF) else Color(0xFFE2E8F0)),
-                                    modifier = Modifier.weight(1f).clickable { paymentMode = mode }
-                                ) {
-                                    Row(modifier = Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(icon, contentDescription = null, tint = if (isSelected) Color(0xFF1E40AF) else Color(0xFF64748B), modifier = Modifier.size(14.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(mode, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) Color(0xFF1E40AF) else Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
-                                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            Triple("Cash", Icons.Default.AttachMoney, "Cash"),
+                            Triple("UPI", Icons.Default.QrCode, "UPI"),
+                            Triple("Bank", Icons.Default.AccountBalance, "Bank")
+                        ).forEach { (mode, icon, _) ->
+                            val isSelected = paymentMode == mode
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) Color(0xFFEFF6FF) else Color.White,
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF1E40AF) else Color(0xFFE2E8F0)),
+                                modifier = Modifier.weight(1f).clickable { paymentMode = mode }
+                            ) {
+                                Row(modifier = Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(icon, contentDescription = null, tint = if (isSelected) Color(0xFF1E40AF) else Color(0xFF64748B), modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(mode, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) Color(0xFF1E40AF) else Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
                                 }
                             }
-                        }
-
-                        if (paymentMode == "UPI") {
-                            Text(
-                                text = "💡 Note: You can share your UPI payment link or QR details via the WhatsApp receipt.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF1E40AF),
-                                fontFamily = FontFamily.SansSerif,
-                                modifier = Modifier.padding(top = 6.dp, start = 4.dp)
-                            )
                         }
                     }
                 }
@@ -595,7 +574,24 @@ fun LodgeBillDialog(
                         context.startActivity(intent)
                     } catch (_: Exception) {
                         Toast.makeText(context, "Bill saved successfully.", Toast.LENGTH_SHORT).show()
-                        @Composable
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF))
+            ) {
+                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Lodge & Send WhatsApp", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontFamily = FontFamily.SansSerif)
+            }
+        }
+    )
+}
+@Composable
 fun VacateDialog(
     room: RoomUnit,
     activeTenant: Tenant?,
@@ -641,20 +637,17 @@ fun VacateDialog(
                     )
                 }
 
-                // Feature 2: Damage & Repair Deductions
                 item {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = damageStr,
-                            onValueChange = { damageStr = it },
-                            label = { Text("Damage Deductions (₹)", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
-                            leadingIcon = { Icon(Icons.Default.Handyman, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    OutlinedTextField(
+                        value = damageStr,
+                        onValueChange = { damageStr = it },
+                        label = { Text("Damage Deductions (₹)", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.Handyman, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 item {
@@ -763,7 +756,6 @@ fun VacateDialog(
         }
     )
 }
-
 @Composable
 fun RoomHistoryDialog(
     room: RoomUnit,
@@ -771,7 +763,7 @@ fun RoomHistoryDialog(
     roomBills: List<BillRecord>,
     onDismiss: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     var selectedHistoryTab by remember { mutableStateOf(1) }
 
     AlertDialog(
@@ -873,7 +865,6 @@ fun RoomHistoryDialog(
 
                                         Spacer(modifier = Modifier.height(6.dp))
 
-                                        // Feature 5: Phone Call Action Buttons
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -922,4 +913,72 @@ fun RoomHistoryDialog(
                                             Column(modifier = Modifier.padding(10.dp)) {
                                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                     Text("Entry: ${tenant.moveInDate}", fontSize = 11.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
-                                                    Text("Exit: ${tenant.moveOutDate ?: "Present"}", fo
+                                                    Text("Exit: ${tenant.moveOutDate ?: "Present"}", fontSize = 11.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
+                                                }
+                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Text("Duration: $daysLived days lived", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E40AF), fontFamily = FontFamily.SansSerif)
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Column {
+                                                Text("Total Paid", fontSize = 11.sp, color = Color(0xFF64748B), fontFamily = FontFamily.SansSerif)
+                                                Text("₹${totalPaidSum.toInt()}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A), fontFamily = FontFamily.SansSerif)
+                                            }
+
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text("Rent: ₹${totalRentPaid.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFF334155), fontFamily = FontFamily.SansSerif)
+                                                Text("Electricity: ₹${totalElecPaid.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFF334155), fontFamily = FontFamily.SansSerif)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (selectedHistoryTab == 0) {
+                    if (roomBills.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                            Text("No bills found.", color = Color(0xFF94A3B8), fontFamily = FontFamily.SansSerif, fontSize = 13.sp)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(roomBills) { bill ->
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color.White,
+                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(bill.monthYear, fontWeight = FontWeight.Bold, fontSize = 13.sp, fontFamily = FontFamily.SansSerif, color = Color(0xFF0F172A))
+                                            Text("₹${bill.amountPaid.toInt()} (${bill.paymentMode})", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF059669), fontFamily = FontFamily.SansSerif)
+                                        }
+                                        val units = (bill.currentMeterReading - bill.prevMeterReading).coerceAtLeast(0.0)
+                                        val elecCost = units * bill.electricityRate
+                                        Text(
+                                            "Rent: ₹${bill.baseRent.toInt()}  •  Elec: ₹${elecCost.toInt()} (${units.toInt()}u)",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF64748B),
+                                            fontFamily = FontFamily.SansSerif
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, color = Color(0xFF1E40AF))
+            }
+        }
+    )
+}
