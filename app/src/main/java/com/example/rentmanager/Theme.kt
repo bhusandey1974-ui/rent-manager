@@ -17,4 +17,22 @@ val UIGreenSuccess = Color(0xFF16A34A)
 val UIRedDanger = Color(0xFFDC2626)
 
 val CleanFont = FontFamily.SansSerif
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+
+private val AppColorScheme = lightColorScheme(
+    primary = UIBluePrimary,
+    background = UIAppBg,
+    onBackground = UIDarkText,
+    error = UIRedDanger
+)
+
+@Composable
+fun RentManagerTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = AppColorScheme,
+        content = content
+    )
+}
 
