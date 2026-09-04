@@ -183,7 +183,7 @@ fun AuthView(
                     label = { Text("Email Address", fontFamily = FontFamily.SansSerif, fontSize = 12.sp) },
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp)) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.EmailAddress),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
