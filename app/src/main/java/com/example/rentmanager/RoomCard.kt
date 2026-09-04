@@ -114,7 +114,7 @@ fun RoomCard(
                     ) {
                         Text(
                             text = if (room.isOccupied) "Occupied" else "Vacant",
-                            color = if (room.isOccupied) AppColors.EmeraldDark else AppColors.AmberDark,
+                            color = if (room.isOccupied) AppColors.EmeraldSuccess else AppColors.AmberWarning,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -256,7 +256,9 @@ fun RoomCard(
                             containerColor = AppColors.AzurePrimary,
                             contentColor = Color.White
                         ),
-                        modifier = Modifier.weight(1.3f).height(40.dp)
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(40.dp)
                     ) {
                         Icon(imageVector = Icons.Rounded.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -267,7 +269,9 @@ fun RoomCard(
                         onClick = onVacateRoom,
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.5f)),
-                        modifier = Modifier.weight(1f).height(40.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
                     ) {
                         Text("Vacate", fontSize = 12.sp, color = AppColors.CrimsonAlert, fontWeight = FontWeight.SemiBold)
                     }
@@ -279,7 +283,9 @@ fun RoomCard(
                             containerColor = AppColors.AzurePrimary,
                             contentColor = Color.White
                         ),
-                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
                     ) {
                         Icon(imageVector = Icons.Rounded.Person, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
