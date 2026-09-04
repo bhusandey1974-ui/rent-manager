@@ -58,7 +58,7 @@ fun RevenueView(
     val rooms by viewModel.rooms.collectAsState()
     val tenants by viewModel.tenants.collectAsState()
 
-    var selectedFilter by remember { mutableStateOf("All") } // "All", "Paid", "Due"
+    var selectedFilter by remember { mutableStateOf("All") }
 
     val totalRevenue = bills.sumOf { it.amountPaid }
     val rentCollection = bills.sumOf { it.baseRent }
@@ -84,7 +84,6 @@ fun RevenueView(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Main Revenue Gradient Hero Card
             item {
                 Card(
                     modifier = Modifier
@@ -138,7 +137,6 @@ fun RevenueView(
 
                             Spacer(modifier = Modifier.height(18.dp))
 
-                            // Three Stat Columns
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -161,7 +159,6 @@ fun RevenueView(
                 }
             }
 
-            // Ledger Section Title & Clean Filter Switcher
             item {
                 Row(
                     modifier = Modifier
@@ -177,7 +174,6 @@ fun RevenueView(
                         color = AppColors.TextPrimary
                     )
 
-                    // Pill Filters (Zero lavender)
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
@@ -205,8 +201,7 @@ fun RevenueView(
                     }
                 }
             }
-                        // Ledger Cards List
-            if (filteredBills.isEmpty()) {
+                        if (filteredBills.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -237,7 +232,6 @@ fun RevenueView(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            // Top Row: Tenant Name, WhatsApp Icon & Status Badge
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -253,7 +247,6 @@ fun RevenueView(
 
                                     Spacer(modifier = Modifier.width(8.dp))
 
-                                    // 1-Tap Direct WhatsApp Resend Pill
                                     IconButton(
                                         onClick = {
                                             if (tenant != null && room != null) {
@@ -273,7 +266,7 @@ fun RevenueView(
                                                     paymentMode = bill.paymentMode,
                                                     remainingDue = bill.remainingDue
                                                 )
-                                                ReceiptFormatter.sendViaWhatsApp(context, tenant.phone, msg)
+                                                ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, msg)
                                             }
                                         },
                                         modifier = Modifier
@@ -290,9 +283,7 @@ fun RevenueView(
                                     }
                                 }
 
-                                // Dynamic Lifecycle Badges (Active Due vs Settled Dot)
                                 when {
-                                    // Past due that was settled in a subsequent bill
                                     bill.remainingDue > 0.0 && isDueSettled -> {
                                         Box(
                                             modifier = Modifier
@@ -313,7 +304,6 @@ fun RevenueView(
                                         }
                                     }
 
-                                    // Active unresolved due
                                     bill.remainingDue > 0.0 -> {
                                         Box(
                                             modifier = Modifier
@@ -330,7 +320,6 @@ fun RevenueView(
                                         }
                                     }
 
-                                    // Past advance credit that was consumed
                                     bill.remainingDue < 0.0 && isAdvanceConsumed -> {
                                         Box(
                                             modifier = Modifier
@@ -351,7 +340,6 @@ fun RevenueView(
                                         }
                                     }
 
-                                    // Active floating advance credit
                                     bill.remainingDue < 0.0 -> {
                                         Box(
                                             modifier = Modifier
@@ -368,7 +356,6 @@ fun RevenueView(
                                         }
                                     }
 
-                                    // Exact fully paid
                                     else -> {
                                         Box(
                                             modifier = Modifier
@@ -397,7 +384,6 @@ fun RevenueView(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Breakdown & Paid Total
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -432,3 +418,4 @@ fun RevenueView(
         }
     }
 }
+
