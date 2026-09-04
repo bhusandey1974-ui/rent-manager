@@ -1,50 +1,195 @@
 package com.example.rentmanager
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Apartment
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.rentmanager.ui.components.SettingsDialog
+import com.example.rentmanager.ui.screens.AuthView
+import com.example.rentmanager.ui.screens.PropertiesView
+import com.example.rentmanager.ui.screens.RevenueView
+import com.example.rentmanager.ui.theme.RentManagerTheme
+import com.google.firebase.auth.FirebaseAuth
+
+class MainActivity : ComponentActivity() {
+
+    private val viewModel: RentViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            RentManagerTheme {
+                MainAppRoot(viewModel = viewModel)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainAppRoot(viewModel: RentViewModel) {
+    val auth = remember { FirebaseAuth.getInstance() }
+    
+    // Check if user is logged into Firebase or opted for offline mode
+    var isAuthenticated by remember { mutableStateOf(auth.currentUser != null) }
+    var currentTabIndex by remember { mutableIntStateOf(0) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    if (!isAuthenticated) {
+        AuthView(
+            onAuthSuccess = { isAuthenticated = true },
+            onContinueAsGuest = { isAuthenticated = true }
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 19.sp,
+                            color = AppColors.TextPrimary
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = { showSettingsDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = "Settings & Account",
+                                tint = AppColors.TextSecondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = AppColors.SurfaceWhite
+                    )
+                )
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = AppColors.SurfaceWhite,
+                    tonalElevation = 6.dp
+                ) {
+                    NavigationBarItem(
+                        selected = currentTabIndex == 0,
+                        onClick = { currentTabIndex = 0 },
+                        icon = {
+                            Icon(Icons.Rounded.Apartment, contentDescription = "Properties")
+                        },
+                        label = { Text("Properties", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = AppColors.AzurePrimary,
+                            selectedTextColor = AppColors.AzurePrimary,
+                            indicatorColor = AppColors.AzureContainer
+                        )
+                    )
+
+                    NavigationBarItem(
+                        selected = currentTabIndex == 1,
+                        onClick = { currentTabIndex = 1 },
+                        icon = {
+                            Icon(Icons.Rounded.Insights, contentDescription = "Revenue")
+                        },
+                        label = { Text("Revenue", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = AppColors.AzurePrimary,
+                            selectedTextColor = AppColors.AzurePrimary,
+                            indicatorColor = AppColors.AzureContainer
+                        )
+                    )
+                }
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when (currentTabIndex) {
+                    0 -> PropertiesView(
+                        vm = viewModel,
+                        onNavigateToRevenue = { currentTabIndex = 1 }
+                    )
+                    1 -> RevenueView(vm = viewModel)
+                }
+            }
+        }
+
+        if (showSettingsDialog) {
+            SettingsDialog(
+                vm = viewModel,
+                onDismiss = { showSettingsDialog = false },
+                onSignOutSuccess = {
+                    showSettingsDialog = false
+                    isAuthenticated = false
+                }
+            )
+        }
+    }
+}
+package com.example.rentmanager.ui.components
+
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Apartment
-import androidx.compose.material.icons.rounded.Assessment
-import androidx.compose.material.icons.rounded.Domain
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Logout
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,365 +198,148 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentmanager.ui.components.AddPropertyDialog
-import com.example.rentmanager.ui.components.AddRoomDialog
-import com.example.rentmanager.ui.components.AssignTenantDialog
-import com.example.rentmanager.ui.components.DeleteConfirmationDialog
-import com.example.rentmanager.ui.components.EditRoomDialog
-import com.example.rentmanager.ui.components.EditTenantDialog
-import com.example.rentmanager.ui.components.LodgeBillDialog
-import com.example.rentmanager.ui.components.RoomCard
-import com.example.rentmanager.ui.screens.RevenueView
-
-class MainActivity : ComponentActivity() {
-    private val viewModel: RentViewModel by viewModels()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MainApp(viewModel)
-        }
-    }
-}
+import androidx.compose.ui.window.Dialog
+import com.example.rentmanager.AppColors
+import com.example.rentmanager.RentViewModel
 
 @Composable
-fun MainApp(viewModel: RentViewModel) {
-    val context = LocalContext.current
-    var currentTab by remember { mutableStateOf("Properties") } // "Properties" or "Revenue"
+fun SettingsDialog(
+    vm: RentViewModel,
+    onDismiss: () -> Unit,
+    onSignOutSuccess: () -> Unit
+) {
+    var showConfirmDelete by remember { mutableStateOf(false) }
+    val userEmail = vm.getCurrentUserEmail()
+    val isCloud = vm.isCloudConnected()
 
-    // Dialog State Trackers
-    var showAddPropertyDialog by remember { mutableStateOf(false) }
-    var showAddRoomDialog by remember { mutableStateOf(false) }
-
-    var roomForBilling by remember { mutableStateOf<Room?>(null) }
-    var roomForAssigning by remember { mutableStateOf<Room?>(null) }
-    var roomToEdit by remember { mutableStateOf<Room?>(null) }
-    var roomToDelete by remember { mutableStateOf<Room?>(null) }
-    var tenantToEdit by remember { mutableStateOf<Tenant?>(null) }
-
-    val properties by viewModel.properties.collectAsState()
-    val selectedPropId by viewModel.selectedPropertyId.collectAsState()
-    val rooms by viewModel.rooms.collectAsState()
-    val tenants by viewModel.tenants.collectAsState()
-
-    var searchQuery by remember { mutableStateOf("") }
-    var filterTab by remember { mutableStateOf("All") } // "All", "Occupied", "Vacant", "Dues Pending"
-
-    val displayedRooms = remember(rooms, selectedPropId, searchQuery, filterTab, tenants) {
-        rooms.filter { r ->
-            (selectedPropId == null || r.propertyId == selectedPropId) &&
-            (searchQuery.isBlank() || r.roomNumber.contains(searchQuery, ignoreCase = true) ||
-             tenants.find { it.id == r.currentTenantId }?.name?.contains(searchQuery, ignoreCase = true) == true)
-        }.filter { r ->
-            when (filterTab) {
-                "Occupied" -> r.isOccupied
-                "Vacant" -> !r.isOccupied
-                "Dues Pending" -> r.isOccupied && viewModel.getPendingDueForCurrentTenant(r.id) > 0.0
-                else -> true
-            }
-        }
-    }
-
-    Scaffold(
-        containerColor = AppColors.ScaffoldBackground,
-        floatingActionButton = {
-            if (currentTab == "Properties") {
-                FloatingActionButton(
-                    onClick = { showAddRoomDialog = true },
-                    containerColor = AppColors.AzurePrimary,
-                    contentColor = Color.White,
-                    shape = CircleShape
-                ) {
-                    Icon(imageVector = Icons.Rounded.Add, contentDescription = "Add Room", modifier = Modifier.size(28.dp))
+    if (showConfirmDelete) {
+        DeleteConfirmationDialog(
+            title = "Erase All App Data?",
+            message = "This permanently deletes all rooms, tenants, billing history, and balances from both your device and cloud storage. This cannot be undone.",
+            onDismiss = { showConfirmDelete = false },
+            onConfirm = {
+                showConfirmDelete = false
+                vm.clearAllData {
+                    onDismiss()
                 }
             }
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = AppColors.SurfaceWhite,
-                tonalElevation = 0.dp
-            ) {
-                NavigationBarItem(
-                    selected = currentTab == "Properties",
-                    onClick = { currentTab = "Properties" },
-                    icon = { Icon(Icons.Rounded.Home, contentDescription = "Properties") },
-                    label = { Text("Properties", fontWeight = if (currentTab == "Properties") FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AppColors.AzurePrimary,
-                        selectedTextColor = AppColors.AzurePrimary,
-                        indicatorColor = AppColors.AzureContainer,
-                        unselectedIconColor = AppColors.TextSecondary,
-                        unselectedTextColor = AppColors.TextSecondary
+        )
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Account & Settings",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
                     )
-                )
-                NavigationBarItem(
-                    selected = currentTab == "Revenue",
-                    onClick = { currentTab = "Revenue" },
-                    icon = { Icon(Icons.Rounded.Assessment, contentDescription = "Revenue") },
-                    label = { Text("Revenue", fontWeight = if (currentTab == "Revenue") FontWeight.Bold else FontWeight.Normal) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AppColors.AzurePrimary,
-                        selectedTextColor = AppColors.AzurePrimary,
-                        indicatorColor = AppColors.AzureContainer,
-                        unselectedIconColor = AppColors.TextSecondary,
-                        unselectedTextColor = AppColors.TextSecondary
-                    )
-                )
-            }
-        }
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            if (currentTab == "Properties") {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Top Bar Header
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // User Account Info Card
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.AzureContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(AppColors.SurfaceWhite)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(AppColors.AzureContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Apartment,
-                                    contentDescription = "Logo",
-                                    tint = AppColors.AzurePrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "Rent Manager",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AppColors.TextPrimary
-                                )
-                                Text(
-                                    text = "Local Storage Mode",
-                                    fontSize = 12.sp,
-                                    color = AppColors.TextSecondary
-                                )
-                            }
-                        }
-
-                        // Add Property Button
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(AppColors.AzurePrimary)
-                                .clickable { showAddPropertyDialog = true }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.Domain, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("+ Add Property", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                                        // Search Bar
-                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search room number or tenant...", color = AppColors.TextMuted, fontSize = 14.sp) },
-                            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = "Search", tint = AppColors.TextMuted) },
-                            shape = RoundedCornerShape(14.dp),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AppColors.AzurePrimary,
-                                unfocusedBorderColor = AppColors.BorderSubtle,
-                                unfocusedContainerColor = AppColors.SurfaceWhite,
-                                focusedContainerColor = AppColors.SurfaceWhite
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Filter Chips Row
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val countAll = rooms.size
-                        val countOcc = rooms.count { it.isOccupied }
-                        val countVac = rooms.count { !it.isOccupied }
-                        val countDues = rooms.count { it.isOccupied && viewModel.getPendingDueForCurrentTenant(it.id) > 0.0 }
-
-                        val filters = listOf(
-                            "All ($countAll)",
-                            "Occupied ($countOcc)",
-                            "Vacant ($countVac)",
-                            "Dues Pending ($countDues)"
-                        )
-
-                        items(filters) { label ->
-                            val key = label.substringBefore(" (")
-                            val isSelected = filterTab == key
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(if (isSelected) AppColors.AzurePrimary else AppColors.SurfaceWhite)
-                                    .border(1.dp, if (isSelected) Color.Transparent else AppColors.BorderSubtle, RoundedCornerShape(20.dp))
-                                    .clickable { filterTab = key }
-                                    .padding(horizontal = 14.dp, vertical = 7.dp)
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else AppColors.TextSecondary
-                                )
-                            }
-                        }
-                    }
-
-                    // Rooms List
-                    if (displayedRooms.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.AzurePrimary),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("No rooms match this criteria.", color = AppColors.TextMuted, fontSize = 14.sp)
+                            Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
                         }
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
-                            items(displayedRooms, key = { it.id }) { room ->
-                                val tenant = tenants.find { it.id == room.currentTenantId }
-                                val pendingDue = viewModel.getPendingDueForCurrentTenant(room.id)
 
-                                RoomCard(
-                                    room = room,
-                                    tenant = tenant,
-                                    pendingDue = pendingDue,
-                                    onLodgeBillClick = { roomForBilling = room },
-                                    onAssignTenantClick = { roomForAssigning = room },
-                                    onHistoryClick = { currentTab = "Revenue" },
-                                    onCallTenantClick = { phone ->
-                                        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
-                                        context.startActivity(dialIntent)
-                                    },
-                                    onEditRoomClick = { roomToEdit = room },
-                                    onDeleteRoomClick = { roomToDelete = room },
-                                    onEditTenantClick = { tenantToEdit = tenant }
-                                )
-                            }
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = if (isCloud) (userEmail ?: "Logged In") else "Local Offline Mode",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextPrimary
+                            )
+                            Text(
+                                text = if (isCloud) "Cloud Sync Enabled" else "Records stored on this device only",
+                                fontSize = 11.sp,
+                                color = AppColors.TextSecondary
+                            )
                         }
                     }
                 }
-            } else {
-                RevenueView(viewModel = viewModel, context = context)
-            }
 
-            // ==========================================
-            // DIALOG RENDERING
-            // ==========================================
+                Spacer(modifier = Modifier.height(20.dp))
 
-            // Add Property Modal
-            if (showAddPropertyDialog) {
-                AddPropertyDialog(
-                    onDismiss = { showAddPropertyDialog = false },
-                    onConfirm = { name, address ->
-                        viewModel.addProperty(name, address)
-                        showAddPropertyDialog = false
-                    }
-                )
-            }
-
-            // Add Room Modal
-            if (showAddRoomDialog) {
-                AddRoomDialog(
-                    onDismiss = { showAddRoomDialog = false },
-                    onConfirm = { roomNumber, baseRent, rate, initialReading ->
-                        viewModel.addRoom(roomNumber, baseRent, rate, initialReading)
-                        showAddRoomDialog = false
-                    }
-                )
-            }
-
-            // Assign Tenant Modal
-            roomForAssigning?.let { room ->
-                AssignTenantDialog(
-                    roomNumber = room.roomNumber,
-                    onDismiss = { roomForAssigning = null },
-                    onConfirm = { name, phone, deposit ->
-                        viewModel.assignTenant(room.id, name, phone, deposit)
-                        roomForAssigning = null
-                    }
-                )
-            }
-
-            // Lodge Bill Modal (with WhatsApp direct share)
-            roomForBilling?.let { room ->
-                val tenant = tenants.find { it.id == room.currentTenantId }
-                if (tenant != null) {
-                    val prevReading = viewModel.getLastRecordedMeterReading(room.id)
-                    val priorBalance = viewModel.getPendingDueForCurrentTenant(room.id)
-
-                    LodgeBillDialog(
-                        context = context,
-                        room = room,
-                        tenant = tenant,
-                        previousReading = prevReading,
-                        priorDueOrAdvance = priorBalance,
-                        onDismiss = { roomForBilling = null },
-                        onBillLodged = { period, currReading, maint, paid, mode ->
-                            viewModel.lodgeBill(room.id, period, currReading, maint, paid, mode)
-                            roomForBilling = null
+                // Sign Out Option
+                OutlinedButton(
+                    onClick = {
+                        vm.signOut {
+                            onDismiss()
+                            onSignOutSuccess()
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                ) {
+                    Icon(Icons.Rounded.Logout, contentDescription = null, modifier = Modifier.size(18.dp), tint = AppColors.TextPrimary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isCloud) "Sign Out" else "Exit to Login Screen",
+                        color = AppColors.TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-            }
 
-            // Edit Room Modal
-            roomToEdit?.let { room ->
-                EditRoomDialog(
-                    room = room,
-                    onDismiss = { roomToEdit = null },
-                    onConfirm = { roomNumber, baseRent, rate, initialReading ->
-                        viewModel.updateRoom(room.id, roomNumber, baseRent, rate, initialReading)
-                        roomToEdit = null
-                    }
-                )
-            }
+                Spacer(modifier = Modifier.height(12.dp))
+                Divider(color = AppColors.BorderSubtle)
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Delete Room Modal
-            roomToDelete?.let { room ->
-                DeleteConfirmationDialog(
-                    title = "Delete Room ${room.roomNumber}",
-                    message = "Are you sure you want to delete this room? This action cannot be undone.",
-                    onDismiss = { roomToDelete = null },
-                    onConfirm = {
-                        viewModel.deleteRoom(room.id)
-                        roomToDelete = null
-                    }
-                )
-            }
-
-            // Edit Tenant Modal
-            tenantToEdit?.let { tenant ->
-                EditTenantDialog(
-                    tenant = tenant,
-                    onDismiss = { tenantToEdit = null },
-                    onConfirm = { name, phone, deposit ->
-                        viewModel.updateTenant(tenant.id, name, phone, deposit)
-                        tenantToEdit = null
-                    }
-                )
+                // Delete All Data Option
+                Button(
+                    onClick = { showConfirmDelete = true },
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.CrimsonAlert.copy(alpha = 0.1f),
+                        contentColor = AppColors.CrimsonAlert
+                    ),
+                    border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.3f))
+                ) {
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete All Property Data", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
     }
