@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material3.Button
@@ -47,7 +49,10 @@ fun RoomCard(
     onLodgeBillClick: () -> Unit,
     onAssignTenantClick: () -> Unit,
     onHistoryClick: () -> Unit,
-    onCallTenantClick: (String) -> Unit
+    onCallTenantClick: (String) -> Unit,
+    onEditRoomClick: () -> Unit,
+    onDeleteRoomClick: () -> Unit,
+    onEditTenantClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -59,14 +64,17 @@ fun RoomCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header Row: Room Identity & Occupancy Status Badge
+            // Header Row: Room Identity & Actions (Edit / Delete / Status Badge)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Soft Residential Home Badge (No lavender)
+                // Room Identity (Badge + Name + Rent)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Box(
                         modifier = Modifier
                             .size(42.dp)
@@ -93,36 +101,69 @@ fun RoomCard(
                             color = AppColors.TextPrimary
                         )
                         Text(
-                            text = "Rent: ₹${String.format(Locale.ENGLISH, "%.0f", room.baseRent)}/mo",
+                            text = "₹${String.format(Locale.ENGLISH, "%.0f", room.baseRent)}/mo · ₹${String.format(Locale.ENGLISH, "%.0f", room.electricityRate)}/u",
                             fontSize = 13.sp,
                             color = AppColors.TextSecondary
                         )
                     }
                 }
 
-                // Occupancy Tag
-                val tagBg = if (room.isOccupied) AppColors.EmeraldContainer else AppColors.SlateBackground
-                val tagColor = if (room.isOccupied) AppColors.EmeraldSuccess else AppColors.TextSecondary
-                val tagBorder = if (room.isOccupied) AppColors.EmeraldBorder else AppColors.BorderSubtle
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(tagBg)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                // Top-Right Actions: Edit Room, Delete Room & Status Tag
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = if (room.isOccupied) "Occupied" else "Vacant",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = tagColor
-                    )
+                    // Edit Room Button
+                    IconButton(
+                        onClick = onEditRoomClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Edit Room",
+                            tint = AppColors.TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Delete Room Button
+                    IconButton(
+                        onClick = onDeleteRoomClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = "Delete Room",
+                            tint = AppColors.CrimsonAlert,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(2.dp))
+
+                    // Occupancy Tag
+                    val tagBg = if (room.isOccupied) AppColors.EmeraldContainer else AppColors.SlateBackground
+                    val tagColor = if (room.isOccupied) AppColors.EmeraldSuccess else AppColors.TextSecondary
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(tagBg)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (room.isOccupied) "Occupied" else "Vacant",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = tagColor
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Tenant Details or Vacant Prompt
+            // Tenant Details Strip with Call & Edit Actions
             if (room.isOccupied && tenant != null) {
                 Row(
                     modifier = Modifier
@@ -133,7 +174,7 @@ fun RoomCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = tenant.name,
                             fontSize = 15.sp,
@@ -163,14 +204,35 @@ fun RoomCard(
                         }
                     }
 
-                    // Call Button
-                    if (tenant.phone.isNotBlank()) {
+                    // Tenant Actions: Edit Tenant + Call Tenant
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Edit Tenant Icon
                         IconButton(
-                            onClick = { onCallTenantClick(tenant.phone) },
+                            onClick = onEditTenantClick,
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(AppColors.SurfaceWhite)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Edit Tenant",
+                                tint = AppColors.TextSecondary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+
+                        // Call Tenant Icon
+                        if (tenant.phoneNumber.isNotBlank()) {
+                            IconButton(
+                                onClick = { onCallTenantClick(tenant.phoneNumber) },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(AppColors.SurfaceWhite)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Call,
@@ -181,9 +243,10 @@ fun RoomCard(
                         }
                     }
                 }
+            }
             } else {
                 Text(
-                    text = "No tenant currently assigned to this room.",
+                    text = "Ready for occupancy",
                     fontSize = 13.sp,
                     color = AppColors.TextMuted,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -241,3 +304,4 @@ fun RoomCard(
         }
     }
 }
+
