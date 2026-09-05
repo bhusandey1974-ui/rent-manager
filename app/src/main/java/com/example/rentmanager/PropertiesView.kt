@@ -275,7 +275,7 @@ fun PropertiesView(
                             onLodgeBill = { roomForBilling = room },
                             onEditRoom = { roomForEditing = room },
                             onDeleteRoom = { roomForDeleting = room },
-                            onVacateRoom = { vm.vacateRoom(room.id) },
+                            onConfirmVacate = { note -> vm.confirmVacateRoom(room.id, pendingDue, note) },
                             onViewHistory = { roomForHistory = room }
                         )
                     }
@@ -387,4 +387,3 @@ fun PropertiesView(
         )
     }
 }
-
