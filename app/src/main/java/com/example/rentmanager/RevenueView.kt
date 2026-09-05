@@ -129,75 +129,95 @@ fun RevenueView(vm: RentViewModel) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Main Total Collections Hero Card
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.AzurePrimary),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isCurrentYearOnly) "COLLECTIONS ($currentYear)" else "LIFETIME COLLECTIONS",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Rounded.AccountBalanceWallet,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+            // Main Collections Card (merged with breakdown)
+Card(
+    shape = RoundedCornerShape(20.dp),
+    colors = CardDefaults.cardColors(containerColor = AppColors.AzurePrimary),
+    modifier = Modifier.fillMaxWidth()
+) {
+    Column(modifier = Modifier.padding(20.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isCurrentYearOnly) "COLLECTIONS ($currentYear)" else "LIFETIME COLLECTIONS",
+                color = Color.White.copy(alpha = 0.75f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Icon(
+                imageVector = Icons.Rounded.AccountBalanceWallet,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.75f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = "₹${String.format(Locale.ENGLISH, "%,.2f", revenueSummary.totalCollected)}",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
-                    )
-                }
-            }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "₹",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = String.format(Locale.ENGLISH, "%,.2f", revenueSummary.totalCollected),
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+        Divider(color = Color.White.copy(alpha = 0.18f))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Sub-metrics Grid (Rent, Electricity, Active Dues)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                MetricCard(
-                    title = "Rent Inflow",
-                    amount = revenueSummary.rentCollected,
-                    icon = Icons.Rounded.Home,
-                    accentColor = AppColors.AzurePrimary,
-                    modifier = Modifier.weight(1f)
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            InlineMetric(
+                title = "Rent",
+                amount = revenueSummary.rentCollected,
+                icon = Icons.Rounded.Home,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(34.dp)
+                    .background(Color.White.copy(alpha = 0.18f))
+            )
+            InlineMetric(
+                title = "Electricity",
+                amount = revenueSummary.electricityCollected,
+                icon = Icons.Rounded.Bolt,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(34.dp)
+                    .background(Color.White.copy(alpha = 0.18f))
+            )
+            InlineMetric(
+                title = "Dues",
+                amount = revenueSummary.activeDues,
+                icon = Icons.Rounded.WarningAmber,
+                modifier = Modifier.weight(1f),
+                isWarning = revenueSummary.activeDues > 0
+            )
+        }
+    }
+}
 
-                MetricCard(
-                    title = "Electricity",
-                    amount = revenueSummary.electricityCollected,
-                    icon = Icons.Rounded.Bolt,
-                    accentColor = AppColors.AmberWarning,
-                    modifier = Modifier.weight(1f)
-                )
-
-                MetricCard(
-                    title = "Active Dues",
-                    amount = revenueSummary.activeDues,
-                    icon = Icons.Rounded.WarningAmber,
-                    accentColor = AppColors.CrimsonAlert,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+Spacer(modifier = Modifier.height(18.dp))
 
             Spacer(modifier = Modifier.height(18.dp))
 
