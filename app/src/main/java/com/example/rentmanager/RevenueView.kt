@@ -409,3 +409,36 @@ private fun MetricCard(
         }
     }
 }
+@Composable
+private fun InlineMetric(
+    title: String,
+    amount: Double,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    isWarning: Boolean = false
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (isWarning) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.85f),
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = title,
+            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.7f),
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = "₹${String.format(Locale.ENGLISH, "%.0f", amount)}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+    }
+}
