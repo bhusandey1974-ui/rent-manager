@@ -557,26 +557,33 @@ fun AssignTenantDialog(
 
     // Date picker dialog
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = moveInDateMillis)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { moveInDateMillis = it }
-                    showDatePicker = false
-                }) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
-                }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = moveInDateMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis <= System.currentTimeMillis()
             }
-        ) {
-            DatePicker(state = datePickerState)
         }
+    )
+    DatePickerDialog(
+        onDismissRequest = { showDatePicker = false },
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let { moveInDateMillis = it }
+                showDatePicker = false
+            }) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showDatePicker = false }) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
+
 }
 @Composable
 fun LodgeBillDialog(
