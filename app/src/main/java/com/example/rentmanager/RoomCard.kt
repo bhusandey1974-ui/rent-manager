@@ -264,7 +264,7 @@ fun RoomDetailsDialog(
                     DetailRow("Phone", tenant.phoneNumber)
                     DetailRow("Aadhaar", tenant.aadhaarNumber.ifBlank { "Not provided" })
                     DetailRow("Address", tenant.permanentAddress.ifBlank { "Not provided" })
-                    DetailRow("Move-In Date", dateFormatter.format(Date(tenant.moveInDateMillis)))
+                    DetailRow("Move-In Date", dateFormatter.format(Date(tenant.moveInDate)))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (pendingDue > 0)
