@@ -596,7 +596,12 @@ fun LodgeBillDialog(
     onDismiss: () -> Unit,
     onBillLodged: (billingPeriod: String, currentReading: Double, maintenanceAmount: Double, amountPaid: Double, paymentMode: String) -> Unit
 ) {
-    var billingPeriod by remember { mutableStateOf("Current Month") }
+    var billingPeriod by remember { 
+    mutableStateOf(
+        java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault())
+            .format(java.util.Date())
+    )
+    }
     var currentReadingStr by remember { mutableStateOf("") }
     var maintenanceStr by remember { mutableStateOf("0") }
     var amountPaidStr by remember { mutableStateOf("") }
