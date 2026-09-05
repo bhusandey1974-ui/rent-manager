@@ -585,6 +585,7 @@ fun AssignTenantDialog(
     ) {
         DatePicker(state = datePickerState)
     }
+  }
 }
 @Composable
 fun VacateSettlementDialog(
