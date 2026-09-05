@@ -64,10 +64,11 @@ fun RoomCard(
     onLodgeBill: () -> Unit,
     onEditRoom: () -> Unit,
     onDeleteRoom: () -> Unit,
-    onVacateRoom: () -> Unit,
+    onConfirmVacate: (note: String) -> Unit,
     onViewHistory: () -> Unit
 ) {
     var showDetails by remember { mutableStateOf(false) }
+    var showVacateConfirm by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -178,8 +179,20 @@ fun RoomCard(
             onLodgeBill = { showDetails = false; onLodgeBill() },
             onEditRoom = { showDetails = false; onEditRoom() },
             onDeleteRoom = { showDetails = false; onDeleteRoom() },
-            onVacateRoom = { showDetails = false; onVacateRoom() },
+            onVacateRoom = { showDetails = false; showVacateConfirm = true },
             onViewHistory = { showDetails = false; onViewHistory() }
+        )
+    }
+
+    if (showVacateConfirm) {
+        VacateSettlementDialog(
+            tenantName = tenant?.name ?: "Tenant",
+            settlementAmount = pendingDue,
+            onDismiss = { showVacateConfirm = false },
+            onConfirm = { note ->
+                showVacateConfirm = false
+                onConfirmVacate(note)
+            }
         )
     }
 }
