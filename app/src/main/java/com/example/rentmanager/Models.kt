@@ -37,7 +37,9 @@ data class Tenant(
     val permanentAddress: String = "",
     val moveInDate: Long = System.currentTimeMillis(),
     val moveOutDate: Long? = null,
-    val isCurrent: Boolean = true
+    val isCurrent: Boolean = true,
+    val finalSettlementAmount: Double = 0.0,  // positive = tenant still owed rent; negative = you refunded them this amount
+    val settlementNote: String = ""            // e.g. "Refunded ₹42 in cash on vacate"
 )
 
 data class Bill(
