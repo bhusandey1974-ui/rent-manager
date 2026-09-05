@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "527554410861-vdqhele4badbs2atdnq44sk5ecrqb7h1.apps.googleusercontent.com",
+          "client_id": "527554410861-qr8iqmuuarfdtltm9bsqd5v0dhnihcqt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.rentmanager",
-            "certificate_hash": "b36a83c96d7d54102fd08171d91a20b8b63f440e"
+            "certificate_hash": "60bed9b120caa4fa4811d3203eb24b41c6be3563"
           }
         },
         {
