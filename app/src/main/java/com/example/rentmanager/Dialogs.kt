@@ -584,7 +584,153 @@ fun AssignTenantDialog(
     ) {
         DatePicker(state = datePickerState)
     }
+}
+@Composable
+fun VacateSettlementDialog(
+    tenantName: String,
+    settlementAmount: Double, // positive = tenant owes you, negative = you owe tenant (advance)
+    onDismiss: () -> Unit,
+    onConfirm: (note: String) -> Unit
+) {
+    var note by remember { mutableStateOf("") }
 
+    val isAdvance = settlementAmount < 0.0
+    val displayAmount = kotlin.math.abs(settlementAmount)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isAdvance) AppColors.AmberWarning.copy(alpha = 0.15f)
+                                    else AppColors.EmeraldSuccess.copy(alpha = 0.15f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Warning,
+                                contentDescription = null,
+                                tint = if (isAdvance) AppColors.AmberWarning else AppColors.EmeraldSuccess,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Vacate $tenantName",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (displayAmount > 0.0) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isAdvance) AppColors.AmberWarning.copy(alpha = 0.1f)
+                                             else AppColors.EmeraldSuccess.copy(alpha = 0.1f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = if (isAdvance) "Refund Due to Tenant" else "Tenant Still Owes You",
+                                fontSize = 12.sp,
+                                color = AppColors.TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "₹${String.format(Locale.ENGLISH, "%.2f", displayAmount)}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isAdvance) AppColors.AmberWarning else AppColors.EmeraldSuccess
+                            )
+                            if (isAdvance) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Please refund this amount to the tenant before confirming.",
+                                    fontSize = 12.sp,
+                                    color = AppColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                } else {
+                    Text(
+                        text = "No pending balance for this tenant.",
+                        fontSize = 13.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Settlement Note (Optional)") },
+                    placeholder = { Text(if (isAdvance) "e.g. Refunded ₹${displayAmount.toInt()} in cash" else "e.g. Cleared final dues") },
+                    singleLine = false,
+                    maxLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Cancel", color = AppColors.TextSecondary)
+                    }
+
+                    Button(
+                        onClick = { onConfirm(note) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.AzurePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Confirm Vacate")
+                    }
+                }
+            }
+        }
+    }
 }
 @Composable
 fun LodgeBillDialog(
