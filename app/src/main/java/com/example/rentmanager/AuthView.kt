@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,14 +84,12 @@ fun AuthView(
 
     var authTab by remember { mutableStateOf(AuthTab.EMAIL) }
 
-    // Email/password state
     var isSignUp by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Phone/OTP state
     var phoneNumber by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
     var verificationId by remember { mutableStateOf<String?>(null) }
@@ -100,7 +99,6 @@ fun AuthView(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Google Sign-In setup
     val googleSignInClient = remember {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken("527554410861-81m4ukk2eg1dqu3ug08kdbsfsa99ct0e.apps.googleusercontent.com")
@@ -226,7 +224,6 @@ fun AuthView(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Logo Header
                     Box(
                         modifier = Modifier
                             .size(64.dp)
@@ -265,7 +262,6 @@ fun AuthView(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Tab Switcher: Email / Phone
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -280,6 +276,7 @@ fun AuthView(
                                     .weight(1f)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (selected) AppColors.AzurePrimary else Color.Transparent)
+                                    .clickable { authTab = tab; errorMessage = null }
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -287,8 +284,7 @@ fun AuthView(
                                     text = label,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (selected) Color.White else AppColors.TextSecondary,
-                                    modifier = Modifier.clickableTab { authTab = tab; errorMessage = null }
+                                    color = if (selected) Color.White else AppColors.TextSecondary
                                 )
                             }
                         }
@@ -297,7 +293,6 @@ fun AuthView(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     if (authTab == AuthTab.EMAIL) {
-                        // Email Input
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it; errorMessage = null },
@@ -318,7 +313,6 @@ fun AuthView(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Password Input
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it; errorMessage = null },
@@ -370,7 +364,6 @@ fun AuthView(
                             }
                         }
                     } else {
-                        // Phone number field (always visible)
                         OutlinedTextField(
                             value = phoneNumber,
                             onValueChange = {
@@ -433,7 +426,6 @@ fun AuthView(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // Primary Action Button
                     Button(
                         onClick = {
                             when (authTab) {
@@ -515,7 +507,6 @@ fun AuthView(
 
                     Divider(modifier = Modifier.padding(vertical = 8.dp), color = AppColors.BorderSubtle)
 
-                    // Google Sign-In
                     OutlinedButton(
                         onClick = {
                             errorMessage = null
@@ -542,7 +533,6 @@ fun AuthView(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Skip / Continue with Local Storage Only
                     OutlinedButton(
                         onClick = onContinueAsGuest,
                         modifier = Modifier
@@ -558,6 +548,3 @@ fun AuthView(
         }
     }
 }
-
-private fun Modifier.clickableTab(onClick: () -> Unit): Modifier =
-    this.then(Modifier.clickable(onClick = onClick))
