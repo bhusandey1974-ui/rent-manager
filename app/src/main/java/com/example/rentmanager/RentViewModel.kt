@@ -253,30 +253,41 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         saveToLocalStorage()
     }
 
-    fun vacateRoom(roomId: String, moveOutDateMillis: Long = System.currentTimeMillis()) {
-        val room = _rooms.value.find { it.id == roomId } ?: return
-        val currentTenantId = room.currentTenantId
+    fun checkVacateSettlement(roomId: String): Double {
+    return getPendingDueForCurrentTenant(roomId)
+}
 
-        if (currentTenantId.isNotBlank()) {
-            _tenants.value = _tenants.value.map { t ->
-                if (t.id == currentTenantId) {
-                    val vacated = t.copy(
-                        isCurrent = false,
-                        moveOutDate = moveOutDateMillis
-                    )
-                    syncTenantToCloud(vacated)
-                    vacated
-                } else t
-            }
+fun confirmVacateRoom(
+    roomId: String,
+    settlementAmount: Double,
+    settlementNote: String,
+    moveOutDateMillis: Long = System.currentTimeMillis()
+) {
+    val room = _rooms.value.find { it.id == roomId } ?: return
+    val currentTenantId = room.currentTenantId
+
+    if (currentTenantId.isNotBlank()) {
+        _tenants.value = _tenants.value.map { t ->
+            if (t.id == currentTenantId) {
+                val vacated = t.copy(
+                    isCurrent = false,
+                    moveOutDate = moveOutDateMillis,
+                    finalSettlementAmount = settlementAmount,
+                    settlementNote = settlementNote
+                )
+                syncTenantToCloud(vacated)
+                vacated
+            } else t
         }
-
-        _rooms.value = _rooms.value.map { r ->
-            if (r.id == roomId) r.copy(isOccupied = false, currentTenantId = "") else r
-        }
-
-        saveToLocalStorage()
-        _rooms.value.find { it.id == roomId }?.let { syncRoomToCloud(it) }
     }
+
+    _rooms.value = _rooms.value.map { r ->
+        if (r.id == roomId) r.copy(isOccupied = false, currentTenantId = "") else r
+    }
+
+    saveToLocalStorage()
+    _rooms.value.find { it.id == roomId }?.let { syncRoomToCloud(it) }
+}
 
     fun getRoomTenancyHistory(roomId: String): List<TenantHistorySummary> {
         val roomTenants = _tenants.value
