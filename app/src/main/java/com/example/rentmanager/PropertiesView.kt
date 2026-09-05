@@ -245,18 +245,29 @@ fun PropertiesView(
             Spacer(modifier = Modifier.height(10.dp))
                         // Room Cards List
             if (filteredRooms.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) "No rooms match your search." else "No rooms added yet. Tap + to create one.",
-                        color = AppColors.TextMuted,
-                        fontSize = 14.sp
-                    )
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Apartment,
+                contentDescription = null,
+                tint = AppColors.TextMuted.copy(alpha = 0.4f),
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = if (searchQuery.isNotBlank()) "No rooms match your search." else "No rooms added yet. Tap + to create one.",
+                color = AppColors.TextMuted,
+                fontSize = 14.sp
+            )
+        }
+    }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
