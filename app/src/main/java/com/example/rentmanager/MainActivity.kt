@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
-import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.MonetizationOn
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppRoot(viewModel: RentViewModel) {
     val auth = remember { FirebaseAuth.getInstance() }
-    
+
     var isAuthenticated by remember { mutableStateOf(auth.currentUser != null) }
     var currentTabIndex by remember { mutableIntStateOf(0) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -116,7 +116,7 @@ fun MainAppRoot(viewModel: RentViewModel) {
                         selected = currentTabIndex == 1,
                         onClick = { currentTabIndex = 1 },
                         icon = {
-                            Icon(Icons.Rounded.Insights, contentDescription = "Revenue")
+                            Icon(Icons.Rounded.MonetizationOn, contentDescription = "Revenue")
                         },
                         label = { Text("Revenue", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                         colors = NavigationBarItemDefaults.colors(
