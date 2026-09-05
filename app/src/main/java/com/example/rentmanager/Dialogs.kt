@@ -356,6 +356,10 @@ fun AssignTenantDialog(
     var deposit by remember { mutableStateOf("") }
     var aadhaar by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var moveInDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -434,6 +438,33 @@ fun AssignTenantDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // NEW: Move-In Date field (read-only text field that opens a date picker)
+                OutlinedTextField(
+                    value = dateFormatter.format(java.util.Date(moveInDateMillis)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Move-In Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.CalendarMonth,
+                                contentDescription = "Pick move-in date",
+                                tint = AppColors.AzurePrimary
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = aadhaar,
                     onValueChange = { if (it.length <= 12) aadhaar = it },
@@ -502,7 +533,7 @@ fun AssignTenantDialog(
                         onClick = {
                             val depVal = deposit.toDoubleOrNull() ?: 0.0
                             if (name.isNotBlank() && phone.isNotBlank()) {
-                                onConfirm(name, phone, depVal, aadhaar, address, System.currentTimeMillis())
+                                onConfirm(name, phone, depVal, aadhaar, address, moveInDateMillis)
                             }
                         },
                         enabled = name.isNotBlank() && phone.isNotBlank(),
@@ -517,6 +548,29 @@ fun AssignTenantDialog(
                     }
                 }
             }
+        }
+    }
+
+    // Date picker dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = moveInDateMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { moveInDateMillis = it }
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
