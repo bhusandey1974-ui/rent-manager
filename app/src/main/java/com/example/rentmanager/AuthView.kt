@@ -271,21 +271,37 @@ fun AuthView(
                     ) {
                         listOf(AuthTab.EMAIL to "Email", AuthTab.PHONE to "Phone").forEach { (tab, label) ->
                             val selected = authTab == tab
+                            val isDisabledTab = tab == AuthTab.PHONE
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (selected) AppColors.AzurePrimary else Color.Transparent)
-                                    .clickable { authTab = tab; errorMessage = null }
+                                    .clickable(enabled = !isDisabledTab) {
+                                        authTab = tab; errorMessage = null
+                                    }
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (selected) Color.White else AppColors.TextSecondary
-                                )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = when {
+                                            isDisabledTab -> AppColors.TextMuted.copy(alpha = 0.5f)
+                                            selected -> Color.White
+                                            else -> AppColors.TextSecondary
+                                        }
+                                    )
+                                    if (isDisabledTab) {
+                                        Text(
+                                            text = "Coming soon",
+                                            fontSize = 9.sp,
+                                            color = AppColors.TextMuted.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
