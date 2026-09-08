@@ -36,6 +36,11 @@ data class RevenueBreakdown(
     val activeDues: Double
 )
 
+data class RoomWiseAmount(
+    val roomNumber: String,
+    val amount: Double
+)
+
 class RentViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences("rent_manager_local_prefs", Context.MODE_PRIVATE)
