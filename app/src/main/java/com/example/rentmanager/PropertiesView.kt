@@ -61,9 +61,32 @@ import com.example.rentmanager.ui.components.AddRoomDialog
 import com.example.rentmanager.ui.components.AssignTenantDialog
 import com.example.rentmanager.ui.components.DeleteConfirmationDialog
 import com.example.rentmanager.ui.components.EditRoomDialog
+import com.example.rentmanager.ui.components.EditTenantDialog
 import com.example.rentmanager.ui.components.LodgeBillDialog
+import com.example.rentmanager.ui.components.MoveInDateBackfillDialog
 import com.example.rentmanager.ui.components.RoomCard
 import com.example.rentmanager.ui.components.RoomHistoryDialog
+
+private data class PendingAssignment(
+    val room: Room,
+    val name: String,
+    val phone: String,
+    val deposit: Double,
+    val aadhaar: String,
+    val address: String,
+    val moveInMillis: Long
+)
+
+private data class PendingEdit(
+    val room: Room,
+    val tenant: Tenant,
+    val name: String,
+    val phone: String,
+    val deposit: Double,
+    val aadhaar: String,
+    val address: String,
+    val moveInMillis: Long
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +112,12 @@ fun PropertiesView(
     var roomForEditing by remember { mutableStateOf<Room?>(null) }
     var roomForDeleting by remember { mutableStateOf<Room?>(null) }
     var roomForHistory by remember { mutableStateOf<Room?>(null) }
+    var tenantForEditing by remember { mutableStateOf<Pair<Room, Tenant>?>(null) }
+
+    // Holds a not-yet-saved tenant assignment while we ask about historical unpaid rent
+    var pendingBackdatedAssignment by remember { mutableStateOf<PendingAssignment?>(null) }
+    // Holds a not-yet-saved move-in-date edit while we ask about historical unpaid rent
+    var pendingBackdatedEdit by remember { mutableStateOf<PendingEdit?>(null) }
 
     // Filter rooms by property, query, and occupancy status
     val currentRooms = rooms.filter {
@@ -378,77 +407,42 @@ fun PropertiesView(
             roomNumber = room.roomNumber,
             onDismiss = { roomForAssigning = null },
             onConfirm = { name, phone, deposit, aadhaar, address, moveInMillis ->
-                vm.assignTenant(
-                    roomId = room.id,
-                    tenantName = name,
-                    tenantPhone = phone,
-                    deposit = deposit,
-                    aadhaarNumber = aadhaar,
-                    permanentAddress = address,
-                    moveInDateMillis = moveInMillis
-                )
-                roomForAssigning = null
-            }
-        )
-    }
-
-    roomForBilling?.let { room ->
-        val tenant = tenants.find { it.id == room.currentTenantId && it.isCurrent }
-        if (tenant != null) {
-            val prevReading = vm.getLastRecordedMeterReading(room.id)
-            val priorDue = vm.getPendingDueForCurrentTenant(room.id)
-
-            LodgeBillDialog(
-                context = context,
-                room = room,
-                tenant = tenant,
-                previousReading = prevReading,
-                priorDueOrAdvance = priorDue,
-                onDismiss = { roomForBilling = null },
-                onBillLodged = { period, currReading, maint, amtPaid, mode ->
-                    vm.lodgeBill(
+                if (vm.isBackdatedMoveIn(moveInMillis)) {
+                    // Move-in is more than a month back — check on historical unpaid rent first
+                    pendingBackdatedAssignment = PendingAssignment(room, name, phone, deposit, aadhaar, address, moveInMillis)
+                    roomForAssigning = null
+                } else {
+                    vm.assignTenant(
                         roomId = room.id,
-                        billingPeriod = period,
-                        currentReading = currReading,
-                        maintenanceAmount = maint,
-                        amountPaid = amtPaid,
-                        paymentMode = mode
+                        tenantName = name,
+                        tenantPhone = phone,
+                        deposit = deposit,
+                        aadhaarNumber = aadhaar,
+                        permanentAddress = address,
+                        moveInDateMillis = moveInMillis
                     )
-                    roomForBilling = null
+                    roomForAssigning = null
                 }
-            )
-        }
-    }
-
-    roomForEditing?.let { room ->
-        EditRoomDialog(
-            room = room,
-            onDismiss = { roomForEditing = null },
-            onConfirm = { num, rent, rate, initialMeter ->
-                vm.updateRoom(room.id, num, rent, rate, initialMeter)
-                roomForEditing = null
             }
         )
     }
 
-    roomForDeleting?.let { room ->
-        DeleteConfirmationDialog(
-            title = "Delete Room ${room.roomNumber}?",
-            message = "This will permanently remove this room and its active billing links. Past billing records are preserved.",
-            onDismiss = { roomForDeleting = null },
-            onConfirm = {
-                vm.deleteRoom(room.id)
-                roomForDeleting = null
-            }
-        )
-    }
-
-    roomForHistory?.let { room ->
-        val tenancyRecords = vm.getRoomTenancyHistory(room.id)
-        RoomHistoryDialog(
-            room = room,
-            historySummaries = tenancyRecords,
-            onDismiss = { roomForHistory = null }
-        )
-    }
-}
+    pendingBackdatedAssignment?.let { pending ->
+        MoveInDateBackfillDialog(
+            tenantName = pending.name,
+            moveInDateMillis = pending.moveInMillis,
+            onDismiss = { pendingBackdatedAssignment = null },
+            onConfirm = { allPaid, paidThroughMonthMillis ->
+                val newTenant = vm.assignTenant(
+                    roomId = pending.room.id,
+                    tenantName = pending.name,
+                    tenantPhone = pending.phone,
+                    deposit = pending.deposit,
+                    aadhaarNumber = pending.aadhaar,
+                    permanentAddress = pending.address,
+                    moveInDateMillis = pending.moveInMillis
+                )
+                if (!allPaid && paidThroughMonthMillis != null) {
+                    vm.backfillUnpaidRent(pending.room.id, newTenant.id, paidThroughMonthMillis)
+                }
+          
