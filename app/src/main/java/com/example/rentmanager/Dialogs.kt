@@ -2149,5 +2149,103 @@ fun SettingsDialog(
                             if (billingConvention == BillingConvention.PREVIOUS_MONTH) AppColors.AzurePrimary else AppColors.BorderSubtle
                         )
                     ) {
-                       
+                       Text("Month after\n(e.g. Sept in Oct)", fontSize = 11.sp, textAlign = TextAlign.Center, color = AppColors.TextPrimary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Sign out
+                Button(
+                    onClick = {
+                        auth.signOut()
+                        onSignOutSuccess()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.AzurePrimary
+                    )
+                ) {
+                    Text(if (currentUser != null) "Sign Out" else "Exit Guest Mode")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Danger zone
+                Text(
+                    text = "Danger Zone",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = UIRedDanger
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { showDeleteConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, UIRedDanger)
+                ) {
+                    Text("Delete All Property Data", color = UIRedDanger)
+                }
+            }
+        }
+    }
+
+    if (showDeleteConfirmation) {
+        DeleteConfirmationDialog(
+            onConfirm = {
+                vm.clearAllData(onComplete = {})
+                showDeleteConfirmation = false
+                onDismiss()
+            },
+            onDismiss = { showDeleteConfirmation = false }
+        )
+    }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Delete All Data?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = UIRedDanger
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "This will permanently delete all properties, rooms, tenants, and bills from this device and the cloud. This cannot be undone.",
+                    fontSize = 13.sp,
+                    color = AppColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    OutlinedButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(containerColor = UIRedDanger)
+                    ) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
+    }
+}
                     
