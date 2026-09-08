@@ -2,6 +2,7 @@ package com.example.rentmanager.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.DoorFront
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.example.rentmanager.AppColors
 import com.example.rentmanager.ReceiptFormatter
 import com.example.rentmanager.RentViewModel
+import com.example.rentmanager.ui.components.RoomWiseBreakdownDialog
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -91,7 +94,6 @@ fun RevenueView(vm: RentViewModel) {
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Header & Timeframe Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -129,69 +131,16 @@ fun RevenueView(vm: RentViewModel) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Main Collections Card (merged with breakdown)
-Card(
-    shape = RoundedCornerShape(22.dp),
-    colors = CardDefaults.cardColors(containerColor = AppColors.AzurePrimary),
-    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-    modifier = Modifier.fillMaxWidth()
-) {
-    Column(modifier = Modifier.padding(22.dp)) {
-        Text(
-            text = if (isCurrentYearOnly) "COLLECTIONS ($currentYear)" else "LIFETIME COLLECTIONS",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = "₹",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.padding(bottom = 5.dp, end = 2.dp)
+            RevenueCollectionsCard(
+                vm = vm,
+                year = currentYear,
+                totalCollections = revenueSummary.totalCollected,
+                rentTotal = revenueSummary.rentCollected,
+                electricityTotal = revenueSummary.electricityCollected,
+                duesTotal = revenueSummary.activeDues,
+                advanceTotal = vm.getTotalAdvance(),
+                forCurrentYearOnly = isCurrentYearOnly
             )
-            Text(
-                text = String.format(Locale.ENGLISH, "%,.2f", revenueSummary.totalCollected),
-                fontSize = 34.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White
-            )
-        }
-
-        Spacer(modifier = Modifier.height(22.dp))
-        Divider(color = Color.White.copy(alpha = 0.15f), thickness = 1.dp)
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            CleanMetric(
-                title = "Rent",
-                amount = revenueSummary.rentCollected,
-                modifier = Modifier.weight(1f)
-            )
-            CleanMetric(
-                title = "Electricity",
-                amount = revenueSummary.electricityCollected,
-                modifier = Modifier.weight(1f)
-            )
-            CleanMetric(
-                title = "Dues",
-                amount = revenueSummary.activeDues,
-                modifier = Modifier.weight(1f),
-                isWarning = revenueSummary.activeDues > 0
-            )
-        }
-    }
-}
-
-Spacer(modifier = Modifier.height(18.dp))
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -204,7 +153,7 @@ Spacer(modifier = Modifier.height(18.dp))
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-                        // Billing History List
+
             if (filteredBills.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -234,7 +183,6 @@ Spacer(modifier = Modifier.height(18.dp))
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
-                                // Header: Room, Period, and WhatsApp Share Button
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -256,7 +204,6 @@ Spacer(modifier = Modifier.height(18.dp))
                                         )
                                     }
 
-                                    // WhatsApp Share Action
                                     if (tenant != null && tenant.phoneNumber.isNotBlank()) {
                                         IconButton(
                                             onClick = {
@@ -292,7 +239,6 @@ Spacer(modifier = Modifier.height(18.dp))
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
-                                // Date & Tenant Subheader
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
@@ -311,7 +257,6 @@ Spacer(modifier = Modifier.height(18.dp))
 
                                 Divider(modifier = Modifier.padding(vertical = 8.dp), color = AppColors.BorderSubtle)
 
-                                // Financial Breakdown Row
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -367,62 +312,159 @@ Spacer(modifier = Modifier.height(18.dp))
 }
 
 @Composable
-private fun MetricCard(
-    title: String,
-    amount: Double,
-    icon: ImageVector,
-    accentColor: Color,
-    modifier: Modifier = Modifier
+fun RevenueCollectionsCard(
+    vm: RentViewModel,
+    year: Int,
+    totalCollections: Double,
+    rentTotal: Double,
+    electricityTotal: Double,
+    duesTotal: Double,
+    advanceTotal: Double,
+    forCurrentYearOnly: Boolean
 ) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWhite),
+    var activeCategory by remember { mutableStateOf<String?>(null) }
+
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = AppColors.SurfaceWhite,
         border = BorderStroke(1.dp, AppColors.BorderSubtle),
-        modifier = modifier
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(18.dp)
-            )
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Collections ($year)",
+                    fontSize = 13.sp,
+                    color = AppColors.TextSecondary
+                )
+                Icon(
+                    imageVector = Icons.Rounded.AccountBalanceWallet,
+                    contentDescription = null,
+                    tint = AppColors.TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(6.dp))
+
             Text(
-                text = title,
-                fontSize = 10.sp,
-                color = AppColors.TextSecondary,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = "₹${String.format(Locale.ENGLISH, "%.0f", amount)}",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
+                text = "₹${String.format(Locale.ENGLISH, "%,.0f", totalCollections)}",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Medium,
                 color = AppColors.TextPrimary
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = AppColors.BorderSubtle)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                RevenueStatBox(
+                    icon = Icons.Rounded.Home,
+                    label = "Rent",
+                    amount = rentTotal,
+                    color = AppColors.AzurePrimary,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "rent" }
+                )
+                RevenueStatBox(
+                    icon = Icons.Rounded.Bolt,
+                    label = "Electricity",
+                    amount = electricityTotal,
+                    color = AppColors.AmberWarning,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "electricity" }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                RevenueStatBox(
+                    icon = Icons.Rounded.WarningAmber,
+                    label = "Dues",
+                    amount = duesTotal,
+                    color = AppColors.CrimsonAlert,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "dues" }
+                )
+                RevenueStatBox(
+                    icon = Icons.Rounded.Savings,
+                    label = "Advance",
+                    amount = advanceTotal,
+                    color = AppColors.EmeraldSuccess,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "advance" }
+                )
+            }
         }
     }
+
+    activeCategory?.let { category ->
+        val items = vm.getRoomWiseBreakdown(category, forCurrentYearOnly)
+        val (title, color) = when (category) {
+            "rent" -> "Rent Collected" to AppColors.AzurePrimary
+            "electricity" -> "Electricity Collected" to AppColors.AmberWarning
+            "dues" -> "Pending Dues" to AppColors.CrimsonAlert
+            "advance" -> "Advance Owed" to AppColors.EmeraldSuccess
+            else -> "" to AppColors.TextPrimary
+        }
+        RoomWiseBreakdownDialog(
+            title = title,
+            items = items,
+            accentColor = color,
+            onDismiss = { activeCategory = null }
+        )
+    }
 }
+
 @Composable
-private fun CleanMetric(
-    title: String,
+private fun RevenueStatBox(
+    icon: ImageVector,
+    label: String,
     amount: Double,
+    color: Color,
     modifier: Modifier = Modifier,
-    isWarning: Boolean = false
+    onClick: () -> Unit
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = title,
-            fontSize = 11.sp,
-            color = Color.White.copy(alpha = 0.65f),
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(
-            text = "₹${String.format(Locale.ENGLISH, "%.0f", amount)}",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isWarning) Color(0xFFFFD54F) else Color.White
-        )
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = AppColors.ScaffoldBackground,
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    color = color
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "₹${String.format(Locale.ENGLISH, "%,.0f", amount)}",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = color
+            )
+        }
     }
 }
