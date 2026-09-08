@@ -1311,18 +1311,20 @@ fun EditRoomDialog(
         }
     }
 }
-
 @Composable
 fun EditTenantDialog(
     tenant: Tenant,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, phone: String, deposit: Double, aadhaar: String, address: String) -> Unit
+    onConfirm: (name: String, phone: String, deposit: Double, aadhaar: String, address: String, moveInDateMillis: Long) -> Unit
 ) {
     var name by remember { mutableStateOf(tenant.name) }
     var phone by remember { mutableStateOf(tenant.phoneNumber) }
     var aadhaar by remember { mutableStateOf(tenant.aadhaarNumber) }
     var address by remember { mutableStateOf(tenant.permanentAddress) }
     var deposit by remember { mutableStateOf("") }
+    var moveInDateMillis by remember { mutableStateOf(tenant.moveInDate) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
