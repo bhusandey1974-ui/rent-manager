@@ -324,11 +324,13 @@ fun RevenueCollectionsCard(
 ) {
     var activeCategory by remember { mutableStateOf<String?>(null) }
 
-    Surface(
-        shape = RoundedCornerShape(22.dp),
+Surface(
+        shape = RoundedCornerShape(14.dp),
         color = AppColors.SurfaceWhite,
         border = BorderStroke(1.dp, AppColors.BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
