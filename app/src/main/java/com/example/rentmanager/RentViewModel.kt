@@ -425,6 +425,55 @@ fun confirmVacateRoom(
         return newBill
     }
 
+    fun backfillUnpaidRent(roomId: String, tenantId: String, paidThroughMonthMillis: Long) {
+    val room = _rooms.value.find { it.id == roomId } ?: return
+
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = paidThroughMonthMillis
+    cal.set(Calendar.DAY_OF_MONTH, 1)
+    cal.add(Calendar.MONTH, 1) // start from the month AFTER the last paid month
+
+    val now = Calendar.getInstance()
+    val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+    val newBills = mutableListOf<Bill>()
+
+    while (
+        cal.get(Calendar.YEAR) < now.get(Calendar.YEAR) ||
+        (cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) && cal.get(Calendar.MONTH) < now.get(Calendar.MONTH))
+    ) {
+        val billTimestamp = cal.timeInMillis
+        newBills.add(
+            Bill(
+                id = UUID.randomUUID().toString(),
+                roomId = roomId,
+                tenantId = tenantId,
+                billingPeriod = sdf.format(Date(billTimestamp)),
+                previousReading = 0.0,
+                currentReading = 0.0,
+                unitsConsumed = 0.0,
+                electricityRate = room.electricityRate,
+                electricityAmount = 0.0,
+                baseRent = room.baseRent,
+                maintenanceAmount = 0.0,
+                totalPayable = room.baseRent,
+                rentPaid = 0.0,
+                electricityPaid = 0.0,
+                amountPaid = 0.0,
+                paymentMode = "Backfilled",
+                remainingDue = room.baseRent,
+                timestamp = billTimestamp
+            )
+        )
+        cal.add(Calendar.MONTH, 1)
+    }
+
+    if (newBills.isNotEmpty()) {
+        _bills.value = _bills.value + newBills
+        saveToLocalStorage()
+        newBills.forEach { syncBillToCloud(it) }
+    }
+    }
+
     fun settleLumpSumArrears(
         tenantId: String,
         baseRentPayment: Double,
