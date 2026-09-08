@@ -131,85 +131,59 @@ fun RevenueView(vm: RentViewModel) {
 
             // Main Collections Card (merged with breakdown)
 Card(
-    shape = RoundedCornerShape(20.dp),
+    shape = RoundedCornerShape(22.dp),
     colors = CardDefaults.cardColors(containerColor = AppColors.AzurePrimary),
+    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     modifier = Modifier.fillMaxWidth()
 ) {
-    Column(modifier = Modifier.padding(20.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (isCurrentYearOnly) "COLLECTIONS ($currentYear)" else "LIFETIME COLLECTIONS",
-                color = Color.White.copy(alpha = 0.75f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
-            Icon(
-                imageVector = Icons.Rounded.AccountBalanceWallet,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.75f),
-                modifier = Modifier.size(20.dp)
-            )
-        }
+    Column(modifier = Modifier.padding(22.dp)) {
+        Text(
+            text = if (isCurrentYearOnly) "COLLECTIONS ($currentYear)" else "LIFETIME COLLECTIONS",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp
+        )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = "₹",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.padding(bottom = 4.dp)
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.padding(bottom = 5.dp, end = 2.dp)
             )
             Text(
                 text = String.format(Locale.ENGLISH, "%,.2f", revenueSummary.totalCollected),
-                fontSize = 30.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
         }
 
+        Spacer(modifier = Modifier.height(22.dp))
+        Divider(color = Color.White.copy(alpha = 0.15f), thickness = 1.dp)
         Spacer(modifier = Modifier.height(18.dp))
-        Divider(color = Color.White.copy(alpha = 0.18f))
-        Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            InlineMetric(
+            CleanMetric(
                 title = "Rent",
                 amount = revenueSummary.rentCollected,
-                icon = Icons.Rounded.Home,
                 modifier = Modifier.weight(1f)
             )
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(34.dp)
-                    .background(Color.White.copy(alpha = 0.18f))
-            )
-            InlineMetric(
+            CleanMetric(
                 title = "Electricity",
                 amount = revenueSummary.electricityCollected,
-                icon = Icons.Rounded.Bolt,
                 modifier = Modifier.weight(1f)
             )
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(34.dp)
-                    .background(Color.White.copy(alpha = 0.18f))
-            )
-            InlineMetric(
+            CleanMetric(
                 title = "Dues",
                 amount = revenueSummary.activeDues,
-                icon = Icons.Rounded.WarningAmber,
                 modifier = Modifier.weight(1f),
                 isWarning = revenueSummary.activeDues > 0
             )
@@ -430,35 +404,25 @@ private fun MetricCard(
     }
 }
 @Composable
-private fun InlineMetric(
+private fun CleanMetric(
     title: String,
     amount: Double,
-    icon: ImageVector,
     modifier: Modifier = Modifier,
     isWarning: Boolean = false
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isWarning) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.85f),
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
+    Column(modifier = modifier) {
         Text(
             text = title,
-            fontSize = 10.sp,
-            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            color = Color.White.copy(alpha = 0.65f),
             fontWeight = FontWeight.Medium
         )
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = "₹${String.format(Locale.ENGLISH, "%.0f", amount)}",
-            fontSize = 13.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = if (isWarning) Color(0xFFFFD54F) else Color.White
         )
     }
 }
