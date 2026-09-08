@@ -444,4 +444,468 @@ fun AssignTenantDialog(
                     onValueChange = { phone = it },
                     label = { Text("Mobile Number (for WhatsApp) *") },
                     placeholder = { Text("10-digit number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // NEW: Move-In Date field (read-only text field that opens a date picker)
+                OutlinedTextField(
+                    value = dateFormatter.format(java.util.Date(moveInDateMillis)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Move-In Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.CalendarMonth,
+                                contentDescription = "Pick move-in date",
+                                tint = AppColors.AzurePrimary
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = aadhaar,
+                    onValueChange = { if (it.length <= 12) aadhaar = it },
+                    label = { Text("Aadhaar Number (Optional)") },
+                    placeholder = { Text("Enter 12 digits") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Permanent Address (Optional)") },
+                    placeholder = { Text("Village/Town, District, State") },
+                    singleLine = false,
+                    maxLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = deposit,
+                    onValueChange = { deposit = it },
+                    label = { Text("Security Deposit (₹)") },
+                    placeholder = { Text("Optional") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Cancel", color = AppColors.TextSecondary)
+                    }
+
+                    Button(
+                        onClick = {
+                            val depVal = deposit.toDoubleOrNull() ?: 0.0
+                            if (name.isNotBlank() && phone.isNotBlank()) {
+                                onConfirm(name, phone, depVal, aadhaar, address, moveInDateMillis)
+                            }
+                        },
+                        enabled = name.isNotBlank() && phone.isNotBlank(),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.AzurePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Assign Tenant")
+                    }
+                }
+            }
+        }
+    }
+
+    // Date picker dialog
+    if (showDatePicker) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = moveInDateMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis <= System.currentTimeMillis()
+            }
+        }
+    )
+    DatePickerDialog(
+        onDismissRequest = { showDatePicker = false },
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let { moveInDateMillis = it }
+                showDatePicker = false
+            }) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showDatePicker = false }) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
+    }
+  }
+}
+@Composable
+fun VacateSettlementDialog(
+    tenantName: String,
+    settlementAmount: Double, // positive = tenant owes you, negative = you owe tenant (advance)
+    onDismiss: () -> Unit,
+    onConfirm: (note: String) -> Unit
+) {
+    var note by remember { mutableStateOf("") }
+
+    val isAdvance = settlementAmount < 0.0
+    val displayAmount = kotlin.math.abs(settlementAmount)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isAdvance) AppColors.AmberWarning.copy(alpha = 0.15f)
+                                    else AppColors.EmeraldSuccess.copy(alpha = 0.15f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Warning,
+                                contentDescription = null,
+                                tint = if (isAdvance) AppColors.AmberWarning else AppColors.EmeraldSuccess,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Vacate $tenantName",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (displayAmount > 0.0) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isAdvance) AppColors.AmberWarning.copy(alpha = 0.1f)
+                                             else AppColors.EmeraldSuccess.copy(alpha = 0.1f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = if (isAdvance) "Refund Due to Tenant" else "Tenant Still Owes You",
+                                fontSize = 12.sp,
+                                color = AppColors.TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "₹${String.format(Locale.ENGLISH, "%.2f", displayAmount)}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isAdvance) AppColors.AmberWarning else AppColors.EmeraldSuccess
+                            )
+                            if (isAdvance) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Please refund this amount to the tenant before confirming.",
+                                    fontSize = 12.sp,
+                                    color = AppColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                } else {
+                    Text(
+                        text = "No pending balance for this tenant.",
+                        fontSize = 13.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Settlement Note (Optional)") },
+                    placeholder = { Text(if (isAdvance) "e.g. Refunded ₹${displayAmount.toInt()} in cash" else "e.g. Cleared final dues") },
+                    singleLine = false,
+                    maxLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Cancel", color = AppColors.TextSecondary)
+                    }
+
+                    Button(
+                        onClick = { onConfirm(note) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.AzurePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Confirm Vacate")
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun RoomWiseBreakdownDialog(
+    title: String,
+    items: List<com.example.rentmanager.RoomWiseAmount>,
+    accentColor: Color,
+    onDismiss: () -> Unit
+) {
+    val total = items.sumOf { it.amount }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Room-wise breakdown",
+                    fontSize = 12.sp,
+                    color = AppColors.TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No data for this category.",
+                            fontSize = 13.sp,
+                            color = AppColors.TextMuted
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp)
+                    ) {
+                        items.forEach { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Room ${item.roomNumber}",
+                                    fontSize = 14.sp,
+                                    color = AppColors.TextPrimary
+                                )
+                                Text(
+                                    text = "₹${String.format(Locale.ENGLISH, "%.0f", item.amount)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = accentColor
+                                )
+                            }
+                            Divider(color = AppColors.BorderSubtle)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Total",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.ENGLISH, "%.0f", total)}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accentColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                ) {
+                    Text("Close", color = AppColors.TextPrimary)
+                }
+            }
+        }
+    }
+}
+@Composable
+fun LodgeBillDialog(
+    context: Context,
+    room: Room,
+    tenant: Tenant,
+    previousReading: Double,
+    priorDueOrAdvance: Double,
+    suggestedBillingPeriod: String,
+    outstandingMonths: List<String> = emptyList(),
+    onDismiss: () -> Unit,
+    onBillLodged: (billingPeriod: String, currentReading: Double, maintenanceAmount: Double, amountPaid: Double, paymentMode: String) -> Bill
+) {
+    var billingPeriod by remember { mutableStateOf(suggestedBillingPeriod) }
+    var currentReadingStr by remember { mutableStateOf("") }
+    var maintenanceStr by remember { mutableStateOf("0") }
+    var amountPaidStr by remember { mutableStateOf("") }
+    var paymentMode by remember { mutableStateOf("Cash") }
+
+    val currReading = currentReadingStr.toDoubleOrNull() ?: previousReading
+    val units = (currReading - previousReading).coerceAtLeast(0.0)
+    val elecAmount = units * room.electricityRate
+    val maintAmount = maintenanceStr.toDoubleOrNull() ?: 0.0
+    val grossPayable = room.baseRent + elecAmount + maintAmount + priorDueOrAdvance
+    val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
+    val remainingDue = grossPayable - amountPaid
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    
                     
