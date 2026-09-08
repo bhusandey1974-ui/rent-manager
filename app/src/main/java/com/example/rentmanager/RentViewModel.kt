@@ -39,7 +39,7 @@ data class RevenueBreakdown(
 data class RoomWiseAmount(
     val roomNumber: String,
     val amount: Double
-)
+
 
 class RentViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -372,11 +372,6 @@ fun confirmVacateRoom(
 
         return if (tenantBills.isNotEmpty()) tenantBills.first().remainingDue else 0.0
     }
-
-    data class RoomWiseAmount(
-    val roomNumber: String,
-    val amount: Double
-)
 
 fun getTotalAdvance(): Double {
     return _rooms.value.filter { it.isOccupied }.sumOf { room ->
