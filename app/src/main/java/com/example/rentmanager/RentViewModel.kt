@@ -368,6 +368,64 @@ fun confirmVacateRoom(
         return if (tenantBills.isNotEmpty()) tenantBills.first().remainingDue else 0.0
     }
 
+    data class RoomWiseAmount(
+    val roomNumber: String,
+    val amount: Double
+)
+
+fun getTotalAdvance(): Double {
+    return _rooms.value.filter { it.isOccupied }.sumOf { room ->
+        val due = getPendingDueForCurrentTenant(room.id)
+        if (due < 0.0) kotlin.math.abs(due) else 0.0
+    }
+}
+
+fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<RoomWiseAmount> {
+    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+    val cal = Calendar.getInstance()
+
+    val filteredBills = if (forCurrentYearOnly) {
+        _bills.value.filter { bill ->
+            cal.timeInMillis = bill.timestamp
+            cal.get(Calendar.YEAR) == currentYear
+        }
+    } else {
+        _bills.value
+    }
+
+    return when (category) {
+        "rent" -> {
+            _rooms.value.mapNotNull { room ->
+                val total = filteredBills
+                    .filter { it.roomId == room.id }
+                    .sumOf { it.rentPaid.takeIf { p -> p > 0 } ?: 0.0 }
+                if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
+            }.sortedBy { it.roomNumber }
+        }
+        "electricity" -> {
+            _rooms.value.mapNotNull { room ->
+                val total = filteredBills
+                    .filter { it.roomId == room.id }
+                    .sumOf { it.electricityPaid.takeIf { p -> p > 0 } ?: 0.0 }
+                if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
+            }.sortedBy { it.roomNumber }
+        }
+        "dues" -> {
+            _rooms.value.filter { it.isOccupied }.mapNotNull { room ->
+                val due = getPendingDueForCurrentTenant(room.id)
+                if (due > 0.0) RoomWiseAmount(room.roomNumber, due) else null
+            }.sortedBy { it.roomNumber }
+        }
+        "advance" -> {
+            _rooms.value.filter { it.isOccupied }.mapNotNull { room ->
+                val due = getPendingDueForCurrentTenant(room.id)
+                if (due < 0.0) RoomWiseAmount(room.roomNumber, kotlin.math.abs(due)) else null
+            }.sortedBy { it.roomNumber }
+        }
+        else -> emptyList()
+    }
+}
+
     fun getLastRecordedMeterReading(roomId: String): Double {
         val roomBills = _bills.value
             .filter { it.roomId == roomId }
