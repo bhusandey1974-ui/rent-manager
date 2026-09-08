@@ -1765,5 +1765,389 @@ fun RoomHistoryDialog(
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                         Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
                     }
-      
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Rate Change History Section
+                    if (room.rateHistory.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "RATE MODIFICATIONS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextMuted,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = AppColors.AzureContainer.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, AppColors.AzureBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    room.rateHistory.reversed().forEach { rateLog ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.TrendingUp,
+                                                    contentDescription = null,
+                                                    tint = AppColors.AzurePrimary,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = dateFormat.format(Date(rateLog.timestamp)),
+                                                    fontSize = 11.sp,
+                                                    color = AppColors.TextSecondary
+                                                )
+                                            }
+                                            Text(
+                                                text = "Rent: ₹${rateLog.newRent.toInt()} | Elec: ₹${rateLog.newElectricityRate}/u",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AppColors.TextPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    }
+
+                    // Tenant History Section
+                    item {
+                        Text(
+                            text = "TENANCY RECORDS (${historySummaries.size})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextMuted,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    if (historySummaries.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No tenant history recorded for this room.", fontSize = 13.sp, color = AppColors.TextMuted)
+                            }
+                        }
+                    } else {
+                        items(historySummaries) { itemSummary ->
+                            val t = itemSummary.tenant
+                            Card(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (t.isCurrent) AppColors.SurfaceWhite else AppColors.ScaffoldBackground
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (t.isCurrent) AppColors.AzurePrimary.copy(alpha = 0.5f) else AppColors.BorderSubtle
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    // Row 1: Name & Status
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = t.name,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AppColors.TextPrimary
+                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            if (t.isCurrent) {
+                                                IconButton(
+                                                    onClick = { onEditActiveTenant(t) },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Edit,
+                                                        contentDescription = "Edit tenant details",
+                                                        tint = AppColors.AzurePrimary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(2.dp))
+                                            }
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = if (t.isCurrent) AppColors.EmeraldSuccess.copy(alpha = 0.15f) else AppColors.TextMuted.copy(alpha = 0.15f)
+                                            ) {
+                                                Text(
+                                                    text = if (t.isCurrent) "ACTIVE" else "VACATED",
+                                                    color = if (t.isCurrent) AppColors.EmeraldSuccess else AppColors.TextSecondary,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    // Row 2: Dates & Duration
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = AppColors.AzurePrimary, modifier = Modifier.size(13.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        val moveInStr = dateFormat.format(Date(t.moveInDate))
+                                        val moveOutStr = t.moveOutDate?.let { dateFormat.format(Date(it)) } ?: "Present"
+                                        Text(
+                                            text = "$moveInStr → $moveOutStr (${itemSummary.daysStayed} days)",
+                                            fontSize = 11.sp,
+                                            color = AppColors.TextSecondary
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    // Row 3: Identity info
+                                    Text("Phone: ${t.phoneNumber}", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                    if (t.aadhaarNumber.isNotBlank()) {
+                                        Text("Aadhaar: [Aadhaar Redacted]", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                    }
+                                    if (t.permanentAddress.isNotBlank()) {
+                                        Text("Address: ${t.permanentAddress}", fontSize = 12.sp, color = AppColors.TextSecondary, maxLines = 2)
+                                    }
+
+                                    Divider(modifier = Modifier.padding(vertical = 8.dp), color = AppColors.BorderSubtle)
+
+                                    // Row 4: Financial Summary for this tenancy
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text("Rent Paid", fontSize = 10.sp, color = AppColors.TextSecondary)
+                                            Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalRentCollected)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                                        }
+                                        Column {
+                                            Text("Elec Paid", fontSize = 10.sp, color = AppColors.TextSecondary)
+                                            Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalElectricityCollected)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("Total Collected", fontSize = 10.sp, color = AppColors.TextSecondary)
+                                            Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalMoneyCollected)}", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = AppColors.AzurePrimary)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                ) {
+                    Text("Close", color = AppColors.TextPrimary)
+                }
+            }
+        }
+    }
+}
+@Composable
+fun DeleteConfirmationDialog(
+    title: String = "Delete Room",
+    message: String = "Are you sure you want to delete this room? This action cannot be undone.",
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.CrimsonAlert
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = message,
+                    fontSize = 14.sp,
+                    color = AppColors.TextSecondary,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Cancel", color = AppColors.TextSecondary)
+                    }
+
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.CrimsonAlert,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun SettingsDialog(
+    vm: RentViewModel,
+    onDismiss: () -> Unit,
+    onSignOutSuccess: () -> Unit
+) {
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = auth.currentUser
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Settings & Account",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = AppColors.TextPrimary
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Account status
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Person,
+                        contentDescription = null,
+                        tint = AppColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = currentUser?.email ?: "Local Offline Mode",
+                        fontSize = 14.sp,
+                        color = AppColors.TextPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = if (currentUser != null) "Cloud sync enabled" else "No cloud sync",
+                    fontSize = 12.sp,
+                    color = if (currentUser != null) UIGreenSuccess else AppColors.TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Billing convention
+                val billingConvention by vm.billingConvention.collectAsState()
+                Text(
+                    text = "Rent Collection Timing",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = AppColors.TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Only used as a starting guess for a tenant's very first bill.",
+                    fontSize = 11.sp,
+                    color = AppColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { vm.setBillingConvention(BillingConvention.CURRENT_MONTH) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = if (billingConvention == BillingConvention.CURRENT_MONTH)
+                            ButtonDefaults.outlinedButtonColors(containerColor = AppColors.AzureContainer)
+                        else
+                            ButtonDefaults.outlinedButtonColors(),
+                        border = BorderStroke(
+                            1.dp,
+                            if (billingConvention == BillingConvention.CURRENT_MONTH) AppColors.AzurePrimary else AppColors.BorderSubtle
+                        )
+                    ) {
+                        Text("Same month\n(e.g. Sept in Sept)", fontSize = 11.sp, textAlign = TextAlign.Center, color = AppColors.TextPrimary)
+                    }
+
+                    OutlinedButton(
+                        onClick = { vm.setBillingConvention(BillingConvention.PREVIOUS_MONTH) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = if (billingConvention == BillingConvention.PREVIOUS_MONTH)
+                            ButtonDefaults.outlinedButtonColors(containerColor = AppColors.AzureContainer)
+                        else
+                            ButtonDefaults.outlinedButtonColors(),
+                        border = BorderStroke(
+                            1.dp,
+                            if (billingConvention == BillingConvention.PREVIOUS_MONTH) AppColors.AzurePrimary else AppColors.BorderSubtle
+                        )
+                    ) {
+                       
                     
