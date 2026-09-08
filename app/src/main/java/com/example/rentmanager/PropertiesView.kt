@@ -243,31 +243,85 @@ fun PropertiesView(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-                        // Room Cards List
+            // Room Cards List
             if (filteredRooms.isEmpty()) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Apartment,
-                contentDescription = null,
-                tint = AppColors.TextMuted.copy(alpha = 0.4f),
-                modifier = Modifier.size(56.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = if (searchQuery.isNotBlank()) "No rooms match your search." else "No rooms added yet. Tap + to create one.",
-                color = AppColors.TextMuted,
-                fontSize = 14.sp
-            )
-        }
-    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (searchQuery.isNotBlank()) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = AppColors.TextMuted.copy(alpha = 0.4f),
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No rooms match your search.",
+                                color = AppColors.TextMuted,
+                                fontSize = 14.sp
+                            )
+                        }
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 32.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(AppColors.AzureContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Apartment,
+                                    contentDescription = null,
+                                    tint = AppColors.AzurePrimary,
+                                    modifier = Modifier.size(34.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            Text(
+                                text = "No rooms yet",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextPrimary
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = "Add your first room to start tracking tenants, rent, and bills.",
+                                fontSize = 13.sp,
+                                color = AppColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Button(
+                                onClick = { showAddRoomDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AppColors.AzurePrimary,
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier.height(46.dp)
+                            ) {
+                                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add Your First Room", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
