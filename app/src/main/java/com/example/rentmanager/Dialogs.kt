@@ -1356,6 +1356,135 @@ fun EditTenantDialog(
     }
 }
 @Composable
+fun MoveInDateBackfillDialog(
+    tenantName: String,
+    moveInDateMillis: Long,
+    onDismiss: () -> Unit,
+    onConfirm: (allPaid: Boolean, paidThroughMonthMillis: Long?) -> Unit
+) {
+    val dateFormatter = remember { SimpleDateFormat("MMMM yyyy", Locale.ENGLISH) }
+    var allPaid by remember { mutableStateOf(true) }
+
+    // Build a list of months from move-in date up to last month
+    val monthOptions = remember(moveInDateMillis) {
+        val list = mutableListOf<Long>()
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = moveInDateMillis
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        val now = Calendar.getInstance()
+        while (
+            cal.get(Calendar.YEAR) < now.get(Calendar.YEAR) ||
+            (cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) && cal.get(Calendar.MONTH) < now.get(Calendar.MONTH))
+        ) {
+            list.add(cal.timeInMillis)
+            cal.add(Calendar.MONTH, 1)
+        }
+        list
+    }
+
+    var selectedMonthMillis by remember { mutableStateOf(monthOptions.lastOrNull() ?: moveInDateMillis) }
+    var expanded by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "$tenantName moved in on ${dateFormatter.format(Date(moveInDateMillis))} — that's a while back.",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.TextPrimary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { allPaid = !allPaid }
+                ) {
+                    Checkbox(
+                        checked = allPaid,
+                        onCheckedChange = { allPaid = it },
+                        colors = CheckboxDefaults.colors(checkedColor = AppColors.AzurePrimary)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "All rent paid up to now",
+                        fontSize = 14.sp,
+                        color = AppColors.TextPrimary
+                    )
+                }
+
+                if (!allPaid) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Paid through:",
+                        fontSize = 12.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Box {
+                        OutlinedButton(
+                            onClick = { expanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                        ) {
+                            Text(
+                                text = dateFormatter.format(Date(selectedMonthMillis)),
+                                color = AppColors.TextPrimary,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Start
+                            )
+                            Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(16.dp))
+                        }
+
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            monthOptions.forEach { monthMillis ->
+                                DropdownMenuItem(
+                                    text = { Text(dateFormatter.format(Date(monthMillis))) },
+                                    onClick = {
+                                        selectedMonthMillis = monthMillis
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        onConfirm(allPaid, if (allPaid) null else selectedMonthMillis)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.AzurePrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Confirm", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+@Composable
 fun RoomHistoryDialog(
     room: Room,
     historySummaries: List<TenantHistorySummary>,
