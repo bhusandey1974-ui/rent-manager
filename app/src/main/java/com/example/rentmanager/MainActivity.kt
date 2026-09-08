@@ -4,10 +4,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.MonetizationOn
@@ -28,10 +35,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.rentmanager.ui.components.SettingsDialog
 import com.example.rentmanager.ui.screens.AuthView
 import com.example.rentmanager.ui.screens.PropertiesView
@@ -44,6 +56,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Match status bar to app's white surface color with dark icons
+        window.statusBarColor = android.graphics.Color.WHITE
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+
         setContent {
             RentManagerTheme {
                 MainAppRoot(viewModel = viewModel)
@@ -56,6 +73,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppRoot(viewModel: RentViewModel) {
     val auth = remember { FirebaseAuth.getInstance() }
+    val haptic = LocalHapticFeedback.current
 
     var isAuthenticated by remember { mutableStateOf(auth.currentUser != null) }
     var currentTabIndex by remember { mutableIntStateOf(0) }
@@ -71,12 +89,21 @@ fun MainAppRoot(viewModel: RentViewModel) {
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(
-                            text = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 19.sp,
-                            color = AppColors.TextPrimary
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (currentTabIndex == 0) Icons.Rounded.Apartment else Icons.Rounded.MonetizationOn,
+                                contentDescription = null,
+                                tint = AppColors.AzurePrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 19.sp,
+                                color = AppColors.TextPrimary
+                            )
+                        }
                     },
                     actions = {
                         IconButton(onClick = { showSettingsDialog = true }) {
@@ -90,7 +117,8 @@ fun MainAppRoot(viewModel: RentViewModel) {
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceWhite
-                    )
+                    ),
+                    modifier = Modifier
                 )
             },
             bottomBar = {
@@ -100,7 +128,10 @@ fun MainAppRoot(viewModel: RentViewModel) {
                 ) {
                     NavigationBarItem(
                         selected = currentTabIndex == 0,
-                        onClick = { currentTabIndex = 0 },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            currentTabIndex = 0
+                        },
                         icon = {
                             Icon(Icons.Rounded.Apartment, contentDescription = "Properties")
                         },
@@ -114,7 +145,10 @@ fun MainAppRoot(viewModel: RentViewModel) {
 
                     NavigationBarItem(
                         selected = currentTabIndex == 1,
-                        onClick = { currentTabIndex = 1 },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            currentTabIndex = 1
+                        },
                         icon = {
                             Icon(Icons.Rounded.MonetizationOn, contentDescription = "Revenue")
                         },
@@ -133,12 +167,21 @@ fun MainAppRoot(viewModel: RentViewModel) {
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                when (currentTabIndex) {
-                    0 -> PropertiesView(
-                        vm = viewModel,
-                        onNavigateToRevenue = { currentTabIndex = 1 }
-                    )
-                    1 -> RevenueView(vm = viewModel)
+                AnimatedContent(
+                    targetState = currentTabIndex,
+                    transitionSpec = {
+                        fadeIn(animationSpec = androidx.compose.animation.core.tween(220)) togetherWith
+                            fadeOut(animationSpec = androidx.compose.animation.core.tween(180))
+                    },
+                    label = "tab_content"
+                ) { tabIndex ->
+                    when (tabIndex) {
+                        0 -> PropertiesView(
+                            vm = viewModel,
+                            onNavigateToRevenue = { currentTabIndex = 1 }
+                        )
+                        1 -> RevenueView(vm = viewModel)
+                    }
                 }
             }
         }
