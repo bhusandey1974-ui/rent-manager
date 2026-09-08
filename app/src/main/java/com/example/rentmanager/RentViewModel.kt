@@ -62,6 +62,14 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     private val _bills = MutableStateFlow<List<Bill>>(emptyList())
     val bills: StateFlow<List<Bill>> = _bills.asStateFlow()
 
+    private val _billingConvention = MutableStateFlow(
+        if (prefs.getString("billing_convention", BillingConvention.PREVIOUS_MONTH.name) == BillingConvention.CURRENT_MONTH.name)
+            BillingConvention.CURRENT_MONTH
+        else
+            BillingConvention.PREVIOUS_MONTH
+    )
+    val billingConvention: StateFlow<BillingConvention> = _billingConvention.asStateFlow()
+
     init {
         loadFromLocalStorage()
         syncWithCloudIfAvailable()
@@ -69,6 +77,17 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSelectedProperty(propertyId: String?) {
         _selectedPropertyId.value = propertyId
+    }
+
+    fun setBillingConvention(convention: BillingConvention) {
+        _billingConvention.value = convention
+        prefs.edit().putString("billing_convention", convention.name).apply()
+    }
+
+    /** More than ~1 month in the past, used to decide whether to prompt for historical unpaid rent. */
+    fun isBackdatedMoveIn(moveInMillis: Long): Boolean {
+        val thirtyDaysMillis = 30L * 24 * 60 * 60 * 1000
+        return moveInMillis < (System.currentTimeMillis() - thirtyDaysMillis)
     }
 
     fun getCurrentUserEmail(): String? = auth.currentUser?.email
@@ -213,7 +232,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         aadhaarNumber: String = "",
         permanentAddress: String = "",
         moveInDateMillis: Long = System.currentTimeMillis()
-    ) {
+    ): Tenant {
         val newTenant = Tenant(
             id = UUID.randomUUID().toString(),
             roomId = roomId,
@@ -236,6 +255,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         saveToLocalStorage()
         syncTenantToCloud(newTenant)
         _rooms.value.find { it.id == roomId }?.let { syncRoomToCloud(it) }
+        return newTenant
     }
 
     fun updateTenant(
@@ -244,7 +264,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         phone: String,
         deposit: Double,
         aadhaarNumber: String = "",
-        permanentAddress: String = ""
+        permanentAddress: String = "",
+        moveInDateMillis: Long? = null
     ) {
         _tenants.value = _tenants.value.map { t ->
             if (t.id == tenantId) {
@@ -252,7 +273,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                     name = name.trim(),
                     phoneNumber = phone.trim(),
                     aadhaarNumber = aadhaarNumber.trim(),
-                    permanentAddress = permanentAddress.trim()
+                    permanentAddress = permanentAddress.trim(),
+                    moveInDate = moveInDateMillis ?: t.moveInDate
                 )
                 syncTenantToCloud(updated)
                 updated
@@ -436,6 +458,60 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
         } else {
             _rooms.value.find { it.id == roomId }?.initialMeterReading ?: 0.0
         }
+    }
+
+    /**
+     * What billing period a new bill for this room should default to.
+     *
+     * If the current tenant already has a bill on record, this is simply
+     * (that bill's month + 1) — chained forward regardless of today's actual
+     * calendar date, so gaps or early/late payments don't throw it off.
+     *
+     * If there's no bill history yet (e.g. very first bill for this tenant),
+     * it falls back to the app-wide billing convention: the current calendar
+     * month if rent is collected during the month, or last month if collected
+     * in arrears.
+     */
+    fun getSuggestedBillingPeriod(roomId: String): String {
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+        val room = _rooms.value.find { it.id == roomId }
+        val tenantId = room?.currentTenantId.orEmpty()
+
+        val lastBill = _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId }
+            .maxByOrNull { it.timestamp }
+
+        if (lastBill != null) {
+            try {
+                val parsed = sdf.parse(lastBill.billingPeriod)
+                if (parsed != null) {
+                    val cal = Calendar.getInstance()
+                    cal.time = parsed
+                    cal.add(Calendar.MONTH, 1)
+                    return sdf.format(cal.time)
+                }
+            } catch (e: Exception) {
+                // Fall through to convention-based default below
+            }
+        }
+
+        val cal = Calendar.getInstance()
+        if (_billingConvention.value == BillingConvention.PREVIOUS_MONTH) {
+            cal.add(Calendar.MONTH, -1)
+        }
+        return sdf.format(cal.time)
+    }
+
+    /**
+     * Billing periods for this tenant that still have money outstanding,
+     * oldest first. Useful for flagging "you still owe for these months" on a
+     * fresh receipt after a backdated tenant has been backfilled.
+     */
+    fun getOutstandingUnpaidMonths(roomId: String, tenantId: String, excludeBillId: String? = null): List<String> {
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId && it.remainingDue > 0.0 && it.id != excludeBillId }
+            .sortedBy { it.timestamp }
+            .map { it.billingPeriod }
     }
 
     fun lodgeBill(
