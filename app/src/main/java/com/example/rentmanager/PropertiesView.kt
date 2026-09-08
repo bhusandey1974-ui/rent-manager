@@ -445,4 +445,77 @@ fun PropertiesView(
                 if (!allPaid && paidThroughMonthMillis != null) {
                     vm.backfillUnpaidRent(pending.room.id, newTenant.id, paidThroughMonthMillis)
                 }
-          
+                pendingBackdatedEdit = null
+            }
+        )
+    }
+
+    roomForBilling?.let { room ->
+        val tenant = tenants.find { it.id == room.currentTenantId && it.isCurrent }
+        if (tenant != null) {
+            val prevReading = vm.getLastRecordedMeterReading(room.id)
+            val priorDue = vm.getPendingDueForCurrentTenant(room.id)
+            val suggestedPeriod = vm.getSuggestedBillingPeriod(room.id)
+            val outstanding = vm.getOutstandingUnpaidMonths(room.id, tenant.id)
+
+            LodgeBillDialog(
+                context = context,
+                room = room,
+                tenant = tenant,
+                previousReading = prevReading,
+                priorDueOrAdvance = priorDue,
+                suggestedBillingPeriod = suggestedPeriod,
+                outstandingMonths = outstanding,
+                onDismiss = { roomForBilling = null },
+                onBillLodged = { period, currReading, maint, amtPaid, mode ->
+                    val bill = vm.lodgeBill(
+                        roomId = room.id,
+                        billingPeriod = period,
+                        currentReading = currReading,
+                        maintenanceAmount = maint,
+                        amountPaid = amtPaid,
+                        paymentMode = mode
+                    )
+                    roomForBilling = null
+                    bill
+                }
+            )
+        }
+    }
+
+    roomForEditing?.let { room ->
+        EditRoomDialog(
+            room = room,
+            onDismiss = { roomForEditing = null },
+            onConfirm = { num, rent, rate, initialMeter ->
+                vm.updateRoom(room.id, num, rent, rate, initialMeter)
+                roomForEditing = null
+            }
+        )
+    }
+
+    roomForDeleting?.let { room ->
+        DeleteConfirmationDialog(
+            title = "Delete Room ${room.roomNumber}?",
+            message = "This will permanently remove this room and its active billing links. Past billing records are preserved.",
+            onDismiss = { roomForDeleting = null },
+            onConfirm = {
+                vm.deleteRoom(room.id)
+                roomForDeleting = null
+            }
+        )
+    }
+
+    roomForHistory?.let { room ->
+        val tenancyRecords = vm.getRoomTenancyHistory(room.id)
+        RoomHistoryDialog(
+            room = room,
+            historySummaries = tenancyRecords,
+            onDismiss = { roomForHistory = null },
+            onEditActiveTenant = { tenant ->
+                tenantForEditing = room to tenant
+                roomForHistory = null
+            }
+        )
+    }
+}
