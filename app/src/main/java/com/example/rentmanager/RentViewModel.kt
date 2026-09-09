@@ -524,41 +524,111 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
     ): Bill {
         val room = _rooms.value.find { it.id == roomId } ?: throw IllegalStateException("Room not found")
         val tenantId = room.currentTenantId
-        val prevReading = getLastRecordedMeterReading(roomId)
-        val units = (currentReading - prevReading).coerceAtLeast(0.0)
-        val electricityTotal = units * room.electricityRate
 
-        val priorAdjustment = getPendingDueForCurrentTenant(roomId)
-        val grossTotal = room.baseRent + electricityTotal + maintenanceAmount + priorAdjustment
-        val remaining = grossTotal - amountPaid
+        // If a bill already exists for this exact period (e.g. an old backfilled
+        // unpaid month being paid off), we settle that same bill directly —
+        // we never stack a second, duplicate charge on top of an existing period.
+        val existingBillForPeriod = _bills.value.find {
+            it.roomId == roomId && it.tenantId == tenantId &&
+                it.billingPeriod.equals(billingPeriod, ignoreCase = true)
+        }
 
-        val rentContribution = minOf(room.baseRent, amountPaid)
-        val elecContribution = (amountPaid - rentContribution).coerceAtLeast(0.0).coerceAtMost(electricityTotal)
+        // Every OTHER bill this tenant still owes on, oldest first. The period
+        // being lodged right now (if it already exists) is handled separately below.
+        val otherOutstanding = _bills.value
+            .filter {
+                it.roomId == roomId && it.tenantId == tenantId && it.remainingDue > 0.0 &&
+                    it.id != existingBillForPeriod?.id
+            }
+            .sortedBy { it.timestamp }
 
-        val newBill = Bill(
-            id = UUID.randomUUID().toString(),
-            roomId = roomId,
-            tenantId = tenantId,
-            billingPeriod = billingPeriod,
-            previousReading = prevReading,
-            currentReading = currentReading,
-            unitsConsumed = units,
-            electricityRate = room.electricityRate,
-            electricityAmount = electricityTotal,
-            baseRent = room.baseRent,
-            maintenanceAmount = maintenanceAmount,
-            totalPayable = grossTotal,
-            rentPaid = rentContribution,
-            electricityPaid = elecContribution,
-            amountPaid = amountPaid,
-            paymentMode = paymentMode,
-            remainingDue = remaining,
-            timestamp = System.currentTimeMillis()
-        )
+        var paymentLeft = amountPaid
 
-        _bills.value = _bills.value + newBill
+        // 1) Settle this exact period's existing bill first, if there is one.
+        val updatedExisting: Bill? = existingBillForPeriod?.let { existing ->
+            val due = existing.remainingDue.coerceAtLeast(0.0)
+            val applied = minOf(due, paymentLeft)
+            paymentLeft -= applied
+            val rentGap = (existing.baseRent - existing.rentPaid).coerceAtLeast(0.0)
+            val rentApplied = minOf(applied, rentGap)
+            val elecApplied = applied - rentApplied
+            existing.copy(
+                rentPaid = existing.rentPaid + rentApplied,
+                electricityPaid = existing.electricityPaid + elecApplied,
+                amountPaid = existing.amountPaid + applied,
+                remainingDue = existing.remainingDue - applied,
+                paymentMode = paymentMode
+            )
+        }
+
+        // 2) Whatever's left settles other outstanding arrears, oldest first.
+        val settledOthers = otherOutstanding.map { old ->
+            if (paymentLeft <= 0.0) return@map old
+            val applied = minOf(old.remainingDue, paymentLeft)
+            paymentLeft -= applied
+
+            // Within that old bill, apply its own share toward rent first, then electricity.
+            val rentGap = (old.baseRent - old.rentPaid).coerceAtLeast(0.0)
+            val rentApplied = minOf(applied, rentGap)
+            val elecApplied = applied - rentApplied
+
+            old.copy(
+                rentPaid = old.rentPaid + rentApplied,
+                electricityPaid = old.electricityPaid + elecApplied,
+                amountPaid = old.amountPaid + applied,
+                remainingDue = old.remainingDue - applied
+            )
+        }
+
+        val newBill: Bill
+
+        if (existingBillForPeriod != null) {
+            // No new row — this period's existing bill was already updated above.
+            newBill = updatedExisting!!
+            _bills.value = _bills.value.map { b ->
+                if (b.id == newBill.id) newBill else (settledOthers.find { it.id == b.id } ?: b)
+            }
+        } else {
+            // A genuinely new period. Whatever's left after arrears are cleared goes
+            // toward this month's rent, then electricity. Any surplus beyond this
+            // month's own charge becomes an advance credit rather than being dropped.
+            val prevReading = getLastRecordedMeterReading(roomId)
+            val units = (currentReading - prevReading).coerceAtLeast(0.0)
+            val electricityTotal = units * room.electricityRate
+            val currentMonthCharge = room.baseRent + electricityTotal + maintenanceAmount
+            val priorDue = otherOutstanding.sumOf { it.remainingDue }
+
+            val rentContribution = minOf(room.baseRent, paymentLeft)
+            val afterRent = (paymentLeft - rentContribution).coerceAtLeast(0.0)
+            val elecContribution = minOf(electricityTotal, afterRent)
+
+            newBill = Bill(
+                id = UUID.randomUUID().toString(),
+                roomId = roomId,
+                tenantId = tenantId,
+                billingPeriod = billingPeriod,
+                previousReading = prevReading,
+                currentReading = currentReading,
+                unitsConsumed = units,
+                electricityRate = room.electricityRate,
+                electricityAmount = electricityTotal,
+                baseRent = room.baseRent,
+                maintenanceAmount = maintenanceAmount,
+                totalPayable = currentMonthCharge + priorDue,
+                rentPaid = rentContribution,
+                electricityPaid = elecContribution,
+                amountPaid = amountPaid,
+                paymentMode = paymentMode,
+                remainingDue = currentMonthCharge - paymentLeft,
+                timestamp = System.currentTimeMillis()
+            )
+
+            _bills.value = _bills.value.map { b -> settledOthers.find { it.id == b.id } ?: b } + newBill
+        }
+
         saveToLocalStorage()
         syncBillToCloud(newBill)
+        settledOthers.forEach { syncBillToCloud(it) }
         return newBill
     }
 
