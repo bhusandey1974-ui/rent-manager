@@ -477,9 +477,17 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
         val room = _rooms.value.find { it.id == roomId }
         val tenantId = room?.currentTenantId.orEmpty()
 
-        val lastBill = _bills.value
-            .filter { it.roomId == roomId && it.tenantId == tenantId }
-            .maxByOrNull { it.timestamp }
+        val roomTenantBills = _bills.value.filter { it.roomId == roomId && it.tenantId == tenantId }
+
+        // Arrears take priority: settle the oldest unpaid month first.
+        val oldestUnpaid = roomTenantBills
+            .filter { it.remainingDue > 0.0 }
+            .minByOrNull { it.timestamp }
+        if (oldestUnpaid != null) {
+            return oldestUnpaid.billingPeriod
+        }
+
+        val lastBill = roomTenantBills.maxByOrNull { it.timestamp }
 
         if (lastBill != null) {
             try {
