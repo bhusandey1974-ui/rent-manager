@@ -366,8 +366,8 @@ fun confirmVacateRoom(
         }
 
         val totalCollected = filteredBills.sumOf { it.amountPaid }
-        val rentCollected = filteredBills.sumOf { it.rentPaid.takeIf { p -> p > 0 } ?: it.baseRent.coerceAtMost(it.amountPaid) }
-        val elecCollected = filteredBills.sumOf { it.electricityPaid.takeIf { p -> p > 0 } ?: (it.amountPaid - it.baseRent).coerceAtLeast(0.0) }
+        val rentCollected = filteredBills.sumOf { it.rentPaid }
+        val elecCollected = filteredBills.sumOf { it.electricityPaid }
         val maintCollected = filteredBills.sumOf { it.maintenanceAmount }
 
         val activeDues = _rooms.value.filter { it.isOccupied }.sumOf { room ->
