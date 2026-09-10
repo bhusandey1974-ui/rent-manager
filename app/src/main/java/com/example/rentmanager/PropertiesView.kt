@@ -370,7 +370,8 @@ fun PropertiesView(
                             onEditRoom = { roomForEditing = room },
                             onDeleteRoom = { roomForDeleting = room },
                             onConfirmVacate = { note -> vm.confirmVacateRoom(room.id, pendingDue, note) },
-                            onViewHistory = { roomForHistory = room }
+                            onViewHistory = { roomForHistory = room },
+                            onEditTenant = { tenant?.let { tenantForEditing = room to it } }
                         )
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -445,7 +446,7 @@ fun PropertiesView(
                 if (!allPaid && paidThroughMonthMillis != null) {
                     vm.backfillUnpaidRent(pending.room.id, newTenant.id, paidThroughMonthMillis)
                 }
-                pendingBackdatedEdit = null
+                pendingBackdatedAssignment = null
             }
         )
     }
@@ -518,4 +519,53 @@ fun PropertiesView(
             }
         )
     }
+
+    tenantForEditing?.let { (room, tenant) ->
+        EditTenantDialog(
+            tenant = tenant,
+            onDismiss = { tenantForEditing = null },
+            onConfirm = { name, phone, deposit, aadhaar, address, moveInMillis ->
+                val moveInChanged = moveInMillis != tenant.moveInDate
+                if (moveInChanged && vm.isBackdatedMoveIn(moveInMillis)) {
+                    pendingBackdatedEdit = PendingEdit(room, tenant, name, phone, deposit, aadhaar, address, moveInMillis)
+                    tenantForEditing = null
+                } else {
+                    vm.updateTenant(
+                        tenantId = tenant.id,
+                        name = name,
+                        phone = phone,
+                        deposit = deposit,
+                        aadhaarNumber = aadhaar,
+                        permanentAddress = address,
+                        moveInDateMillis = moveInMillis
+                    )
+                    tenantForEditing = null
+                }
+            }
+        )
+    }
+
+    pendingBackdatedEdit?.let { pending ->
+        MoveInDateBackfillDialog(
+            tenantName = pending.name,
+            moveInDateMillis = pending.moveInMillis,
+            onDismiss = { pendingBackdatedEdit = null },
+            onConfirm = { allPaid, paidThroughMonthMillis ->
+                vm.updateTenant(
+                    tenantId = pending.tenant.id,
+                    name = pending.name,
+                    phone = pending.phone,
+                    deposit = pending.deposit,
+                    aadhaarNumber = pending.aadhaar,
+                    permanentAddress = pending.address,
+                    moveInDateMillis = pending.moveInMillis
+                )
+                if (!allPaid && paidThroughMonthMillis != null) {
+                    vm.backfillUnpaidRent(pending.room.id, pending.tenant.id, paidThroughMonthMillis)
+                }
+                pendingBackdatedEdit = null
+            }
+        )
+    }
 }
+                    
