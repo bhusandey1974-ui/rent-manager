@@ -65,7 +65,8 @@ fun RoomCard(
     onEditRoom: () -> Unit,
     onDeleteRoom: () -> Unit,
     onConfirmVacate: (note: String) -> Unit,
-    onViewHistory: () -> Unit
+    onViewHistory: () -> Unit,
+    onEditTenant: () -> Unit = {}
 ) {
     var showDetails by remember { mutableStateOf(false) }
     var showVacateConfirm by remember { mutableStateOf(false) }
@@ -180,7 +181,8 @@ fun RoomCard(
             onEditRoom = { showDetails = false; onEditRoom() },
             onDeleteRoom = { showDetails = false; onDeleteRoom() },
             onVacateRoom = { showDetails = false; showVacateConfirm = true },
-            onViewHistory = { showDetails = false; onViewHistory() }
+            onViewHistory = { showDetails = false; onViewHistory() },
+            onEditTenant = { showDetails = false; onEditTenant() }
         )
     }
 
@@ -208,7 +210,8 @@ fun RoomDetailsDialog(
     onEditRoom: () -> Unit,
     onDeleteRoom: () -> Unit,
     onVacateRoom: () -> Unit,
-    onViewHistory: () -> Unit
+    onViewHistory: () -> Unit,
+    onEditTenant: () -> Unit = {}
 ) {
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH) }
 
@@ -266,12 +269,29 @@ fun RoomDetailsDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (room.isOccupied && tenant != null) {
-                    Text(
-                        text = "Tenant Details",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextPrimary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tenant Details",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                        IconButton(
+                            onClick = onEditTenant,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Edit tenant details",
+                                tint = AppColors.AzurePrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     DetailRow("Name", tenant.name)
                     DetailRow("Phone", tenant.phoneNumber)
@@ -400,3 +420,4 @@ private fun DetailRow(label: String, value: String) {
         Text(text = value, fontSize = 12.sp, color = AppColors.TextSecondary)
     }
 }
+
