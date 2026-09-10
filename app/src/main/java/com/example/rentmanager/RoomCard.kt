@@ -420,4 +420,3 @@ private fun DetailRow(label: String, value: String) {
         Text(text = value, fontSize = 12.sp, color = AppColors.TextSecondary)
     }
 }
-
