@@ -388,11 +388,9 @@ fun confirmVacateRoom(
         val activeTenantId = currentRoom.currentTenantId
         if (activeTenantId.isBlank()) return 0.0
 
-        val tenantBills = _bills.value
+        return _bills.value
             .filter { it.roomId == roomId && it.tenantId == activeTenantId }
-            .sortedByDescending { it.timestamp }
-
-        return if (tenantBills.isNotEmpty()) tenantBills.first().remainingDue else 0.0
+            .sumOf { it.remainingDue }
     }
 
 fun getTotalAdvance(): Double {
