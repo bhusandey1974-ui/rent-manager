@@ -520,6 +520,14 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
             .map { it.billingPeriod }
     }
 
+    /** Every billing period (paid or not) that already has a bill for this tenant, lowercased for easy matching. */
+    fun getExistingBillingPeriods(roomId: String, tenantId: String): Set<String> {
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId }
+            .map { it.billingPeriod.trim().lowercase(Locale.ENGLISH) }
+            .toSet()
+    }
+    
     fun lodgeBill(
         roomId: String,
         billingPeriod: String,
