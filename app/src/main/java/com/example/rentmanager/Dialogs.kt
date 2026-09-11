@@ -1057,27 +1057,36 @@ fun LodgeBillDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Base Rent:", fontSize = 12.sp, color = AppColors.TextSecondary)
-                            Text("₹${String.format(Locale.ENGLISH, "%.2f", room.baseRent)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Electricity (${units}u @ ₹${room.electricityRate}):", fontSize = 12.sp, color = AppColors.TextSecondary)
-                            Text("₹${String.format(Locale.ENGLISH, "%.2f", elecAmount)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        if (maintAmount > 0) {
+                        if (isExistingPeriod) {
+                            Text(
+                                text = "This period already has a bill — this payment settles outstanding dues only.",
+                                fontSize = 11.sp,
+                                color = AppColors.TextSecondary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        } else {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Maintenance:", fontSize = 12.sp, color = AppColors.TextSecondary)
-                                Text("₹${String.format(Locale.ENGLISH, "%.2f", maintAmount)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Base Rent:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", room.baseRent)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Electricity (${units}u @ ₹${room.electricityRate}):", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", elecAmount)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            if (maintAmount > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Maintenance:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                    Text("₹${String.format(Locale.ENGLISH, "%.2f", maintAmount)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         }
                         if (priorDueOrAdvance != 0.0) {
