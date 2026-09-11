@@ -1172,9 +1172,20 @@ fun LodgeBillDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Button(
+Button(
                     onClick = {
                         val lodgedBill = onBillLodged(billingPeriod, currReading, maintAmount, amountPaid, paymentMode)
+                        val snapshotAfter = vm.getBillsRemainingSnapshot(room.id, tenant.id)
+
+                        val settledNow = sortedByPeriod(
+                            snapshotAfter.filterKeys { period ->
+                                val before = snapshotBefore[period]
+                                val after = snapshotAfter[period] ?: 0.0
+                                after <= 0.0 && (before == null || before > 0.0)
+                            }.keys
+                        )
+                        val stillDue = sortedByPeriod(snapshotAfter.filter { it.value > 0.0 }.keys)
+
                         var receiptMsg = ReceiptFormatter.formatReceipt(
                             tenantName = tenant.name,
                             roomNumber = room.roomNumber,
@@ -1191,9 +1202,11 @@ fun LodgeBillDialog(
                             paymentMode = paymentMode,
                             remainingDue = remainingDue
                         )
-                        val stillOutstanding = outstandingMonths.filter { it != lodgedBill.billingPeriod }
-                        if (stillOutstanding.isNotEmpty()) {
-                            receiptMsg += "\n\n⚠️ You still have rent due for: ${stillOutstanding.joinToString(", ")}"
+                        if (settledNow.size > 1) {
+                            receiptMsg += "\n\n✅ Rent settled for: ${settledNow.joinToString(", ")}"
+                        }
+                        if (stillDue.isNotEmpty()) {
+                            receiptMsg += "\n\n⚠️ You still have rent due for: ${stillDue.joinToString(", ")}"
                         }
                         ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
                     },
