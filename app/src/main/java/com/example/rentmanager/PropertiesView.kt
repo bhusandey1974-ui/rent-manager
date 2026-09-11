@@ -462,6 +462,7 @@ fun PropertiesView(
 
             LodgeBillDialog(
                 context = context,
+                vm = vm,
                 room = room,
                 tenant = tenant,
                 previousReading = prevReading,
