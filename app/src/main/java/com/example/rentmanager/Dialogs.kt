@@ -877,6 +877,7 @@ fun LodgeBillDialog(
     priorDueOrAdvance: Double,
     suggestedBillingPeriod: String,
     outstandingMonths: List<String> = emptyList(),
+    existingBillingPeriods: Set<String> = emptySet(),
     onDismiss: () -> Unit,
     onBillLodged: (billingPeriod: String, currentReading: Double, maintenanceAmount: Double, amountPaid: Double, paymentMode: String) -> Bill
 ) {
@@ -886,11 +887,16 @@ fun LodgeBillDialog(
     var amountPaidStr by remember { mutableStateOf("") }
     var paymentMode by remember { mutableStateOf("Cash") }
 
+    // If this period already has a bill (e.g. an old backfilled unpaid month), that
+    // bill's own charge is already included inside priorDueOrAdvance — adding room's
+    // base rent/electricity again here would double-count it.
+    val isExistingPeriod = existingBillingPeriods.contains(billingPeriod.trim().lowercase(Locale.getDefault()))
+
     val currReading = currentReadingStr.toDoubleOrNull() ?: previousReading
     val units = (currReading - previousReading).coerceAtLeast(0.0)
     val elecAmount = units * room.electricityRate
     val maintAmount = maintenanceStr.toDoubleOrNull() ?: 0.0
-    val grossPayable = room.baseRent + elecAmount + maintAmount + priorDueOrAdvance
+    val grossPayable = if (isExistingPeriod) priorDueOrAdvance else (room.baseRent + elecAmount + maintAmount + priorDueOrAdvance)
     val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
     val remainingDue = grossPayable - amountPaid
 
