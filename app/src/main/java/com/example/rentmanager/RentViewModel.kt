@@ -558,24 +558,14 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
 
         var paymentLeft = amountPaid
 
-        // 1) Settle this exact period's existing bill first, if there is one.
-        val updatedExisting: Bill? = existingBillForPeriod?.let { existing ->
-            val due = existing.remainingDue.coerceAtLeast(0.0)
-            val applied = minOf(due, paymentLeft)
-            paymentLeft -= applied
-            val rentGap = (existing.baseRent - existing.rentPaid).coerceAtLeast(0.0)
-            val rentApplied = minOf(applied, rentGap)
-            val elecApplied = applied - rentApplied
-            existing.copy(
-                rentPaid = existing.rentPaid + rentApplied,
-                electricityPaid = existing.electricityPaid + elecApplied,
-                amountPaid = existing.amountPaid + applied,
-                remainingDue = existing.remainingDue - applied,
-                paymentMode = paymentMode
-            )
-        }
+        // 1) Set aside how much of this payment goes toward this exact period's own
+        //    bill (if any) — but don't finalize it yet, since a surplus after every
+        //    other due is cleared should still fold back into this bill as an advance.
+        val existingDue = existingBillForPeriod?.remainingDue?.coerceAtLeast(0.0) ?: 0.0
+        val existingApplied = minOf(existingDue, paymentLeft)
+        paymentLeft -= existingApplied
 
-        // 2) Whatever's left settles other outstanding arrears, oldest first.
+        // 2) Whatever's left after that settles other outstanding arrears, oldest first.
         val settledOthers = otherOutstanding.map { old ->
             if (paymentLeft <= 0.0) return@map old
             val applied = minOf(old.remainingDue, paymentLeft)
