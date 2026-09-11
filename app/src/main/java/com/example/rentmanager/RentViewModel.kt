@@ -527,6 +527,12 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
             .map { it.billingPeriod.trim().lowercase(Locale.ENGLISH) }
             .toSet()
     }
+    /** Snapshot of billingPeriod -> remainingDue for this tenant, taken before/after a payment to see what it settled. */
+    fun getBillsRemainingSnapshot(roomId: String, tenantId: String): Map<String, Double> {
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId }
+            .associate { it.billingPeriod to it.remainingDue }
+    }
     
     fun lodgeBill(
         roomId: String,
