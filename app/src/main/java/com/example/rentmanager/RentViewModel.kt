@@ -584,6 +584,23 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
             )
         }
 
+        // 3) Any genuine surplus left after every known due (including this period's
+        //    own bill) is cleared becomes an advance credit folded into this period's
+        //    bill, rather than being silently dropped.
+        val updatedExisting: Bill? = existingBillForPeriod?.let { existing ->
+            val totalApplied = existingApplied + paymentLeft
+            val rentGap = (existing.baseRent - existing.rentPaid).coerceAtLeast(0.0)
+            val rentApplied = minOf(totalApplied, rentGap)
+            val elecApplied = (totalApplied - rentApplied).coerceAtLeast(0.0)
+            existing.copy(
+                rentPaid = existing.rentPaid + rentApplied,
+                electricityPaid = existing.electricityPaid + elecApplied,
+                amountPaid = existing.amountPaid + totalApplied,
+                remainingDue = existing.remainingDue - totalApplied,
+                paymentMode = paymentMode
+            )
+        }
+
         val newBill: Bill
 
         if (existingBillForPeriod != null) {
