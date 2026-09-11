@@ -458,6 +458,7 @@ fun PropertiesView(
             val priorDue = vm.getPendingDueForCurrentTenant(room.id)
             val suggestedPeriod = vm.getSuggestedBillingPeriod(room.id)
             val outstanding = vm.getOutstandingUnpaidMonths(room.id, tenant.id)
+            val existingPeriods = vm.getExistingBillingPeriods(room.id, tenant.id)
 
             LodgeBillDialog(
                 context = context,
@@ -467,6 +468,7 @@ fun PropertiesView(
                 priorDueOrAdvance = priorDue,
                 suggestedBillingPeriod = suggestedPeriod,
                 outstandingMonths = outstanding,
+                existingBillingPeriods = existingPeriods,
                 onDismiss = { roomForBilling = null },
                 onBillLodged = { period, currReading, maint, amtPaid, mode ->
                     val bill = vm.lodgeBill(
