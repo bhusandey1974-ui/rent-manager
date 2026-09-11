@@ -868,6 +868,12 @@ fun RoomWiseBreakdownDialog(
         }
     }
 }
+private fun sortedByPeriod(periods: Collection<String>): List<String> {
+    val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+    return periods.sortedBy { p ->
+        try { sdf.parse(p)?.time ?: Long.MAX_VALUE } catch (e: Exception) { Long.MAX_VALUE }
+    }
+}
 @Composable
 fun LodgeBillDialog(
     context: Context,
