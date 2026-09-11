@@ -893,6 +893,7 @@ fun LodgeBillDialog(
     var maintenanceStr by remember { mutableStateOf("0") }
     var amountPaidStr by remember { mutableStateOf("") }
     var paymentMode by remember { mutableStateOf("Cash") }
+    val snapshotBefore = remember { vm.getBillsRemainingSnapshot(room.id, tenant.id) }
 
     // If this period already has a bill (e.g. an old backfilled unpaid month), that
     // bill's own charge is already included inside priorDueOrAdvance — adding room's
