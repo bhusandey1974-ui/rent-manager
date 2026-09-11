@@ -877,6 +877,7 @@ private fun sortedByPeriod(periods: Collection<String>): List<String> {
 @Composable
 fun LodgeBillDialog(
     context: Context,
+    vm: RentViewModel,
     room: Room,
     tenant: Tenant,
     previousReading: Double,
