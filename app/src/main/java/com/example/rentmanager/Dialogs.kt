@@ -2045,12 +2045,39 @@ fun RoomHistoryDialog(
                                             Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalMoneyCollected)}", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = AppColors.AzurePrimary)
                                         }
                                     }
+
+                                    if (!t.isCurrent && t.securityDeposit > 0.0) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Deposit: ₹${t.securityDeposit.toInt()}",
+                                                fontSize = 11.sp,
+                                                color = AppColors.TextSecondary
+                                            )
+                                            Text(
+                                                text = when (t.depositRefunded) {
+                                                    true -> "Refunded"
+                                                    false -> "Not Refunded"
+                                                    null -> "Unknown"
+                                                },
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when (t.depositRefunded) {
+                                                    true -> AppColors.EmeraldSuccess
+                                                    false -> AppColors.CrimsonAlert
+                                                    null -> AppColors.TextMuted
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedButton(
