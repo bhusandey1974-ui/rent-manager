@@ -313,6 +313,10 @@ fun RoomDetailsDialog(
                     DetailRow("Aadhaar", tenant.aadhaarNumber.ifBlank { "Not provided" })
                     DetailRow("Address", tenant.permanentAddress.ifBlank { "Not provided" })
                     DetailRow("Move-In Date", dateFormatter.format(Date(tenant.moveInDate)))
+                    DetailRow(
+                        "Deposit",
+                        if (tenant.securityDeposit > 0.0) "₹${tenant.securityDeposit.toInt()}" else "None"
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (pendingDue > 0)
