@@ -242,7 +242,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             permanentAddress = permanentAddress.trim(),
             moveInDate = moveInDateMillis,
             moveOutDate = null,
-            isCurrent = true
+            isCurrent = true,
+            securityDeposit = deposit
         )
         _tenants.value = _tenants.value + newTenant
 
