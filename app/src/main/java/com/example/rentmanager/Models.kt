@@ -56,9 +56,10 @@ data class Tenant(
     val moveOutDate: Long? = null,
     val isCurrent: Boolean = true,
     val finalSettlementAmount: Double = 0.0,
-    val settlementNote: String = ""
+    val settlementNote: String = "",
+    val securityDeposit: Double = 0.0,
+    val depositRefunded: Boolean? = null
 )
-
 data class Bill(
     val id: String = "",
     val roomId: String = "",
