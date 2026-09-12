@@ -701,12 +701,7 @@ fun VacateSettlementDialog(
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                 }
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Settlement Note (Optional)") },
-                    if (securityDeposit > 0.0) {
+                if (securityDeposit > 0.0) {
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.AzureContainer),
@@ -758,7 +753,12 @@ fun VacateSettlementDialog(
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
-                    }
+                }
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Settlement Note (Optional)") },
                     placeholder = { Text(if (isAdvance) "e.g. Refunded ₹${displayAmount.toInt()} in cash" else "e.g. Cleared final dues") },
                     singleLine = false,
                     maxLines = 2,
