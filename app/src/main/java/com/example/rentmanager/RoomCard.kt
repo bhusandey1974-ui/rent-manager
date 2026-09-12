@@ -193,10 +193,22 @@ fun RoomCard(
         VacateSettlementDialog(
             tenantName = tenant?.name ?: "Tenant",
             settlementAmount = pendingDue,
+            securityDeposit = tenant?.securityDeposit ?: 0.0,
             onDismiss = { showVacateConfirm = false },
-            onConfirm = { note ->
+            onConfirm = { note, depositRefunded ->
                 showVacateConfirm = false
-                onConfirmVacate(note)
+                if (tenant != null && tenant.phoneNumber.isNotBlank()) {
+                    val receiptMsg = ReceiptFormatter.formatVacateReceipt(
+                        tenantName = tenant.name,
+                        roomNumber = room.roomNumber,
+                        securityDeposit = tenant.securityDeposit,
+                        depositRefunded = depositRefunded,
+                        settlementAmount = pendingDue,
+                        settlementNote = note
+                    )
+                    ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
+                }
+                onConfirmVacate(note, depositRefunded)
             }
         )
     }
