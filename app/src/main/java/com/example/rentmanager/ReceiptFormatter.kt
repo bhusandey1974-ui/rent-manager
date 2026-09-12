@@ -25,6 +25,7 @@ object ReceiptFormatter {
         ratePerUnit: Double,
         totalElectricity: Double,
         baseRent: Double,
+        maintenanceAmount: Double = 0.0,
         totalAmount: Double,
         amountPaid: Double,
         paymentMode: String = "Cash",
@@ -52,12 +53,59 @@ object ReceiptFormatter {
             append("• Rate / Unit: ₹${String.format(Locale.ENGLISH, "%.2f", ratePerUnit)}\n")
             append("• Total Electricity: ₹${String.format(Locale.ENGLISH, "%.2f", totalElectricity)}\n\n")
             append("🏢 *Base Rent:* ₹${String.format(Locale.ENGLISH, "%.2f", baseRent)}\n")
+            if (maintenanceAmount > 0.0) {
+                append("🔧 *Maintenance:* ₹${String.format(Locale.ENGLISH, "%.2f", maintenanceAmount)}\n")
+            }
             append("🧾 *Total Amount:* ₹${String.format(Locale.ENGLISH, "%.2f", totalAmount)}\n")
             append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
             append("✅ *Amount Paid:* ₹${String.format(Locale.ENGLISH, "%.2f", amountPaid)} ($paymentMode)\n")
             append("$statusLine\n")
             append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
             append("Thank you!")
+        }
+    }
+
+    /**
+     * Builds the formatted WhatsApp receipt sent when a tenant vacates —
+     * covers final settlement and whether the security deposit was refunded.
+     */
+    fun formatVacateReceipt(
+        tenantName: String,
+        roomNumber: String,
+        moveOutDateMillis: Long = System.currentTimeMillis(),
+        securityDeposit: Double,
+        depositRefunded: Boolean,
+        settlementAmount: Double, // positive = tenant owed money, negative = tenant was owed (advance)
+        settlementNote: String = ""
+    ): String {
+        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH)
+        val formattedDate = dateFormat.format(Date(moveOutDateMillis))
+
+        val settlementLine = when {
+            settlementAmount > 0.0 -> "⚠️ *Outstanding Settled:* ₹${String.format(Locale.ENGLISH, "%.2f", settlementAmount)}"
+            settlementAmount < 0.0 -> "🎁 *Refunded (Advance/Overpayment):* ₹${String.format(Locale.ENGLISH, "%.2f", -settlementAmount)}"
+            else -> "✅ *Account Settled:* No dues either way"
+        }
+
+        return buildString {
+            append("🏠 *MOVE-OUT SETTLEMENT RECEIPT*\n")
+            append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+            append("👤 *Tenant:* $tenantName  (Room $roomNumber)\n")
+            append("🗓️ *Move-Out Date:* $formattedDate\n\n")
+            if (securityDeposit > 0.0) {
+                append("💰 *Security Deposit:* ₹${String.format(Locale.ENGLISH, "%.2f", securityDeposit)}\n")
+                append(
+                    if (depositRefunded) "✅ *Deposit Status:* Refunded\n"
+                    else "❌ *Deposit Status:* Not Refunded\n"
+                )
+                append("\n")
+            }
+            append("$settlementLine\n")
+            if (settlementNote.isNotBlank()) {
+                append("📝 *Note:* $settlementNote\n")
+            }
+            append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+            append("Thank you for staying with us!")
         }
     }
 
@@ -93,4 +141,3 @@ object ReceiptFormatter {
         }
     }
 }
-
