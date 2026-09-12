@@ -1393,7 +1393,7 @@ fun EditTenantDialog(
     var phone by remember { mutableStateOf(tenant.phoneNumber) }
     var aadhaar by remember { mutableStateOf(tenant.aadhaarNumber) }
     var address by remember { mutableStateOf(tenant.permanentAddress) }
-    var deposit by remember { mutableStateOf("") }
+     var deposit by remember { mutableStateOf(if (tenant.securityDeposit > 0.0) tenant.securityDeposit.toString() else "") }
     var moveInDateMillis by remember { mutableStateOf(tenant.moveInDate) }
     var showDatePicker by remember { mutableStateOf(false) }
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
