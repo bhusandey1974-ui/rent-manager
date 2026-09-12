@@ -293,6 +293,7 @@ fun confirmVacateRoom(
     roomId: String,
     settlementAmount: Double,
     settlementNote: String,
+    depositRefunded: Boolean,
     moveOutDateMillis: Long = System.currentTimeMillis()
 ) {
     val room = _rooms.value.find { it.id == roomId } ?: return
@@ -305,7 +306,8 @@ fun confirmVacateRoom(
                     isCurrent = false,
                     moveOutDate = moveOutDateMillis,
                     finalSettlementAmount = settlementAmount,
-                    settlementNote = settlementNote
+                    settlementNote = settlementNote,
+                    depositRefunded = depositRefunded
                 )
                 syncTenantToCloud(vacated)
                 vacated
@@ -320,7 +322,6 @@ fun confirmVacateRoom(
     saveToLocalStorage()
     _rooms.value.find { it.id == roomId }?.let { syncRoomToCloud(it) }
 }
-
     fun getRoomTenancyHistory(roomId: String): List<TenantHistorySummary> {
         val roomTenants = _tenants.value
             .filter { it.roomId == roomId }
