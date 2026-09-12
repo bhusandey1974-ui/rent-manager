@@ -1,4 +1,4 @@
-wwwpackage com.example.rentmanager.ui.components
+package com.example.rentmanager.ui.components
 
 import android.content.Context
 import android.app.DatePickerDialog
