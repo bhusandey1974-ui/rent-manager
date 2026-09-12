@@ -706,6 +706,59 @@ fun VacateSettlementDialog(
                     value = note,
                     onValueChange = { note = it },
                     label = { Text("Settlement Note (Optional)") },
+                    if (securityDeposit > 0.0) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.AzureContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "Security Deposit Held: ₹${String.format(Locale.ENGLISH, "%.2f", securityDeposit)}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AppColors.TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Was this deposit refunded to the tenant?",
+                                fontSize = 12.sp,
+                                color = AppColors.TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { depositRefunded = true },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = if (depositRefunded)
+                                        ButtonDefaults.outlinedButtonColors(containerColor = AppColors.EmeraldSuccess.copy(alpha = 0.15f))
+                                    else
+                                        ButtonDefaults.outlinedButtonColors(),
+                                    border = BorderStroke(1.dp, if (depositRefunded) AppColors.EmeraldSuccess else AppColors.BorderSubtle)
+                                ) {
+                                    Text("Yes, Refunded", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                }
+                                OutlinedButton(
+                                    onClick = { depositRefunded = false },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = if (!depositRefunded)
+                                        ButtonDefaults.outlinedButtonColors(containerColor = AppColors.CrimsonAlert.copy(alpha = 0.12f))
+                                    else
+                                        ButtonDefaults.outlinedButtonColors(),
+                                    border = BorderStroke(1.dp, if (!depositRefunded) AppColors.CrimsonAlert else AppColors.BorderSubtle)
+                                ) {
+                                    Text("Not Refunded", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    }
                     placeholder = { Text(if (isAdvance) "e.g. Refunded ₹${displayAmount.toInt()} in cash" else "e.g. Cleared final dues") },
                     singleLine = false,
                     maxLines = 2,
