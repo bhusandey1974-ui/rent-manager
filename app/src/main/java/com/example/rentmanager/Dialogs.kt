@@ -1,4 +1,4 @@
-package com.example.rentmanager.ui.components
+wwwpackage com.example.rentmanager.ui.components
 
 import android.content.Context
 import android.app.DatePickerDialog
@@ -1252,6 +1252,7 @@ Button(
                             ratePerUnit = room.electricityRate,
                             totalElectricity = elecAmount,
                             baseRent = room.baseRent,
+                            maintenanceAmount = maintAmount,
                             totalAmount = grossPayable,
                             amountPaid = amountPaid,
                             paymentMode = paymentMode,
