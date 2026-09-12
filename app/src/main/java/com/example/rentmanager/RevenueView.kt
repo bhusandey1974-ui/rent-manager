@@ -481,9 +481,16 @@ private fun BillDetailRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Rent + Elec", fontSize = 9.sp, color = AppColors.TextSecondary)
                     Text(
-                        text = "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()}",
+                        text = if (bill.maintenanceAmount > 0) "Rent + Elec + Maint" else "Rent + Elec",
+                        fontSize = 9.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Text(
+                        text = if (bill.maintenanceAmount > 0)
+                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()} + ₹${bill.maintenanceAmount.toInt()}"
+                        else
+                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = AppColors.TextPrimary
