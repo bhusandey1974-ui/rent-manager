@@ -275,7 +275,8 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                     phoneNumber = phone.trim(),
                     aadhaarNumber = aadhaarNumber.trim(),
                     permanentAddress = permanentAddress.trim(),
-                    moveInDate = moveInDateMillis ?: t.moveInDate
+                    moveInDate = moveInDateMillis ?: t.moveInDate,
+                    securityDeposit = deposit
                 )
                 syncTenantToCloud(updated)
                 updated
