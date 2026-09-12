@@ -369,7 +369,7 @@ fun PropertiesView(
                             onLodgeBill = { roomForBilling = room },
                             onEditRoom = { roomForEditing = room },
                             onDeleteRoom = { roomForDeleting = room },
-                            onConfirmVacate = { note -> vm.confirmVacateRoom(room.id, pendingDue, note) },
+                            onConfirmVacate = { note, depositRefunded -> vm.confirmVacateRoom(room.id, pendingDue, note, depositRefunded) },
                             onViewHistory = { roomForHistory = room },
                             onEditTenant = { tenant?.let { tenantForEditing = room to it } }
                         )
