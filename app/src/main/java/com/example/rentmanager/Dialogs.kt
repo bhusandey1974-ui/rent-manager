@@ -786,7 +786,7 @@ fun VacateSettlementDialog(
                     }
 
                     Button(
-                        onClick = { onConfirm(note) },
+                        onClick = { onConfirm(note, depositRefunded) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
