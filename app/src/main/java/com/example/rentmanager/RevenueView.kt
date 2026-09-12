@@ -451,6 +451,7 @@ private fun BillDetailRow(
                                 ratePerUnit = bill.electricityRate,
                                 totalElectricity = bill.electricityAmount,
                                 baseRent = bill.baseRent,
+                                maintenanceAmount = bill.maintenanceAmount,
                                 totalAmount = bill.totalPayable,
                                 amountPaid = bill.amountPaid,
                                 paymentMode = bill.paymentMode,
