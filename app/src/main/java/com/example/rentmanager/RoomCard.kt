@@ -66,10 +66,11 @@ fun RoomCard(
     onLodgeBill: () -> Unit,
     onEditRoom: () -> Unit,
     onDeleteRoom: () -> Unit,
-    onConfirmVacate: (note: String) -> Unit,
+    onConfirmVacate: (note: String, depositRefunded: Boolean) -> Unit,
     onViewHistory: () -> Unit,
     onEditTenant: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var showDetails by remember { mutableStateOf(false) }
     var showVacateConfirm by remember { mutableStateOf(false) }
 
