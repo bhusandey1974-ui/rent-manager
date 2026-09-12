@@ -603,10 +603,12 @@ fun AssignTenantDialog(
 fun VacateSettlementDialog(
     tenantName: String,
     settlementAmount: Double, // positive = tenant owes you, negative = you owe tenant (advance)
+    securityDeposit: Double = 0.0,
     onDismiss: () -> Unit,
-    onConfirm: (note: String) -> Unit
+    onConfirm: (note: String, depositRefunded: Boolean) -> Unit
 ) {
     var note by remember { mutableStateOf("") }
+    var depositRefunded by remember { mutableStateOf(true) }
 
     val isAdvance = settlementAmount < 0.0
     val displayAmount = kotlin.math.abs(settlementAmount)
