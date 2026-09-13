@@ -214,11 +214,11 @@ fun RevenueView(vm: RentViewModel) {
                 totalCollections = revenueSummary.totalCollected,
                 rentTotal = revenueSummary.rentCollected,
                 electricityTotal = revenueSummary.electricityCollected,
+                maintenanceTotal = revenueSummary.maintenanceCollected,
                 duesTotal = revenueSummary.activeDues,
                 advanceTotal = vm.getTotalAdvance(),
                 forCurrentYearOnly = isCurrentYearOnly
             )
-
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
