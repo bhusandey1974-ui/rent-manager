@@ -1,3 +1,5 @@
+
+
 package com.example.rentmanager
 
 import android.app.Application
@@ -711,7 +713,7 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
                 unitsConsumed = 0.0,
                 electricityRate = room.electricityRate,
                 electricityAmount = 0.0,
-                baseRent = room.baseRent,
+                baseRent = proratedBaseRent,
                 maintenanceAmount = 0.0,
                 totalPayable = room.baseRent,
                 rentPaid = 0.0,
