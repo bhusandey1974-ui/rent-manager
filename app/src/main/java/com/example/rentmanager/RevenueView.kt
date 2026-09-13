@@ -727,7 +727,7 @@ private fun RevenueStatBox(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "₹${String.format(Locale.ENGLISH, "%,.0f", amount)}",
+                text = "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = color
