@@ -571,6 +571,7 @@ fun RevenueCollectionsCard(
     totalCollections: Double,
     rentTotal: Double,
     electricityTotal: Double,
+    maintenanceTotal: Double,
     duesTotal: Double,
     advanceTotal: Double,
     forCurrentYearOnly: Boolean
