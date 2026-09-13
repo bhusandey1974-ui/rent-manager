@@ -441,7 +441,7 @@ private fun BillDetailRow(
 
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = AppColors.ScaffoldBackground,
+        color = AppColors.SurfaceWhite,
         border = BorderStroke(1.dp, AppColors.BorderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
