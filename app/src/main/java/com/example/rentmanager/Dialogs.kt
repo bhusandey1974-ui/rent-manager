@@ -2019,7 +2019,7 @@ fun RoomHistoryDialog(
                                     // Row 3: Identity info
                                     Text("Phone: ${t.phoneNumber}", fontSize = 12.sp, color = AppColors.TextPrimary)
                                     if (t.aadhaarNumber.isNotBlank()) {
-                                        Text("Aadhaar: [Aadhaar Redacted]", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                        Text("Aadhaar: ${t.aadhaarNumber}", fontSize = 12.sp, color = AppColors.TextPrimary)
                                     }
                                     if (t.permanentAddress.isNotBlank()) {
                                         Text("Address: ${t.permanentAddress}", fontSize = 12.sp, color = AppColors.TextSecondary, maxLines = 2)
