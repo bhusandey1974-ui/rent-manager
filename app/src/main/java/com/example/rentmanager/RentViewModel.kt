@@ -334,12 +334,11 @@ fun confirmVacateRoom(
             val daysStayed = (durationMillis / (1000L * 60 * 60 * 24)).coerceAtLeast(1L)
 
             val tenantBills = _bills.value.filter { it.tenantId == tenant.id }
-            val totalRent = tenantBills.sumOf { it.rentPaid.takeIf { p -> p > 0 } ?: it.baseRent.coerceAtMost(it.amountPaid) }
-            val totalElec = tenantBills.sumOf { it.electricityPaid.takeIf { p -> p > 0 } ?: (it.amountPaid - it.baseRent).coerceAtLeast(0.0) }
+            val totalRent = tenantBills.sumOf { it.rentPaid }
+            val totalElec = tenantBills.sumOf { it.electricityPaid }
             val totalMoney = tenantBills.sumOf { it.amountPaid }
 
-            val latestBill = tenantBills.maxByOrNull { it.timestamp }
-            val pendingDue = latestBill?.remainingDue ?: 0.0
+            val pendingDue = tenantBills.sumOf { it.remainingDue }
 
             TenantHistorySummary(
                 tenant = tenant,
