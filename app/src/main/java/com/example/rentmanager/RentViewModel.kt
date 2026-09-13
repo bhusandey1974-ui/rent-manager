@@ -514,10 +514,22 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
         }
 
         val cal = Calendar.getInstance()
-        if (_billingConvention.value == BillingConvention.PREVIOUS_MONTH) {
-            cal.add(Calendar.MONTH, -1)
-        }
-        return sdf.format(cal.time)
+if (_billingConvention.value == BillingConvention.PREVIOUS_MONTH) {
+    cal.add(Calendar.MONTH, -1)
+}
+
+val tenant = _tenants.value.find { it.id == tenantId }
+if (tenant != null) {
+    val moveInCal = Calendar.getInstance()
+    moveInCal.timeInMillis = tenant.moveInDate
+    val calBeforeMoveIn = cal.get(Calendar.YEAR) < moveInCal.get(Calendar.YEAR) ||
+        (cal.get(Calendar.YEAR) == moveInCal.get(Calendar.YEAR) && cal.get(Calendar.MONTH) < moveInCal.get(Calendar.MONTH))
+    if (calBeforeMoveIn) {
+        cal.timeInMillis = tenant.moveInDate
+    }
+}
+
+return sdf.format(cal.time)
     }
 
     /**
