@@ -250,6 +250,34 @@ fun RevenueView(vm: RentViewModel) {
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (recentBillsByRoom.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "RECENT BY ROOM",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextMuted,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                        items(recentBillsByRoom, key = { "recent-${it.id}" }) { bill ->
+                            BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Divider(color = AppColors.BorderSubtle)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "BY YEAR",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextMuted,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                            )
+                        }
+                    }
                     items(yearGroups, key = { it.year }) { yearGroup ->
                         YearGroupCard(
                             yearGroup = yearGroup,
