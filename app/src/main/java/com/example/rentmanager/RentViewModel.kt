@@ -634,6 +634,18 @@ val elecApplied = minOf(afterRent, elecGap)
             val prevReading = getLastRecordedMeterReading(roomId)
             val units = (currentReading - prevReading).coerceAtLeast(0.0)
             val electricityTotal = units * room.electricityRate
+            val tenant = _tenants.value.find { it.id == tenantId }
+val billPeriodCal = Calendar.getInstance()
+try {
+    SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).parse(billingPeriod.trim())?.let { billPeriodCal.time = it }
+} catch (e: Exception) { /* fall back to current calendar values below */ }
+
+val isJoinMonth = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.let {
+    it.get(Calendar.YEAR) == billPeriodCal.get(Calendar.YEAR) && it.get(Calendar.MONTH) == billPeriodCal.get(Calendar.MONTH)
+}
+val joinedAfter15th = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.get(Calendar.DAY_OF_MONTH) > 15
+
+val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 else room.baseRent
             val currentMonthCharge = room.baseRent + electricityTotal + maintenanceAmount
             val priorDue = otherOutstanding.sumOf { it.remainingDue }
 
