@@ -643,8 +643,16 @@ fun RevenueCollectionsCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                RevenueStatBox(
+                    icon = Icons.Rounded.Handyman,
+                    label = "Maint.",
+                    amount = maintenanceTotal,
+                    color = AppColors.TextSecondary,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "maintenance" }
+                )
                 RevenueStatBox(
                     icon = Icons.Rounded.WarningAmber,
                     label = "Dues",
