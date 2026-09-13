@@ -718,10 +718,12 @@ private fun RevenueStatBox(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = label,
-                    fontSize = 12.sp,
-                    color = color
-                )
+    text = label,
+    fontSize = 12.sp,
+    color = color,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis
+)
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
