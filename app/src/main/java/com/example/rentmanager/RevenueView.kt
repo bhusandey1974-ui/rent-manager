@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DoorFront
 import androidx.compose.material.icons.rounded.Home
+
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Savings
@@ -147,8 +148,6 @@ fun RevenueView(vm: RentViewModel) {
                 totalCollected = billsThisYear.sumOf { it.amountPaid }
             )
         }
-    }
-
     }
 
     // Each room's single most recent bill, in room order — a quick "what's the latest" snapshot.
