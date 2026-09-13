@@ -609,7 +609,7 @@ fun RevenueCollectionsCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "₹${String.format(Locale.ENGLISH, "%,.0f", totalCollections)}",
+                text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Medium,
                 color = AppColors.TextPrimary
