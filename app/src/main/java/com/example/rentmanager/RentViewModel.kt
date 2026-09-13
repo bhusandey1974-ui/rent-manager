@@ -660,7 +660,7 @@ val isJoinMonth = tenant != null && Calendar.getInstance().apply { timeInMillis 
 val joinedAfter15th = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.get(Calendar.DAY_OF_MONTH) > 15
 
 val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 else room.baseRent
-            val currentMonthCharge = proratedBaseRent + electricityTotal + maintenanceAmount
+            val currentMonthCharge = kotlin.math.round(proratedBaseRent + electricityTotal + maintenanceAmount)
             val priorDue = otherOutstanding.sumOf { it.remainingDue }
 
             val rentContribution = minOf(proratedBaseRent, paymentLeft)
