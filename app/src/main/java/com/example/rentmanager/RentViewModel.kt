@@ -649,7 +649,7 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
             val currentMonthCharge = proratedBaseRent + electricityTotal + maintenanceAmount
             val priorDue = otherOutstanding.sumOf { it.remainingDue }
 
-            val rentContribution = minOf(room.baseRent, paymentLeft)
+            val rentContribution = minOf(proratedBaseRent, paymentLeft)
             val afterRent = (paymentLeft - rentContribution).coerceAtLeast(0.0)
             val elecContribution = minOf(electricityTotal, afterRent)
 
