@@ -149,6 +149,15 @@ fun RevenueView(vm: RentViewModel) {
         }
     }
 
+    }
+
+    // Each room's single most recent bill, in room order — a quick "what's the latest" snapshot.
+    val recentBillsByRoom = remember(filteredBills, rooms) {
+        rooms.mapNotNull { room ->
+            filteredBills.filter { it.roomId == room.id }.maxByOrNull { it.timestamp }
+        }
+    }
+
     var expandedYears by remember { mutableStateOf(setOf<Int>()) }
     var expandedMonthKeys by remember { mutableStateOf(setOf<String>()) }
 
