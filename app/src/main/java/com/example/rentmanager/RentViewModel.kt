@@ -444,6 +444,14 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
                 if (due < 0.0) RoomWiseAmount(room.roomNumber, kotlin.math.abs(due)) else null
             }.sortedBy { it.roomNumber }
         }
+        "maintenance" -> {
+            _rooms.value.mapNotNull { room ->
+                val total = filteredBills
+                    .filter { it.roomId == room.id }
+                    .sumOf { it.maintenanceAmount }
+                if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
+            }.sortedBy { it.roomNumber }
+        }
         else -> emptyList()
     }
 }
