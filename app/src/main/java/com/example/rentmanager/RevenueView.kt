@@ -103,7 +103,7 @@ private fun parseBillYearMonth(bill: Bill): Pair<Int, Int> {
 fun RevenueView(vm: RentViewModel) {
     val context = LocalContext.current
     val bills by vm.bills.collectAsState()
-
+    val rooms by vm.rooms.collectAsState()
     var isCurrentYearOnly by remember { mutableStateOf(true) }
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
     val revenueSummary = vm.getRevenueSummary(forCurrentYearOnly = isCurrentYearOnly)
