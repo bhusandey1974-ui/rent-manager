@@ -647,7 +647,7 @@ val elecApplied = minOf(afterRent, elecGap)
             // month's own charge becomes an advance credit rather than being dropped.
             val prevReading = getLastRecordedMeterReading(roomId)
             val units = (currentReading - prevReading).coerceAtLeast(0.0)
-            val electricityTotal = units * room.electricityRate
+            val electricityTotal = kotlin.math.round(units * room.electricityRate)
             val tenant = _tenants.value.find { it.id == tenantId }
 val billPeriodCal = Calendar.getInstance()
 try {
