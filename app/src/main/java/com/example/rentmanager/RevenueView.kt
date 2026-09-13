@@ -536,7 +536,7 @@ private fun BillDetailRow(
                 Column {
                     Text("Paid (${bill.paymentMode})", fontSize = 9.sp, color = AppColors.TextSecondary)
                     Text(
-                        text = "₹${String.format(Locale.ENGLISH, "%.0f", bill.amountPaid)}",
+                        text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.amountPaid)}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.EmeraldSuccess
