@@ -606,8 +606,10 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
         val updatedExisting: Bill? = existingBillForPeriod?.let { existing ->
             val totalApplied = existingApplied + paymentLeft
             val rentGap = (existing.baseRent - existing.rentPaid).coerceAtLeast(0.0)
-            val rentApplied = minOf(totalApplied, rentGap)
-            val elecApplied = (totalApplied - rentApplied).coerceAtLeast(0.0)
+val rentApplied = minOf(totalApplied, rentGap)
+val afterRent = totalApplied - rentApplied
+val elecGap = (existing.electricityAmount - existing.electricityPaid).coerceAtLeast(0.0)
+val elecApplied = minOf(afterRent, elecGap)
             existing.copy(
                 rentPaid = existing.rentPaid + rentApplied,
                 electricityPaid = existing.electricityPaid + elecApplied,
