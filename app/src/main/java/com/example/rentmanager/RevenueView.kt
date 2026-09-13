@@ -546,7 +546,7 @@ private fun BillDetailRow(
                     Text("Status", fontSize = 9.sp, color = AppColors.TextSecondary)
                     if (bill.remainingDue > 0) {
                         Text(
-                            text = "₹${String.format(Locale.ENGLISH, "%.0f", bill.remainingDue)} Due",
+                            text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.remainingDue)} Due",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppColors.CrimsonAlert
