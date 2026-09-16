@@ -59,6 +59,7 @@ import com.example.rentmanager.Tenant
 import com.example.rentmanager.ui.components.AddPropertyDialog
 import com.example.rentmanager.ui.components.AddRoomDialog
 import com.example.rentmanager.ui.components.AssignTenantDialog
+import com.example.rentmanager.ui.components.BannerAdView
 import com.example.rentmanager.ui.components.DeleteConfirmationDialog
 import com.example.rentmanager.ui.components.EditRoomDialog
 import com.example.rentmanager.ui.components.EditTenantDialog
@@ -377,6 +378,10 @@ fun PropertiesView(
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
+            BannerAdView(
+                adUnitId = "ca-app-pub-4334614941668154/7590527977",
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
         }
     }
         // ==========================================
