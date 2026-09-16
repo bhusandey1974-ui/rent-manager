@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = android.graphics.Color.WHITE
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
 
+        // Initialize AdMob
+    MobileAds.initialize(this) {}
+
         setContent {
             RentManagerTheme {
                 MainAppRoot(viewModel = viewModel)
