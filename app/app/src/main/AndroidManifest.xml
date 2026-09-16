@@ -8,6 +8,11 @@
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.NoTitleBar">
+        
+        <meta-data
+    android:name="com.google.android.gms.ads.APPLICATION_ID"
+    android:value="ca-app-pub-4334614941668154~8907479071"/>
+        
         <activity
             android:name=".MainActivity"
             android:exported="true">
