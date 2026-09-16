@@ -48,6 +48,7 @@ import com.example.rentmanager.ui.components.SettingsDialog
 import com.example.rentmanager.ui.screens.AuthView
 import com.example.rentmanager.ui.screens.PropertiesView
 import com.example.rentmanager.ui.screens.RevenueView
+import com.google.android.gms.ads.MobileAds
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
