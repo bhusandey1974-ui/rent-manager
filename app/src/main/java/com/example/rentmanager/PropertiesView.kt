@@ -378,10 +378,10 @@ fun PropertiesView(
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
-            BannerAdView(
-                adUnitId = "ca-app-pub-4334614941668154/7590527977",
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
+            //BannerAdView(
+            //     adUnitId = "ca-app-pub-4334614941668154/7590527977",
+            //     modifier = Modifier.padding(vertical = 4.dp)
+            //)
         }
     }
         // ==========================================
