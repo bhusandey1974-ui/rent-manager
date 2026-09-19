@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
 
         // Initialize AdMob
-    MobileAds.initialize(this) {}
+        // MobileAds.initialize(this) {}
 
         setContent {
             RentManagerTheme {
