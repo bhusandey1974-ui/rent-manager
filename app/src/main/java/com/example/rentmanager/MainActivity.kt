@@ -56,23 +56,25 @@ class MainActivity : ComponentActivity() {
     private val viewModel: RentViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    super.onCreate(savedInstanceState)
+    android.widget.Toast.makeText(this, "Checkpoint 1: super.onCreate done", android.widget.Toast.LENGTH_SHORT).show()
 
-        // Match status bar to app's white surface color with dark icons
-        window.statusBarColor = android.graphics.Color.WHITE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+    window.statusBarColor = android.graphics.Color.WHITE
+    android.widget.Toast.makeText(this, "Checkpoint 2: status bar set", android.widget.Toast.LENGTH_SHORT).show()
 
-        // Initialize AdMob
-        // MobileAds.initialize(this) {}
+    WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+    android.widget.Toast.makeText(this, "Checkpoint 3: insets controller done", android.widget.Toast.LENGTH_SHORT).show()
 
-        setContent {
-            RentManagerTheme {
-                MainAppRoot(viewModel = viewModel)
-            }
+    // MobileAds.initialize(this) {}
+    android.widget.Toast.makeText(this, "Checkpoint 4: before setContent", android.widget.Toast.LENGTH_SHORT).show()
+
+    setContent {
+        RentManagerTheme {
+            MainAppRoot(viewModel = viewModel)
         }
     }
-}
-
+    android.widget.Toast.makeText(this, "Checkpoint 5: setContent done", android.widget.Toast.LENGTH_SHORT).show()
+    }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppRoot(viewModel: RentViewModel) {
