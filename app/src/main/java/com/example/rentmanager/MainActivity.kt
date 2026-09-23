@@ -204,3 +204,4 @@ fun MainAppRoot(viewModel: RentViewModel) {
         }
     }
 }
+}
