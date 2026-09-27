@@ -57,7 +57,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     val selectedPropertyId: StateFlow<String?> = _selectedPropertyId.asStateFlow()
 
     private val _rooms = MutableStateFlow<List<Room>>(emptyList())
-    val rooms: StateFlow<List<Room>> = _rooms.asStateFlow()
+    val rooms: StateFlow<List<Room>> = _rooms
+        .map { list -> list.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _tenants = MutableStateFlow<List<Tenant>>(emptyList())
     val tenants: StateFlow<List<Tenant>> = _tenants.asStateFlow()
