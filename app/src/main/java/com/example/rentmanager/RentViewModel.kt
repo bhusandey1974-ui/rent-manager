@@ -1,5 +1,3 @@
-
-
 package com.example.rentmanager
 
 import android.app.Application
@@ -1018,35 +1016,66 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
         val user = auth.currentUser ?: return
         val uid = user.uid
 
+        // IMPORTANT: cloud data is merged INTO local data, never used to replace it.
+        // Local storage is always the freshest copy (writes land there instantly),
+        // while the matching Firestore upload can still be in flight. Blindly
+        // overwriting with whatever the cloud returns caused tenant assignments
+        // and other recent edits to randomly "disappear" until the delayed
+        // upload eventually caught up. Cloud is only used to bring in items this
+        // device doesn't have yet (e.g. after a reinstall or on a new device).
+
         firestore.collection("users").document(uid).collection("properties")
             .get().addOnSuccessListener { snaps ->
                 if (!snaps.isEmpty) {
-                    _properties.value = snaps.toObjects(Property::class.java)
+                    val cloud = snaps.toObjects(Property::class.java)
+                    val localIds = _properties.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _properties.value = _properties.value + missing
+                        saveToLocalStorage()
+                    }
                 }
             }
 
         firestore.collection("users").document(uid).collection("rooms")
             .get().addOnSuccessListener { snaps ->
                 if (!snaps.isEmpty) {
-                    _rooms.value = snaps.toObjects(Room::class.java)
+                    val cloud = snaps.toObjects(Room::class.java)
+                    val localIds = _rooms.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _rooms.value = _rooms.value + missing
+                        saveToLocalStorage()
+                    }
                 }
             }
 
         firestore.collection("users").document(uid).collection("tenants")
             .get().addOnSuccessListener { snaps ->
                 if (!snaps.isEmpty) {
-                    _tenants.value = snaps.toObjects(Tenant::class.java)
+                    val cloud = snaps.toObjects(Tenant::class.java)
+                    val localIds = _tenants.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _tenants.value = _tenants.value + missing
+                        saveToLocalStorage()
+                    }
                 }
             }
 
         firestore.collection("users").document(uid).collection("bills")
             .get().addOnSuccessListener { snaps ->
                 if (!snaps.isEmpty) {
-                    _bills.value = snaps.toObjects(Bill::class.java)
+                    val cloud = snaps.toObjects(Bill::class.java)
+                    val localIds = _bills.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _bills.value = _bills.value + missing
+                        saveToLocalStorage()
+                    }
                 }
             }
     }
-
     private fun syncPropertyToCloud(prop: Property) {
         val uid = auth.currentUser?.uid ?: return
         firestore.collection("users").document(uid).collection("properties")
