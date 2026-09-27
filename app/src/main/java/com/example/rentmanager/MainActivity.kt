@@ -56,20 +56,21 @@ class MainActivity : ComponentActivity() {
     private val viewModel: RentViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    super.onCreate(savedInstanceState)
+        super.onCreate(savedInstanceState)
 
-    window.statusBarColor = android.graphics.Color.WHITE
-    WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+        window.statusBarColor = android.graphics.Color.WHITE
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
 
-    MobileAds.initialize(this) {}
+        MobileAds.initialize(this) {}
 
-    setContent {
-        RentManagerTheme {
-            MainAppRoot(viewModel = viewModel)
+        setContent {
+            RentManagerTheme {
+                MainAppRoot(viewModel = viewModel)
+            }
         }
     }
-    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppRoot(viewModel: RentViewModel) {
@@ -198,5 +199,4 @@ fun MainAppRoot(viewModel: RentViewModel) {
             )
         }
     }
-}
 }
