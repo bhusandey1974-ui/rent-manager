@@ -9,6 +9,13 @@ android {
     namespace = "com.example.rentmanager"
     compileSdk = 36
 
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "RentManager-${versionName}-${name}.apk"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.rentmanager"
         minSdk = 24
