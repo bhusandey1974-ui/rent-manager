@@ -84,7 +84,10 @@ fun MainAppRoot(viewModel: RentViewModel) {
 
     if (!isAuthenticated) {
         AuthView(
-            onAuthSuccess = { isAuthenticated = true },
+            onAuthSuccess = {
+                isAuthenticated = true
+                viewModel.refreshFromCloud()
+            },
             onContinueAsGuest = { isAuthenticated = true }
         )
     } else {
