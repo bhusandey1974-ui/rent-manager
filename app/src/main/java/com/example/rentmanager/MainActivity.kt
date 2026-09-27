@@ -62,8 +62,6 @@ class MainActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
 
         MobileAds.initialize(this) {}
-        com.example.rentmanager.ui.components.RewardedAdManager.loadAd(this)
-
         setContent {
             RentManagerTheme {
                 MainAppRoot(viewModel = viewModel)
