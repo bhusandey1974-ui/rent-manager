@@ -101,6 +101,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
 
     fun signOut(onComplete: () -> Unit) {
         auth.signOut()
+        prefs.edit().clear().apply()
         _properties.value = emptyList()
         _rooms.value = emptyList()
         _tenants.value = emptyList()
@@ -108,6 +109,11 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         _selectedPropertyId.value = null
         loadFromLocalStorage()
         onComplete()
+    }
+
+    /** Call this right after a successful sign-in so cloud data loads without needing an app restart. */
+    fun refreshFromCloud() {
+        syncWithCloudIfAvailable()
     }
 
     fun clearAllData(onComplete: () -> Unit) {
