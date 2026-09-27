@@ -122,7 +122,7 @@ fun PropertiesView(
 
     // Filter rooms by property, query, and occupancy status
     val currentRooms = rooms.filter {
-        selectedPropId == null || it.propertyId == selectedPropId || selectedPropId == "default_property"
+        selectedPropId == null || it.propertyId == selectedPropId
     }
 
     val filteredRooms = currentRooms.filter { room ->
