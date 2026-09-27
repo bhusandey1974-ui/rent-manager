@@ -57,23 +57,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    android.widget.Toast.makeText(this, "Checkpoint 1: super.onCreate done", android.widget.Toast.LENGTH_SHORT).show()
+    super.onCreate(savedInstanceState)
 
     window.statusBarColor = android.graphics.Color.WHITE
-    android.widget.Toast.makeText(this, "Checkpoint 2: status bar set", android.widget.Toast.LENGTH_SHORT).show()
-
     WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
-    android.widget.Toast.makeText(this, "Checkpoint 3: insets controller done", android.widget.Toast.LENGTH_SHORT).show()
 
-    // MobileAds.initialize(this) {}
-    android.widget.Toast.makeText(this, "Checkpoint 4: before setContent", android.widget.Toast.LENGTH_SHORT).show()
+    MobileAds.initialize(this) {}
 
     setContent {
         RentManagerTheme {
             MainAppRoot(viewModel = viewModel)
         }
     }
-    android.widget.Toast.makeText(this, "Checkpoint 5: setContent done", android.widget.Toast.LENGTH_SHORT).show()
     }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
