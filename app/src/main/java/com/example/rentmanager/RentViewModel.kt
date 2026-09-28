@@ -119,8 +119,103 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     /** Call this right after a successful sign-in so cloud data loads without needing an app restart. */
     fun refreshFromCloud() {
         syncWithCloudIfAvailable()
+        syncWithdrawalsFromCloud()
     }
 
+    // ---------- Withdrawals ----------
+
+    fun addWithdrawal(amount: Double, recipient: String, purpose: String) {
+        val w = Withdrawal(
+            id = UUID.randomUUID().toString(),
+            amount = amount,
+            recipient = recipient.trim(),
+            purpose = purpose.trim(),
+            timestamp = System.currentTimeMillis()
+        )
+        _withdrawals.value = _withdrawals.value + w
+        saveWithdrawalsToLocal()
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("withdrawals")
+            .document(w.id).set(w, SetOptions.merge())
+    }
+
+    fun deleteWithdrawal(id: String) {
+        _withdrawals.value = _withdrawals.value.filter { it.id != id }
+        saveWithdrawalsToLocal()
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("withdrawals")
+            .document(id).delete()
+    }
+
+    fun getWithdrawalsList(forCurrentYearOnly: Boolean): List<Withdrawal> {
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        val cal = Calendar.getInstance()
+        return _withdrawals.value
+            .filter { w ->
+                if (!forCurrentYearOnly) true else {
+                    cal.timeInMillis = w.timestamp
+                    cal.get(Calendar.YEAR) == currentYear
+                }
+            }
+            .sortedByDescending { it.timestamp }
+    }
+
+    private fun saveWithdrawalsToLocal() {
+        try {
+            val arr = JSONArray()
+            _withdrawals.value.forEach {
+                val obj = JSONObject()
+                obj.put("id", it.id)
+                obj.put("amount", it.amount)
+                obj.put("recipient", it.recipient)
+                obj.put("purpose", it.purpose)
+                obj.put("timestamp", it.timestamp)
+                arr.put(obj)
+            }
+            prefs.edit().putString("saved_withdrawals", arr.toString()).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun loadWithdrawalsFromLocal() {
+        try {
+            val str = prefs.getString("saved_withdrawals", null)
+            if (!str.isNullOrEmpty()) {
+                val arr = JSONArray(str)
+                val list = mutableListOf<Withdrawal>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(Withdrawal(
+                        id = obj.getString("id"),
+                        amount = obj.optDouble("amount", 0.0),
+                        recipient = obj.optString("recipient", ""),
+                        purpose = obj.optString("purpose", ""),
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis())
+                    ))
+                }
+                _withdrawals.value = list
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun syncWithdrawalsFromCloud() {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("withdrawals")
+            .get().addOnSuccessListener { snaps ->
+                if (!snaps.isEmpty) {
+                    val cloud = snaps.toObjects(Withdrawal::class.java)
+                    val localIds = _withdrawals.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _withdrawals.value = _withdrawals.value + missing
+                        saveWithdrawalsToLocal()
+                    }
+                }
+            }
+    }
     fun clearAllData(onComplete: () -> Unit) {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid
