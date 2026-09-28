@@ -239,8 +239,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             _properties.value = listOf(defaultProp)
             _selectedPropertyId.value = defaultProp.id
             _rooms.value = emptyList()
-            _tenants.value = emptyList()
+            __tenants.value = emptyList()
             _bills.value = emptyList()
+            _withdrawals.value = emptyList()
 
             onComplete()
         }
