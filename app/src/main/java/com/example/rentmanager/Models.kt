@@ -81,3 +81,10 @@ data class Bill(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+data class Withdrawal(
+    val id: String = "",
+    val amount: Double = 0.0,
+    val recipient: String = "",
+    val purpose: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)
