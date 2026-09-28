@@ -220,6 +220,13 @@ fun RevenueView(vm: RentViewModel) {
                 advanceTotal = vm.getTotalAdvance(),
                 forCurrentYearOnly = isCurrentYearOnly
             )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            WithdrawalsCard(
+                vm = vm,
+                totalCollected = revenueSummary.totalCollected,
+                forCurrentYearOnly = isCurrentYearOnly
+            )
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
