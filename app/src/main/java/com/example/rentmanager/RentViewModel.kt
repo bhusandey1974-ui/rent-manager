@@ -80,7 +80,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadFromLocalStorage()
+        loadWithdrawalsFromLocal()
         syncWithCloudIfAvailable()
+        syncWithdrawalsFromCloud()
     }
 
     fun setSelectedProperty(propertyId: String?) {
