@@ -227,6 +227,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                     userDoc.collection("rooms").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
                     userDoc.collection("tenants").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
                     userDoc.collection("bills").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
+                    userDoc.collection("withdrawals").get().addOnSuccessListener { s -> s.forEach { it.reference.delete() } }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
