@@ -611,48 +611,56 @@ fun RevenueCollectionsCard(
     maintenanceTotal: Double,
     duesTotal: Double,
     advanceTotal: Double,
+    monthlyTotals: List<Double> = List(12) { 0.0 },
     forCurrentYearOnly: Boolean
 ) {
     var activeCategory by remember { mutableStateOf<String?>(null) }
+    val blue = Color(0xFF1E6FD9)
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(24.dp),
         color = AppColors.SurfaceWhite,
-        border = BorderStroke(1.dp, AppColors.BorderSubtle),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = "Collections ($year)",
-                    fontSize = 13.sp,
-                    color = AppColors.TextSecondary
-                )
-                Icon(
-                    imageVector = Icons.Rounded.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = AppColors.TextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
+                Column {
+                    Text(
+                        text = "Total Collections ($year)",
+                        fontSize = 13.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AppColors.AzureContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = AppColors.AzurePrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Medium,
-                color = AppColors.TextPrimary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = AppColors.BorderSubtle)
+            Spacer(modifier = Modifier.height(14.dp))
+            MonthlyBarChart(values = monthlyTotals)
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
@@ -661,9 +669,10 @@ fun RevenueCollectionsCard(
             ) {
                 RevenueStatBox(
                     icon = Icons.Rounded.Home,
-                    label = "Rent",
+                    label = "Rent Income",
                     amount = rentTotal,
-                    color = AppColors.AzurePrimary,
+                    color = AppColors.EmeraldSuccess,
+                    amountSize = 18.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "rent" }
                 )
@@ -672,6 +681,7 @@ fun RevenueCollectionsCard(
                     label = "Electricity",
                     amount = electricityTotal,
                     color = AppColors.AmberWarning,
+                    amountSize = 18.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "electricity" }
                 )
@@ -685,9 +695,10 @@ fun RevenueCollectionsCard(
             ) {
                 RevenueStatBox(
                     icon = Icons.Rounded.Handyman,
-                    label = "Maint.",
+                    label = "Maintenance",
                     amount = maintenanceTotal,
-                    color = AppColors.TextSecondary,
+                    color = blue,
+                    amountSize = 15.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "maintenance" }
                 )
@@ -696,6 +707,7 @@ fun RevenueCollectionsCard(
                     label = "Dues",
                     amount = duesTotal,
                     color = AppColors.CrimsonAlert,
+                    amountSize = 15.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "dues" }
                 )
@@ -704,6 +716,7 @@ fun RevenueCollectionsCard(
                     label = "Advance",
                     amount = advanceTotal,
                     color = AppColors.EmeraldSuccess,
+                    amountSize = 15.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "advance" }
                 )
@@ -730,45 +743,105 @@ fun RevenueCollectionsCard(
 }
 
 @Composable
+private fun MonthlyBarChart(values: List<Double>) {
+    val labels = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val maxValue = (values.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
+    val maxBar = 64.dp
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        labels.forEachIndexed { i, label ->
+            val v = values.getOrElse(i) { 0.0 }
+            val barHeight = if (v <= 0.0) 3.dp else (maxBar * (v / maxValue).toFloat()).coerceAtLeast(6.dp)
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(maxBar),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                if (v > 0.0) AppColors.AzurePrimary
+                                else AppColors.AzurePrimary.copy(alpha = 0.12f)
+                            )
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = label,
+                    fontSize = 9.sp,
+                    color = AppColors.TextMuted,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun RevenueStatBox(
     icon: ImageVector,
     label: String,
     amount: Double,
     color: Color,
+    amountSize: androidx.compose.ui.unit.TextUnit,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = AppColors.ScaffoldBackground,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = 0.10f),
         modifier = modifier.clickable { onClick() }
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(15.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(color.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-    text = label,
-    fontSize = 12.sp,
-    color = color,
-    maxLines = 1,
-    overflow = TextOverflow.Ellipsis
-)
+                    text = label,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = color,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = color
-            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}",
+                    fontSize = amountSize,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.TextPrimary,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.Rounded.ChevronRight,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }
-                
