@@ -91,38 +91,10 @@ fun MainAppRoot(viewModel: RentViewModel) {
     } else {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (currentTabIndex == 0) Icons.Rounded.Apartment else Icons.Rounded.MonetizationOn,
-                                contentDescription = null,
-                                tint = AppColors.AzurePrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 19.sp,
-                                color = AppColors.TextPrimary
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { showSettingsDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = "Settings & Account",
-                                tint = AppColors.TextSecondary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = AppColors.SurfaceWhite
-                    ),
-                    modifier = Modifier
+                com.example.rentmanager.ui.components.WaveHeader(
+                    title = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
+                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Track your income and dues.",
+                    onSettingsClick = { showSettingsDialog = true }
                 )
             },
             bottomBar = {
