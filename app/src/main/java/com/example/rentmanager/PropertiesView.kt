@@ -224,6 +224,15 @@ fun PropertiesView(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            PropertyStatsCard(
+                totalRooms = currentRooms.size,
+                occupied = occupiedCount,
+                vacant = vacantCount,
+                monthlyRent = totalMonthlyRent
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
