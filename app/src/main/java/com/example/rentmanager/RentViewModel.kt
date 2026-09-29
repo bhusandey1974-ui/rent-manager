@@ -544,7 +544,7 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
                     .filter { it.roomId == room.id }
                     .sumOf { it.electricityPaid.takeIf { p -> p > 0 } ?: 0.0 }
                 if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
-            }.sortedBy { it.roomNumber }
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
         }
         "dues" -> {
             _rooms.value.filter { it.isOccupied }.mapNotNull { room ->
