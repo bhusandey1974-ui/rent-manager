@@ -9,47 +9,93 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.MonetizationOn
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import com.example.rentmanager.ui.components.SettingsDialog
 import com.example.rentmanager.ui.screens.AuthView
 import com.example.rentmanager.ui.screens.PropertiesView
 import com.example.rentmanager.ui.screens.RevenueView
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.auth.FirebaseAuth
+
+// ---------------------------------------------------------------------------
+// App-wide font (Inter). Requires these files in app/src/main/res/font/:
+//   inter_regular.ttf, inter_medium.ttf, inter_semibold.ttf, inter_bold.ttf
+// ---------------------------------------------------------------------------
+val InterFamily = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold)
+)
+
+private fun interTypography(): Typography {
+    val b = Typography()
+    return Typography(
+        displayLarge = b.displayLarge.copy(fontFamily = InterFamily),
+        displayMedium = b.displayMedium.copy(fontFamily = InterFamily),
+        displaySmall = b.displaySmall.copy(fontFamily = InterFamily),
+        headlineLarge = b.headlineLarge.copy(fontFamily = InterFamily),
+        headlineMedium = b.headlineMedium.copy(fontFamily = InterFamily),
+        headlineSmall = b.headlineSmall.copy(fontFamily = InterFamily),
+        titleLarge = b.titleLarge.copy(fontFamily = InterFamily),
+        titleMedium = b.titleMedium.copy(fontFamily = InterFamily),
+        titleSmall = b.titleSmall.copy(fontFamily = InterFamily),
+        bodyLarge = b.bodyLarge.copy(fontFamily = InterFamily),
+        bodyMedium = b.bodyMedium.copy(fontFamily = InterFamily),
+        bodySmall = b.bodySmall.copy(fontFamily = InterFamily),
+        labelLarge = b.labelLarge.copy(fontFamily = InterFamily),
+        labelMedium = b.labelMedium.copy(fontFamily = InterFamily),
+        labelSmall = b.labelSmall.copy(fontFamily = InterFamily)
+    )
+}
+
+/** Wraps content so every Text (including ones with no explicit style) uses Inter,
+ *  while keeping whatever colors/shapes RentManagerTheme already set. */
+@Composable
+private fun WithInterFont(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = MaterialTheme.colorScheme,
+        shapes = MaterialTheme.shapes,
+        typography = interTypography()
+    ) {
+        CompositionLocalProvider(
+            LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = InterFamily))
+        ) {
+            content()
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -64,7 +110,9 @@ class MainActivity : ComponentActivity() {
         MobileAds.initialize(this) {}
         setContent {
             RentManagerTheme {
-                MainAppRoot(viewModel = viewModel)
+                WithInterFont {
+                    MainAppRoot(viewModel = viewModel)
+                }
             }
         }
     }
