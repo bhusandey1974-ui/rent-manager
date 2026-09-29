@@ -248,19 +248,21 @@ fun PropertiesView(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search room number or tenant...", fontSize = 13.sp) },
+                placeholder = { Text("Search room number or tenant...", fontSize = 14.sp) },
                 leadingIcon = {
-                    Icon(Icons.Rounded.Search, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.Search, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(22.dp))
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
                         }
+                    } else {
+                        Icon(Icons.Rounded.FilterList, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(22.dp))
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AppColors.AzurePrimary,
                     unfocusedBorderColor = AppColors.BorderSubtle,
