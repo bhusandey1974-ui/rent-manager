@@ -556,7 +556,7 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
             _rooms.value.filter { it.isOccupied }.mapNotNull { room ->
                 val due = getPendingDueForCurrentTenant(room.id)
                 if (due < 0.0) RoomWiseAmount(room.roomNumber, kotlin.math.abs(due)) else null
-            }.sortedBy { it.roomNumber }
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
         }
         "maintenance" -> {
             _rooms.value.mapNotNull { room ->
