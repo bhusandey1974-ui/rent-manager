@@ -149,6 +149,17 @@ fun PropertiesView(
         matchesSearch && matchesFilter
     }
 
+    val occupiedCount = currentRooms.count { it.isOccupied }
+    val vacantCount = currentRooms.count { !it.isOccupied }
+    val duesCount = currentRooms.count { it.isOccupied && vm.getPendingDueForCurrentTenant(it.id) > 0.0 }
+    val totalMonthlyRent = currentRooms.sumOf { it.rentAmount }
+    val chipCounts = mapOf(
+        "All" to currentRooms.size,
+        "Occupied" to occupiedCount,
+        "Vacant" to vacantCount,
+        "Dues Pending" to duesCount
+    )
+
     Scaffold(
         containerColor = AppColors.ScaffoldBackground,
         floatingActionButton = {
