@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.MonetizationOn
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -43,6 +46,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.example.rentmanager.ui.components.SettingsDialog
 import com.example.rentmanager.ui.screens.AuthView
+import com.example.rentmanager.ui.screens.ExpensesView
+import com.example.rentmanager.ui.screens.ProfileView
 import com.example.rentmanager.ui.screens.PropertiesView
 import com.example.rentmanager.ui.screens.RevenueView
 import com.google.android.gms.ads.MobileAds
@@ -140,8 +145,8 @@ fun MainAppRoot(viewModel: RentViewModel) {
         Scaffold(
             topBar = {
                 com.example.rentmanager.ui.components.WaveHeader(
-                    title = "Rent Manager",
-                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Manage Properties, Grow Smarter.",
+                    title = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
+                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Track your income and dues.",
                     onSettingsClick = { showSettingsDialog = true }
                 )
             },
@@ -150,39 +155,28 @@ fun MainAppRoot(viewModel: RentViewModel) {
                     containerColor = AppColors.SurfaceWhite,
                     tonalElevation = 6.dp
                 ) {
-                    NavigationBarItem(
-                        selected = currentTabIndex == 0,
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            currentTabIndex = 0
-                        },
-                        icon = {
-                            Icon(Icons.Rounded.Apartment, contentDescription = "Properties")
-                        },
-                        label = { Text("Properties", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AppColors.AzurePrimary,
-                            selectedTextColor = AppColors.AzurePrimary,
-                            indicatorColor = AppColors.AzureContainer
-                        )
+                    val tabs: List<Pair<String, ImageVector>> = listOf(
+                        "Properties" to Icons.Rounded.Apartment,
+                        "Revenue" to Icons.Rounded.MonetizationOn,
+                        "Expenses" to Icons.Rounded.ReceiptLong,
+                        "Profile" to Icons.Rounded.Person
                     )
-
-                    NavigationBarItem(
-                        selected = currentTabIndex == 1,
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            currentTabIndex = 1
-                        },
-                        icon = {
-                            Icon(Icons.Rounded.MonetizationOn, contentDescription = "Revenue")
-                        },
-                        label = { Text("Revenue", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AppColors.AzurePrimary,
-                            selectedTextColor = AppColors.AzurePrimary,
-                            indicatorColor = AppColors.AzureContainer
+                    tabs.forEachIndexed { index, (name, icon) ->
+                        NavigationBarItem(
+                            selected = currentTabIndex == index,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                currentTabIndex = index
+                            },
+                            icon = { Icon(icon, contentDescription = name) },
+                            label = { Text(name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = AppColors.AzurePrimary,
+                                selectedTextColor = AppColors.AzurePrimary,
+                                indicatorColor = AppColors.AzureContainer
+                            )
                         )
-                    )
+                    }
                 }
             }
         ) { paddingValues ->
@@ -205,6 +199,8 @@ fun MainAppRoot(viewModel: RentViewModel) {
                             onNavigateToRevenue = { currentTabIndex = 1 }
                         )
                         1 -> RevenueView(vm = viewModel)
+                        2 -> ExpensesView(vm = viewModel)
+                        3 -> ProfileView(onOpenSettings = { showSettingsDialog = true })
                     }
                 }
             }
