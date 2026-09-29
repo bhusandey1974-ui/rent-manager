@@ -110,6 +110,25 @@ object ReceiptFormatter {
     }
 
     /**
+     * Builds the formatted WhatsApp message used to remind a tenant of pending rent/dues.
+     */
+    fun formatRentReminder(
+        tenantName: String,
+        roomNumber: String,
+        pendingDue: Double
+    ): String {
+        return buildString {
+            append("🏠 *Rent Reminder*\n")
+            append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+            append("Hi $tenantName,\n\n")
+            append("This is a friendly reminder that your rent for Room $roomNumber is pending.\n\n")
+            append("⚠️ *Amount Due:* ₹${String.format(Locale.ENGLISH, "%.2f", pendingDue)}\n")
+            append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+            append("Kindly clear the dues at your earliest convenience. Thank you!")
+        }
+    }
+
+    /**
      * Opens WhatsApp directly with the pre-filled receipt message.
      */
     fun sendViaWhatsApp(
