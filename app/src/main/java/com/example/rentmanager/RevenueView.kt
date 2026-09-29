@@ -484,7 +484,7 @@ private fun BillDetailRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
+                  Icon(
                         imageVector = Icons.Rounded.DoorFront,
                         contentDescription = null,
                         tint = AppColors.AzurePrimary,
