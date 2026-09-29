@@ -282,19 +282,29 @@ fun PropertiesView(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf("All", "Occupied", "Vacant", "Dues Pending").forEach { filterTag ->
+                    val isSel = selectedFilter == filterTag
                     FilterChip(
-                        selected = selectedFilter == filterTag,
+                        selected = isSel,
                         onClick = { selectedFilter = filterTag },
-                        label = { Text(filterTag, fontSize = 12.sp) },
+                        label = {
+                            Text(
+                                text = "$filterTag (${chipCounts[filterTag] ?: 0})",
+                                fontSize = 13.sp,
+                                fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AppColors.AzureContainer,
-                            selectedLabelColor = AppColors.AzurePrimary
+                            containerColor = AppColors.SurfaceWhite,
+                            labelColor = AppColors.TextSecondary,
+                            selectedContainerColor = AppColors.AzureDark,
+                            selectedLabelColor = Color.White
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             borderColor = AppColors.BorderSubtle,
-                            selectedBorderColor = AppColors.AzurePrimary,
+                            selectedBorderColor = AppColors.AzureDark,
                             enabled = true,
-                            selected = selectedFilter == filterTag
+                            selected = isSel
                         )
                     )
                 }
