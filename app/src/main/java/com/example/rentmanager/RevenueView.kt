@@ -177,33 +177,51 @@ fun RevenueView(vm: RentViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Financial Ledger",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppColors.TextPrimary
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = isCurrentYearOnly,
-                        onClick = { isCurrentYearOnly = true },
-                        label = { Text("Year $currentYear", fontSize = 12.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AppColors.AzurePrimary,
-                            selectedLabelColor = Color.White
-                        )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Financial Ledger",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1
                     )
-
-                    FilterChip(
-                        selected = !isCurrentYearOnly,
-                        onClick = { isCurrentYearOnly = false },
-                        label = { Text("Lifetime", fontSize = 12.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AppColors.AzurePrimary,
-                            selectedLabelColor = Color.White
-                        )
+                    Text(
+                        text = "Track your income and dues",
+                        fontSize = 12.sp,
+                        color = AppColors.TextSecondary,
+                        maxLines = 1
                     )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppColors.SurfaceWhite,
+                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                ) {
+                    Row {
+                        listOf(true to "Year $currentYear", false to "Lifetime").forEach { (isYear, label) ->
+                            val sel = isCurrentYearOnly == isYear
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (sel) AppColors.AzureDark else Color.Transparent)
+                                    .clickable { isCurrentYearOnly = isYear }
+                                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    color = if (sel) Color.White else AppColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
