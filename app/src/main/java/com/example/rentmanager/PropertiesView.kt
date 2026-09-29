@@ -23,6 +23,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CurrencyRupee
+import androidx.compose.material.icons.rounded.DoorFront
+import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.ui.graphics.vector.ImageVector
+import java.util.Locale
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
