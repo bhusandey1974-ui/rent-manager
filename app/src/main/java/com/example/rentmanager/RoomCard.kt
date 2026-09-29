@@ -130,6 +130,27 @@ fun RoomCard(
 
             if (room.isOccupied) {
                 if (pendingDue > 0) {
+                    if (tenant != null && tenant.phoneNumber.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                val reminderMsg = ReceiptFormatter.formatRentReminder(
+                                    tenantName = tenant.name,
+                                    roomNumber = room.roomNumber,
+                                    pendingDue = pendingDue
+                                )
+                                ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, reminderMsg)
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.NotificationsActive,
+                                contentDescription = "Send rent reminder via WhatsApp",
+                                tint = AppColors.CrimsonAlert,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
+                    }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = AppColors.CrimsonAlert.copy(alpha = 0.12f)
