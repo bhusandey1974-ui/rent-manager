@@ -157,9 +157,10 @@ private fun PropertyStatItem(
         )
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             color = AppColors.TextSecondary,
-            maxLines = 1
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
