@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Bolt
@@ -48,7 +49,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -190,14 +190,14 @@ fun RevenueView(vm: RentViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Financial Ledger",
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.TextPrimary,
                         maxLines = 1
                     )
                     Text(
                         text = "Track your income and dues",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         color = AppColors.TextSecondary,
                         maxLines = 1
                     )
@@ -218,12 +218,12 @@ fun RevenueView(vm: RentViewModel) {
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(if (sel) AppColors.AzureDark else Color.Transparent)
                                     .clickable { isCurrentYearOnly = isYear }
-                                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = label,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     softWrap = false,
@@ -251,12 +251,7 @@ fun RevenueView(vm: RentViewModel) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            WithdrawalsCard(
-                vm = vm,
-                totalCollected = revenueSummary.totalCollected,
-                forCurrentYearOnly = isCurrentYearOnly
-            )
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = "BILLING HISTORY & RECEIPTS",
@@ -489,7 +484,7 @@ private fun BillDetailRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
+        Icon(
                         imageVector = Icons.Rounded.DoorFront,
                         contentDescription = null,
                         tint = AppColors.AzurePrimary,
@@ -623,29 +618,31 @@ fun RevenueCollectionsCard(
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
                     Text(
-                        text = "Total Collections ($year)",
-                        fontSize = 13.sp,
+                        text = if (forCurrentYearOnly) "Total Collections ($year)" else "Total Collections (Lifetime)",
+                        fontSize = 12.sp,
                         color = AppColors.TextSecondary
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
-                        fontSize = 30.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.TextPrimary
                     )
                 }
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(AppColors.AzureContainer),
                     contentAlignment = Alignment.Center
@@ -654,25 +651,26 @@ fun RevenueCollectionsCard(
                         imageVector = Icons.Rounded.AccountBalanceWallet,
                         contentDescription = null,
                         tint = AppColors.AzurePrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             MonthlyBarChart(values = monthlyTotals)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 RevenueStatBox(
                     icon = Icons.Rounded.Home,
                     label = "Rent Income",
                     amount = rentTotal,
                     color = AppColors.EmeraldSuccess,
-                    amountSize = 18.sp,
+                    labelSize = 12.sp,
+                    amountSize = 17.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "rent" }
                 )
@@ -681,24 +679,26 @@ fun RevenueCollectionsCard(
                     label = "Electricity",
                     amount = electricityTotal,
                     color = AppColors.AmberWarning,
-                    amountSize = 18.sp,
+                    labelSize = 12.sp,
+                    amountSize = 17.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "electricity" }
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 RevenueStatBox(
                     icon = Icons.Rounded.Handyman,
                     label = "Maintenance",
                     amount = maintenanceTotal,
                     color = blue,
-                    amountSize = 15.sp,
+                    labelSize = 10.sp,
+                    amountSize = 14.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "maintenance" }
                 )
@@ -707,7 +707,8 @@ fun RevenueCollectionsCard(
                     label = "Dues",
                     amount = duesTotal,
                     color = AppColors.CrimsonAlert,
-                    amountSize = 15.sp,
+                    labelSize = 10.sp,
+                    amountSize = 14.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "dues" }
                 )
@@ -716,7 +717,8 @@ fun RevenueCollectionsCard(
                     label = "Advance",
                     amount = advanceTotal,
                     color = AppColors.EmeraldSuccess,
-                    amountSize = 15.sp,
+                    labelSize = 10.sp,
+                    amountSize = 14.sp,
                     modifier = Modifier.weight(1f),
                     onClick = { activeCategory = "advance" }
                 )
@@ -746,11 +748,11 @@ fun RevenueCollectionsCard(
 private fun MonthlyBarChart(values: List<Double>) {
     val labels = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
     val maxValue = (values.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
-    val maxBar = 64.dp
+    val maxBar = 40.dp
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.Bottom
     ) {
         labels.forEachIndexed { i, label ->
@@ -777,12 +779,13 @@ private fun MonthlyBarChart(values: List<Double>) {
                             )
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = label,
                     fontSize = 9.sp,
                     color = AppColors.TextMuted,
-                    maxLines = 1
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
@@ -795,6 +798,7 @@ private fun RevenueStatBox(
     label: String,
     amount: Double,
     color: Color,
+    labelSize: androidx.compose.ui.unit.TextUnit,
     amountSize: androidx.compose.ui.unit.TextUnit,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -802,30 +806,33 @@ private fun RevenueStatBox(
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = color.copy(alpha = 0.10f),
-        modifier = modifier.clickable { onClick() }
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(22.dp)
+                        .clip(RoundedCornerShape(11.dp))
                         .background(color.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
                 }
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = label,
-                    fontSize = 11.sp,
+                    fontSize = labelSize,
                     fontWeight = FontWeight.Medium,
                     color = color,
                     maxLines = 1,
+                    softWrap = false,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}",
