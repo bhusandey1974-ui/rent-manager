@@ -159,6 +159,15 @@ fun RevenueView(vm: RentViewModel) {
         }
     }
 
+    val monthlyTotals = remember(filteredBills, currentYear) {
+        val arr = DoubleArray(12)
+        filteredBills.forEach { b ->
+            val (y, m) = parseBillYearMonth(b)
+            if (y == currentYear) arr[m] += b.amountPaid
+        }
+        arr.toList()
+    }
+
     var expandedYears by remember { mutableStateOf(setOf<Int>()) }
     var expandedMonthKeys by remember { mutableStateOf(setOf<String>()) }
 
