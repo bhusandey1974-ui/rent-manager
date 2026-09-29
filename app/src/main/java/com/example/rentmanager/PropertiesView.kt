@@ -231,7 +231,7 @@ fun PropertiesView(
     val occupiedCount = currentRooms.count { it.isOccupied }
     val vacantCount = currentRooms.count { !it.isOccupied }
     val duesCount = currentRooms.count { it.isOccupied && vm.getPendingDueForCurrentTenant(it.id) > 0.0 }
-    val totalMonthlyRent = currentRooms.sumOf { it.rentAmount }
+    val totalMonthlyRent = 0.0
     val chipCounts = mapOf(
         "All" to currentRooms.size,
         "Occupied" to occupiedCount,
