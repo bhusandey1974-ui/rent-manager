@@ -564,7 +564,7 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
                     .filter { it.roomId == room.id }
                     .sumOf { it.maintenanceAmount }
                 if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
-            }.sortedBy { it.roomNumber }
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
         }
         else -> emptyList()
     }
