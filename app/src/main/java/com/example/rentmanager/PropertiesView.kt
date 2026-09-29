@@ -137,7 +137,7 @@ private fun PropertyStatItem(
     label: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(horizontal = 8.dp)) {
+    Column(modifier = modifier.padding(horizontal = 3.dp)) {
         Box(
             modifier = Modifier
                 .size(26.dp)
