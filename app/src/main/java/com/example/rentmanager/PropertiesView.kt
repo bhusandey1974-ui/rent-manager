@@ -95,6 +95,85 @@ private data class PendingEdit(
     val moveInMillis: Long
 )
 
+@Composable
+private fun PropertyStatsCard(
+    totalRooms: Int,
+    occupied: Int,
+    vacant: Int,
+    monthlyRent: Double
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = AppColors.SurfaceWhite,
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PropertyStatItem(Icons.Rounded.Home, AppColors.EmeraldSuccess, "$totalRooms", "Total Rooms", Modifier.weight(1f))
+            PropertyStatDivider()
+            PropertyStatItem(Icons.Rounded.Group, Color(0xFF1E6FD9), "$occupied", "Occupied", Modifier.weight(1f))
+            PropertyStatDivider()
+            PropertyStatItem(Icons.Rounded.DoorFront, AppColors.AmberWarning, "$vacant", "Vacant", Modifier.weight(0.9f))
+            PropertyStatDivider()
+            PropertyStatItem(
+                Icons.Rounded.CurrencyRupee,
+                AppColors.EmeraldSuccess,
+                "₹ ${String.format(Locale.ENGLISH, "%,.0f", monthlyRent)}",
+                "Total Monthly Rent",
+                Modifier.weight(1.5f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PropertyStatItem(
+    icon: ImageVector,
+    tint: Color,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.padding(horizontal = 8.dp)) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(tint.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = value,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = AppColors.TextPrimary,
+            maxLines = 1
+        )
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = AppColors.TextSecondary,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun PropertyStatDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(56.dp)
+            .background(AppColors.BorderSubtle)
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PropertiesView(
