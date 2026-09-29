@@ -140,8 +140,8 @@ fun MainAppRoot(viewModel: RentViewModel) {
         Scaffold(
             topBar = {
                 com.example.rentmanager.ui.components.WaveHeader(
-                    title = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
-                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Track your income and dues.",
+                    title = "Rent Manager",
+                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Manage Properties, Grow Smarter.",
                     onSettingsClick = { showSettingsDialog = true }
                 )
             },
