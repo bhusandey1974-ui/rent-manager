@@ -56,6 +56,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,31 +113,36 @@ private fun PropertyStatsCard(
     vacant: Int,
     monthlyRent: Double
 ) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = AppColors.SurfaceWhite,
-        shadowElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
+    val currentDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(currentDensity.density, fontScale = 1f)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp)
-                .height(IntrinsicSize.Min)
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = AppColors.SurfaceWhite,
+            border = BorderStroke(0.5.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            PropertyStatItem(Icons.Rounded.Home, Color(0xFF1E8E5A), "$totalRooms", "Total Rooms", Modifier.weight(20f))
-            PropertyStatDivider()
-            PropertyStatItem(Icons.Rounded.Group, Color(0xFF2A6FC9), "$occupied", "Occupied", Modifier.weight(17f))
-            PropertyStatDivider()
-            PropertyStatItem(Icons.Rounded.DoorFront, Color(0xFFE58A12), "$vacant", "Vacant", Modifier.weight(16f))
-            PropertyStatDivider()
-            PropertyStatItem(
-                Icons.Rounded.CurrencyRupee,
-                Color(0xFF1E8E5A),
-                "₹ ${String.format(Locale.ENGLISH, "%,.0f", monthlyRent)}",
-                "Total Monthly Rent",
-                Modifier.weight(27f)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp)
+                    .height(IntrinsicSize.Min)
+            ) {
+                PropertyStatItem(Icons.Rounded.Home, Color(0xFF1E8E5A), "$totalRooms", "Total Rooms", Modifier.weight(22f))
+                PropertyStatDivider()
+                PropertyStatItem(Icons.Rounded.Group, Color(0xFF2A6FC9), "$occupied", "Occupied", Modifier.weight(18f))
+                PropertyStatDivider()
+                PropertyStatItem(Icons.Rounded.DoorFront, Color(0xFFE58A12), "$vacant", "Vacant", Modifier.weight(16f))
+                PropertyStatDivider()
+                PropertyStatItem(
+                    Icons.Rounded.CurrencyRupee,
+                    Color(0xFF1E8E5A),
+                    String.format(Locale.ENGLISH, "%,.0f", monthlyRent),
+                    "Monthly Rent",
+                    Modifier.weight(24f)
+                )
+            }
         }
     }
 }
@@ -147,29 +155,31 @@ private fun PropertyStatItem(
     label: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(start = 14.dp, end = 6.dp)) {
-        Box(
-            modifier = Modifier
-                .size(26.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(tint.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
+    Column(modifier = modifier.padding(start = 10.dp, end = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(tint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))
+            }
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = value,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppColors.TextPrimary,
+                maxLines = 1,
+                softWrap = false
+            )
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = AppColors.TextPrimary,
-            maxLines = 1,
-            softWrap = false
-        )
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = label,
             fontSize = 11.sp,
-            letterSpacing = 0.2.sp,
             color = AppColors.TextSecondary,
             maxLines = 1,
             softWrap = false
