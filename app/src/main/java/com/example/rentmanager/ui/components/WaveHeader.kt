@@ -18,10 +18,10 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddHomeWork
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Eco
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -37,17 +38,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.rentmanager.AppColors
 
-/** One smooth sag: higher at both edges, lowest a little left of centre. */
+/** Bottom edge: hangs lower at both sides, gently arches up in the middle (no dip). */
 private val WaveShape = GenericShape { size, _ ->
     val w = size.width
     val h = size.height
     moveTo(0f, 0f)
     lineTo(w, 0f)
-    lineTo(w, h * 0.80f)
+    lineTo(w, h * 0.92f)
     cubicTo(
-        w * 0.70f, h * 1.02f,
-        w * 0.30f, h * 0.96f,
-        0f, h * 0.84f
+        w * 0.75f, h * 0.72f,
+        w * 0.25f, h * 0.72f,
+        0f, h * 0.92f
     )
     close()
 }
@@ -71,7 +72,8 @@ fun WaveHeader(
                     listOf(AppColors.HeaderTop, AppColors.HeaderBottom)
                 )
             )
-            // Soft decorative blobs: dark one behind the icons, faint light one bottom-left
+            // Soft decorative shapes: dark blob behind the icons, faint light blob
+            // bottom-left, and faint buildings on the right (Properties header only)
             .drawBehind {
                 drawCircle(
                     color = Color.Black.copy(alpha = 0.10f),
@@ -83,6 +85,14 @@ fun WaveHeader(
                     radius = size.width * 0.22f,
                     center = Offset(size.width * 0.10f, size.height * 0.95f)
                 )
+                if (onAddPropertyClick != null) {
+                    val w = size.width
+                    val h = size.height
+                    val tint = Color.White.copy(alpha = 0.09f)
+                    drawRect(tint, Offset(w * 0.60f, h * 0.38f), Size(w * 0.09f, h * 0.70f))
+                    drawRect(tint, Offset(w * 0.70f, h * 0.05f), Size(w * 0.13f, h * 1.00f))
+                    drawRect(tint, Offset(w * 0.84f, h * 0.28f), Size(w * 0.09f, h * 0.80f))
+                }
             }
     ) {
         Row(
@@ -101,17 +111,17 @@ fun WaveHeader(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Home,
+                    imageVector = Icons.Outlined.Home,
                     contentDescription = null,
                     tint = AppColors.AzurePrimary,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(30.dp)
                 )
                 Icon(
                     imageVector = Icons.Rounded.Eco,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = AppColors.AzurePrimary,
                     modifier = Modifier
-                        .size(12.dp)
+                        .size(11.dp)
                         .offset(y = 3.dp)
                 )
             }
