@@ -9,12 +9,12 @@ object AppColors {
     val AzureContainer = Color(0xFFE8F5EC)
     val AzureBorder = Color(0xFFBEE3CC)
 
-    // Warm Cream Surfaces & Backgrounds
+    // Cool White Surfaces & Backgrounds (was warm cream)
     val SurfaceWhite = Color(0xFFFFFFFF)
-    val ScaffoldBackground = Color(0xFFF7F5EF)
-    val SlateBackground = Color(0xFFEFEDE3)
-    val BorderSubtle = Color(0xFFE4E1D6)
-    val BorderStrong = Color(0xFFCFCBBC)
+    val ScaffoldBackground = Color(0xFFF7FAF8)
+    val SlateBackground = Color(0xFFEEF3F0)
+    val BorderSubtle = Color(0xFFE3EAE6)
+    val BorderStrong = Color(0xFFCBD5CF)
     val BorderFocus = Color(0xFF1F6D4C)
 
     // Typography
@@ -41,14 +41,18 @@ object AppColors {
     val CrimsonBorder = Color(0xFFFECACA)
 
     // Historical Indicators (Settled Dues & Consumed Advances)
-    val HistorySettledDot = Color(0xFFF59E0B) // Small amber/yellow dot for cleared past due
-    val HistoryAdvanceDot = Color(0xFF1F6D4C) // Small forest-green dot for absorbed advance
-    val HistoryContainer = Color(0xFFEFEDE3)
+    val HistorySettledDot = Color(0xFFF59E0B)
+    val HistoryAdvanceDot = Color(0xFF1F6D4C)
+    val HistoryContainer = Color(0xFFEEF3F0)
     val HistoryText = Color(0xFF5B6B5F)
 
     // Room Card Badges
-    val RoomVacantContainer = Color(0xFFEFEDE3)
+    val RoomVacantContainer = Color(0xFFEEF3F0)
     val RoomVacantIcon = Color(0xFF5B6B5F)
     val RoomOccupiedContainer = Color(0xFFE8F5EC)
     val RoomOccupiedIcon = Color(0xFF1F6D4C)
+
+    // Header gradient (top -> bottom). Status bar uses HeaderTop so they blend.
+    val HeaderTop = Color(0xFF2A6B55)
+    val HeaderBottom = Color(0xFF0F3D2B)
 }
