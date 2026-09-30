@@ -17,6 +17,7 @@ import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.MonetizationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +31,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
@@ -114,7 +117,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.statusBarColor = android.graphics.Color.rgb(15, 61, 43)
+        window.statusBarColor = android.graphics.Color.rgb(42, 107, 85) // matches AppColors.HeaderTop
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
 
         MobileAds.initialize(this) {}
@@ -155,17 +158,22 @@ fun MainAppRoot(viewModel: RentViewModel) {
         Scaffold(
             topBar = {
                 com.example.rentmanager.ui.components.WaveHeader(
-                    title = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
-                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Track your income and dues.",
+                    title = "Rent Manager",
+                    subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Manage Properties, Grow Smarter.",
                     onSettingsClick = { showSettingsDialog = true },
                     hasAlerts = dueRooms.isNotEmpty(),
                     onBellClick = { showAlertsDialog = true }
                 )
             },
             bottomBar = {
+                Surface(
+                    color = AppColors.SurfaceWhite,
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    shadowElevation = 12.dp
+                ) {
                 NavigationBar(
-                    containerColor = AppColors.SurfaceWhite,
-                    tonalElevation = 6.dp
+                    containerColor = Color.Transparent,
+                    tonalElevation = 0.dp
                 ) {
                     val tabs: List<Pair<String, ImageVector>> = listOf(
                         "Properties" to Icons.Rounded.Apartment,
@@ -181,7 +189,7 @@ fun MainAppRoot(viewModel: RentViewModel) {
                                 currentTabIndex = index
                             },
                             icon = { Icon(icon, contentDescription = name) },
-                            label = { Text(name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) },
+                            label = { Text(name, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = AppColors.AzurePrimary,
                                 selectedTextColor = AppColors.AzurePrimary,
@@ -189,6 +197,7 @@ fun MainAppRoot(viewModel: RentViewModel) {
                             )
                         )
                     }
+                }
                 }
             }
         ) { paddingValues ->
