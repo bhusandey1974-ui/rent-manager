@@ -442,7 +442,7 @@ fun AssignTenantDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("Mobile Number (for WhatsApp) *") },
+                    label = { Text("Mobile (WhatsApp) *", maxLines = 1) },
                     placeholder = { Text("10-digit number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
