@@ -1,6 +1,7 @@
 package com.example.rentmanager.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -108,20 +109,20 @@ private fun PropertyStatsCard(
     monthlyRent: Double
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = AppColors.SurfaceWhite,
-        shadowElevation = 1.dp,
+        shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PropertyStatItem(Icons.Rounded.Home, AppColors.EmeraldSuccess, "$totalRooms", "Total Rooms", Modifier.weight(1f))
+            PropertyStatItem(Icons.Rounded.Home, AppColors.EmeraldSuccess, "$totalRooms", "Total Rooms", Modifier.weight(1.15f))
             PropertyStatDivider()
             PropertyStatItem(Icons.Rounded.Group, Color(0xFF1E6FD9), "$occupied", "Occupied", Modifier.weight(1f))
             PropertyStatDivider()
-            PropertyStatItem(Icons.Rounded.DoorFront, AppColors.AmberWarning, "$vacant", "Vacant", Modifier.weight(0.9f))
+            PropertyStatItem(Icons.Rounded.DoorFront, AppColors.AmberWarning, "$vacant", "Vacant", Modifier.weight(0.85f))
             PropertyStatDivider()
             PropertyStatItem(
                 Icons.Rounded.CurrencyRupee,
@@ -157,6 +158,7 @@ private fun PropertyStatItem(
             text = value,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.3).sp,
             color = AppColors.TextPrimary,
             maxLines = 1
         )
@@ -184,7 +186,9 @@ private fun PropertyStatDivider() {
 @Composable
 fun PropertiesView(
     vm: RentViewModel,
-    onNavigateToRevenue: () -> Unit = {}
+    onNavigateToRevenue: () -> Unit = {},
+    addPropertyRequested: Boolean = false,
+    onAddPropertyHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -197,7 +201,7 @@ fun PropertiesView(
     var selectedFilter by remember { mutableStateOf("All") }
 
     // Dialog state holders
-    var showAddPropertyDialog by remember { mutableStateOf(false) }
+    var showAddPropertyLocal by remember { mutableStateOf(false) }
     var showAddRoomDialog by remember { mutableStateOf(false) }
     var roomForAssigning by remember { mutableStateOf<Room?>(null) }
     var roomForBilling by remember { mutableStateOf<Room?>(null) }
@@ -237,7 +241,7 @@ fun PropertiesView(
     val occupiedCount = currentRooms.count { it.isOccupied }
     val vacantCount = currentRooms.count { !it.isOccupied }
     val duesCount = currentRooms.count { it.isOccupied && vm.getPendingDueForCurrentTenant(it.id) > 0.0 }
-    val totalMonthlyRent = 0.0 // TODO: sum of each room's monthly rent field
+    val totalMonthlyRent = currentRooms.filter { it.isOccupied }.sumOf { it.baseRent }
     val chipCounts = mapOf(
         "All" to currentRooms.size,
         "Occupied" to occupiedCount,
@@ -262,11 +266,12 @@ fun PropertiesView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 12.dp)
         ) {
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Property Selector Strip
+            // Property Selector Strip: only shown when there is more than one property
+            if (properties.size > 1) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -308,7 +313,7 @@ fun PropertiesView(
 
                 // Add Property Button
                 IconButton(
-                    onClick = { showAddPropertyDialog = true },
+                    onClick = { showAddPropertyLocal = true },
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
@@ -319,6 +324,7 @@ fun PropertiesView(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+            }
 
             PropertyStatsCard(
                 totalRooms = currentRooms.size,
@@ -331,9 +337,9 @@ fun PropertiesView(
 
             // Search Bar
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 color = AppColors.SurfaceWhite,
-                shadowElevation = 1.dp,
+                shadowElevation = 2.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
@@ -388,35 +394,33 @@ fun PropertiesView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 listOf("All", "Occupied", "Vacant", "Dues Pending").forEach { filterTag ->
                     val isSel = selectedFilter == filterTag
-                    FilterChip(
-                        selected = isSel,
-                        onClick = { selectedFilter = filterTag },
-                        modifier = Modifier.height(30.dp),
-                        label = {
-                            Text(
-                                text = "$filterTag (${chipCounts[filterTag] ?: 0})",
-                                fontSize = 12.sp,
-                                fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal
+                    Box(
+                        modifier = Modifier
+                            .height(30.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (isSel) AppColors.AzureDark else AppColors.SurfaceWhite)
+                            .border(
+                                1.dp,
+                                if (isSel) AppColors.AzureDark else AppColors.BorderSubtle,
+                                RoundedCornerShape(50)
                             )
-                        },
-                        shape = RoundedCornerShape(50),
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = AppColors.SurfaceWhite,
-                            labelColor = AppColors.TextSecondary,
-                            selectedContainerColor = AppColors.AzureDark,
-                            selectedLabelColor = Color.White
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = AppColors.BorderSubtle,
-                            selectedBorderColor = AppColors.AzureDark,
-                            enabled = true,
-                            selected = isSel
+                            .clickable { selectedFilter = filterTag }
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$filterTag (${chipCounts[filterTag] ?: 0})",
+                            fontSize = 12.sp,
+                            fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSel) Color.White else AppColors.TextSecondary,
+                            maxLines = 1,
+                            softWrap = false
                         )
-                    )
+                    }
                 }
             }
 
@@ -464,263 +468,4 @@ fun PropertiesView(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            Text(
-                                text = "No rooms yet",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.TextPrimary
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                text = "Add your first room to start tracking tenants, rent, and bills.",
-                                fontSize = 13.sp,
-                                color = AppColors.TextSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            Button(
-                                onClick = { showAddRoomDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = AppColors.AzurePrimary,
-                                    contentColor = Color.White
-                                ),
-                                modifier = Modifier.height(46.dp)
-                            ) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Add Your First Room", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(filteredRooms, key = { it.id }) { room ->
-                        val tenant = tenants.find { it.id == room.currentTenantId && it.isCurrent }
-                        val pendingDue = vm.getPendingDueForCurrentTenant(room.id)
-
-                        RoomCard(
-                            room = room,
-                            tenant = tenant,
-                            pendingDue = pendingDue,
-                            onCardClick = { roomForHistory = room },
-                            onAssignTenant = { roomForAssigning = room },
-                            onLodgeBill = { roomForBilling = room },
-                            onEditRoom = { roomForEditing = room },
-                            onDeleteRoom = { roomForDeleting = room },
-                            onConfirmVacate = { note, depositRefunded -> vm.confirmVacateRoom(room.id, pendingDue, note, depositRefunded) },
-                            onViewHistory = { roomForHistory = room },
-                            onEditTenant = { tenant?.let { tenantForEditing = room to it } }
-                        )
-                    }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
-                }
-            }
-            BannerAdView(
-                adUnitId = "ca-app-pub-4334614941668154/7590527977",
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-        }
-    }
-        // ==========================================
-    // MODAL DIALOGS HOOKUP
-    // ==========================================
-
-    if (showAddPropertyDialog) {
-        AddPropertyDialog(
-            onDismiss = { showAddPropertyDialog = false },
-            onConfirm = { name, address ->
-                vm.addProperty(name, address)
-                showAddPropertyDialog = false
-            }
-        )
-    }
-
-    if (showAddRoomDialog) {
-        AddRoomDialog(
-            onDismiss = { showAddRoomDialog = false },
-            onConfirm = { roomNum, rent, rate, startReading ->
-                vm.addRoom(roomNum, rent, rate, startReading)
-                showAddRoomDialog = false
-            }
-        )
-    }
-
-    roomForAssigning?.let { room ->
-        AssignTenantDialog(
-            roomNumber = room.roomNumber,
-            onDismiss = { roomForAssigning = null },
-            onConfirm = { name, phone, deposit, aadhaar, address, moveInMillis ->
-                if (vm.isBackdatedMoveIn(moveInMillis)) {
-                    // Move-in is more than a month back — check on historical unpaid rent first
-                    pendingBackdatedAssignment = PendingAssignment(room, name, phone, deposit, aadhaar, address, moveInMillis)
-                    roomForAssigning = null
-                } else {
-                    vm.assignTenant(
-                        roomId = room.id,
-                        tenantName = name,
-                        tenantPhone = phone,
-                        deposit = deposit,
-                        aadhaarNumber = aadhaar,
-                        permanentAddress = address,
-                        moveInDateMillis = moveInMillis
-                    )
-                    roomForAssigning = null
-                }
-            }
-        )
-    }
-
-    pendingBackdatedAssignment?.let { pending ->
-        MoveInDateBackfillDialog(
-            tenantName = pending.name,
-            moveInDateMillis = pending.moveInMillis,
-            onDismiss = { pendingBackdatedAssignment = null },
-            onConfirm = { allPaid, paidThroughMonthMillis ->
-                val newTenant = vm.assignTenant(
-                    roomId = pending.room.id,
-                    tenantName = pending.name,
-                    tenantPhone = pending.phone,
-                    deposit = pending.deposit,
-                    aadhaarNumber = pending.aadhaar,
-                    permanentAddress = pending.address,
-                    moveInDateMillis = pending.moveInMillis
-                )
-                if (!allPaid && paidThroughMonthMillis != null) {
-                    vm.backfillUnpaidRent(pending.room.id, newTenant.id, paidThroughMonthMillis)
-                }
-                pendingBackdatedAssignment = null
-            }
-        )
-    }
-
-    roomForBilling?.let { room ->
-        val tenant = tenants.find { it.id == room.currentTenantId && it.isCurrent }
-        if (tenant != null) {
-            val prevReading = vm.getLastRecordedMeterReading(room.id)
-            val priorDue = vm.getPendingDueForCurrentTenant(room.id)
-            val suggestedPeriod = vm.getSuggestedBillingPeriod(room.id)
-            val outstanding = vm.getOutstandingUnpaidMonths(room.id, tenant.id)
-            val existingPeriods = vm.getExistingBillingPeriods(room.id, tenant.id)
-
-            LodgeBillDialog(
-                context = context,
-                vm = vm,
-                room = room,
-                tenant = tenant,
-                previousReading = prevReading,
-                priorDueOrAdvance = priorDue,
-                suggestedBillingPeriod = suggestedPeriod,
-                outstandingMonths = outstanding,
-                existingBillingPeriods = existingPeriods,
-                onDismiss = { roomForBilling = null },
-                onBillLodged = { period, currReading, maint, amtPaid, mode ->
-                    val bill = vm.lodgeBill(
-                        roomId = room.id,
-                        billingPeriod = period,
-                        currentReading = currReading,
-                        maintenanceAmount = maint,
-                        amountPaid = amtPaid,
-                        paymentMode = mode
-                    )
-                    roomForBilling = null
-                    bill
-                }
-            )
-        }
-    }
-
-    roomForEditing?.let { room ->
-        EditRoomDialog(
-            room = room,
-            onDismiss = { roomForEditing = null },
-            onConfirm = { num, rent, rate, initialMeter ->
-                vm.updateRoom(room.id, num, rent, rate, initialMeter)
-                roomForEditing = null
-            }
-        )
-    }
-
-    roomForDeleting?.let { room ->
-        DeleteConfirmationDialog(
-            title = "Delete Room ${room.roomNumber}?",
-            message = "This will permanently remove this room and its active billing links. Past billing records are preserved.",
-            onDismiss = { roomForDeleting = null },
-            onConfirm = {
-                vm.deleteRoom(room.id)
-                roomForDeleting = null
-            }
-        )
-    }
-
-    roomForHistory?.let { room ->
-        val tenancyRecords = vm.getRoomTenancyHistory(room.id)
-        RoomHistoryDialog(
-            room = room,
-            historySummaries = tenancyRecords,
-            onDismiss = { roomForHistory = null },
-            onEditActiveTenant = { tenant ->
-                tenantForEditing = room to tenant
-                roomForHistory = null
-            }
-        )
-    }
-
-    tenantForEditing?.let { (room, tenant) ->
-        EditTenantDialog(
-            tenant = tenant,
-            onDismiss = { tenantForEditing = null },
-            onConfirm = { name, phone, deposit, aadhaar, address, moveInMillis ->
-                val moveInChanged = moveInMillis != tenant.moveInDate
-                if (moveInChanged && vm.isBackdatedMoveIn(moveInMillis)) {
-                    pendingBackdatedEdit = PendingEdit(room, tenant, name, phone, deposit, aadhaar, address, moveInMillis)
-                    tenantForEditing = null
-                } else {
-                    vm.updateTenant(
-                        tenantId = tenant.id,
-                        name = name,
-                        phone = phone,
-                        deposit = deposit,
-                        aadhaarNumber = aadhaar,
-                        permanentAddress = address,
-                        moveInDateMillis = moveInMillis
-                    )
-                    tenantForEditing = null
-                }
-            }
-        )
-    }
-
-    pendingBackdatedEdit?.let { pending ->
-        MoveInDateBackfillDialog(
-            tenantName = pending.name,
-            moveInDateMillis = pending.moveInMillis,
-            onDismiss = { pendingBackdatedEdit = null },
-            onConfirm = { allPaid, paidThroughMonthMillis ->
-                vm.updateTenant(
-                    tenantId = pending.tenant.id,
-                    name = pending.name,
-                    phone = pending.phone,
-                    deposit = pending.deposit,
-                    aadhaarNumber = pending.aadhaar,
-                    permanentAddress = pending.address,
-                    moveInDateMillis = pending.moveInMillis
-                )
-                if (!allPaid && paidThroughMonthMillis != null) {
-                    vm.backfillUnpaidRent(pending.room.id, pending.tenant.id, paidThroughMonthMillis)
-                }
-                pendingBackdatedEdit = null
-            }
-        )
-    }
-}
+                            
