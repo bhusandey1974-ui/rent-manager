@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -17,7 +18,11 @@ import androidx.compose.material.icons.rounded.MonetizationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.collectAsState
+import java.util.Locale
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -132,6 +137,11 @@ fun MainAppRoot(viewModel: RentViewModel) {
     var isAuthenticated by remember { mutableStateOf(auth.currentUser != null) }
     var currentTabIndex by remember { mutableIntStateOf(0) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showAlertsDialog by remember { mutableStateOf(false) }
+
+    val rooms by viewModel.rooms.collectAsState()
+    val tenants by viewModel.tenants.collectAsState()
+    val dueRooms = rooms.filter { it.isOccupied && viewModel.getPendingDueForCurrentTenant(it.id) > 0.0 }
 
     if (!isAuthenticated) {
         AuthView(
@@ -147,7 +157,9 @@ fun MainAppRoot(viewModel: RentViewModel) {
                 com.example.rentmanager.ui.components.WaveHeader(
                     title = if (currentTabIndex == 0) "Rent Manager" else "Financial Ledger",
                     subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Track your income and dues.",
-                    onSettingsClick = { showSettingsDialog = true }
+                    onSettingsClick = { showSettingsDialog = true },
+                    hasAlerts = dueRooms.isNotEmpty(),
+                    onBellClick = { showAlertsDialog = true }
                 )
             },
             bottomBar = {
@@ -204,6 +216,33 @@ fun MainAppRoot(viewModel: RentViewModel) {
                     }
                 }
             }
+        }
+
+        if (showAlertsDialog) {
+            AlertDialog(
+                onDismissRequest = { showAlertsDialog = false },
+                title = { Text("Alerts", fontWeight = FontWeight.Bold) },
+                text = {
+                    if (dueRooms.isEmpty()) {
+                        Text("No pending dues. You're all caught up.")
+                    } else {
+                        Column {
+                            dueRooms.forEach { room ->
+                                val tenantName = tenants.find { it.id == room.currentTenantId }?.name ?: "Tenant"
+                                val due = viewModel.getPendingDueForCurrentTenant(room.id)
+                                Text(
+                                    text = "Room ${room.roomNumber} · $tenantName · ₹${String.format(Locale.ENGLISH, "%,.0f", due)} due",
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAlertsDialog = false }) { Text("Close") }
+                }
+            )
         }
 
         if (showSettingsDialog) {
