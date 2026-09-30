@@ -775,4 +775,474 @@ private fun MonthRow(
     }
 }
 
+@Composable
+private fun BillDetailRow(
+    bill: Bill,
+    vm: RentViewModel,
+    context: Context,
+    dateFormat: SimpleDateFormat
+) {
+    val tenant = vm.getTenantForBill(bill)
+    val room = vm.getRoomForBill(bill)
 
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = AppColors.SurfaceWhite,
+        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.DoorFront,
+                        contentDescription = null,
+                        tint = AppColors.AzurePrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Column {
+                        Text(
+                            text = "Room ${room?.roomNumber ?: bill.roomId} • ${tenant?.name ?: "Unknown"}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AppColors.TextPrimary
+                        )
+                        Text(
+                            text = dateFormat.format(Date(bill.timestamp)),
+                            fontSize = 10.sp,
+                            color = AppColors.TextMuted
+                        )
+                    }
+                }
+                if (tenant != null && tenant.phoneNumber.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            val receiptMsg = ReceiptFormatter.formatReceipt(
+                                tenantName = tenant.name,
+                                roomNumber = room?.roomNumber ?: bill.roomId,
+                                billingPeriod = bill.billingPeriod,
+                                paymentDateMillis = bill.timestamp,
+                                previousReading = bill.previousReading,
+                                currentReading = bill.currentReading,
+                                unitsConsumed = bill.unitsConsumed,
+                                ratePerUnit = bill.electricityRate,
+                                totalElectricity = bill.electricityAmount,
+                                baseRent = bill.baseRent,
+                                maintenanceAmount = bill.maintenanceAmount,
+                                totalAmount = bill.totalPayable,
+                                amountPaid = bill.amountPaid,
+                                paymentMode = bill.paymentMode,
+                                remainingDue = bill.remainingDue
+                            )
+                            ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
+                        },
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ReceiptLong,
+                            contentDescription = "Share WhatsApp Receipt",
+                            tint = AppColors.WhatsAppGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Divider(color = AppColors.BorderSubtle)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (bill.maintenanceAmount > 0) "Rent + Elec + Maint" else "Rent + Elec",
+                        fontSize = 9.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Text(
+                        text = if (bill.maintenanceAmount > 0)
+                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()} + ₹${bill.maintenanceAmount.toInt()}"
+                        else
+                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AppColors.TextPrimary
+                    )
+                }
+                Column {
+                    Text("Paid (${bill.paymentMode})", fontSize = 9.sp, color = AppColors.TextSecondary)
+                    Text(
+                        text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.amountPaid)}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.EmeraldSuccess
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Status", fontSize = 9.sp, color = AppColors.TextSecondary)
+                    if (bill.remainingDue > 0) {
+                        Text(
+                            text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.remainingDue)} Due",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.CrimsonAlert
+                        )
+                    } else {
+                        Text(
+                            text = "Settled",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.EmeraldSuccess
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RevenueCollectionsCard(
+    vm: RentViewModel,
+    year: Int,
+    totalCollections: Double,
+    rentTotal: Double,
+    electricityTotal: Double,
+    maintenanceTotal: Double,
+    duesTotal: Double,
+    advanceTotal: Double,
+    rentCount: Int = 0,
+    electricityCount: Int = 0,
+    maintenanceCount: Int = 0,
+    duesCount: Int = 0,
+    advanceCount: Int = 0,
+    growthText: String? = null,
+    growthUp: Boolean = true,
+    monthlyTotals: List<Double> = List(12) { 0.0 },
+    forCurrentYearOnly: Boolean
+) {
+    var activeCategory by remember { mutableStateOf<String?>(null) }
+    val blue = Color(0xFF1E6FD9)
+    val navy = Color(0xFF17408F)
+    val growthColor = if (growthUp) AppColors.EmeraldSuccess else AppColors.CrimsonAlert
+
+    // Lock the card's text to normal size so it looks the same on every phone,
+    // even when the phone's font size is set larger.
+    val currentDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(currentDensity.density, fontScale = 1f)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = AppColors.SurfaceWhite,
+            border = BorderStroke(0.5.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .drawBehind {
+                        val gap = 12.dp.toPx()
+                        val r = 0.9.dp.toPx()
+                        val maxD = kotlin.math.sqrt(size.width * size.width + size.height * size.height)
+                        var x = gap / 2
+                        while (x < size.width) {
+                            var y = gap / 2
+                            while (y < size.height) {
+                                val dx = size.width - x
+                                val d = kotlin.math.sqrt(dx * dx + y * y) / maxD
+                                val a = 0.11f * (1f - d * 1.25f)
+                                if (a > 0.004f) {
+                                    drawCircle(AppColors.AzurePrimary.copy(alpha = a), r, Offset(x, y))
+                                }
+                                y += gap
+                            }
+                            x += gap
+                        }
+                    }
+                    .padding(start = 10.dp, end = 10.dp, top = 11.dp, bottom = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column {
+                        Text(
+                            text = if (forCurrentYearOnly) "Total Collections ($year)" else "Total Collections (Lifetime)",
+                            fontSize = 12.sp,
+                            color = AppColors.TextSecondary
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp,
+                            color = AppColors.TextPrimary
+                        )
+                        if (growthText != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(growthColor.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (growthUp) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                                        contentDescription = null,
+                                        tint = growthColor,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(growthText, fontSize = 12.sp, color = growthColor)
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AppColors.AzureContainer.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = AppColors.AzureDark,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                MonthlyBarChart(values = monthlyTotals)
+                Spacer(modifier = Modifier.height(7.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Home,
+                        label = "Rent Income",
+                        amount = rentTotal,
+                        subText = "$rentCount payments",
+                        color = AppColors.EmeraldSuccess,
+                        labelColor = AppColors.EmeraldSuccess,
+                        labelSize = 12.sp,
+                        amountSize = 16.sp,
+                        subSize = 11.sp,
+                        iconSize = 28.dp,
+                        hPad = 10.dp,
+                        iconGap = 8.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "rent" }
+                    )
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Bolt,
+                        label = "Electricity",
+                        amount = electricityTotal,
+                        subText = "$electricityCount payments",
+                        color = AppColors.AmberWarning,
+                        labelColor = AppColors.AmberWarning,
+                        labelSize = 12.sp,
+                        amountSize = 16.sp,
+                        subSize = 11.sp,
+                        iconSize = 28.dp,
+                        hPad = 10.dp,
+                        iconGap = 8.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "electricity" }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Handyman,
+                        label = "Maintenance",
+                        amount = maintenanceTotal,
+                        subText = "$maintenanceCount expenses",
+                        color = blue,
+                        labelColor = navy,
+                        labelSize = 10.sp,
+                        amountSize = 13.sp,
+                        subSize = 10.sp,
+                        iconSize = 20.dp,
+                        hPad = 6.dp,
+                        iconGap = 4.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "maintenance" }
+                    )
+                    RevenueStatBox(
+                        icon = Icons.Rounded.WarningAmber,
+                        label = "Dues",
+                        amount = duesTotal,
+                        subText = "$duesCount pending",
+                        color = AppColors.CrimsonAlert,
+                        labelColor = AppColors.CrimsonAlert,
+                        labelSize = 10.sp,
+                        amountSize = 13.sp,
+                        subSize = 10.sp,
+                        iconSize = 20.dp,
+                        hPad = 6.dp,
+                        iconGap = 4.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "dues" }
+                    )
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Savings,
+                        label = "Advance",
+                        amount = advanceTotal,
+                        subText = "$advanceCount records",
+                        color = AppColors.EmeraldSuccess,
+                        labelColor = AppColors.EmeraldSuccess,
+                        labelSize = 10.sp,
+                        amountSize = 13.sp,
+                        subSize = 10.sp,
+                        iconSize = 20.dp,
+                        hPad = 6.dp,
+                        iconGap = 4.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "advance" }
+                    )
+                }
+            }
+        }
+    }
+
+    activeCategory?.let { category ->
+        val items = vm.getRoomWiseBreakdown(category, forCurrentYearOnly)
+        val (title, color) = when (category) {
+            "rent" -> "Rent Collected" to AppColors.AzurePrimary
+            "electricity" -> "Electricity Collected" to AppColors.AmberWarning
+            "dues" -> "Pending Dues" to AppColors.CrimsonAlert
+            "advance" -> "Advance Owed" to AppColors.EmeraldSuccess
+            else -> "" to AppColors.TextPrimary
+        }
+        RoomWiseBreakdownDialog(
+            title = title,
+            items = items,
+            accentColor = color,
+            onDismiss = { activeCategory = null }
+        )
+    }
+}
+
+@Composable
+private fun MonthlyBarChart(values: List<Double>) {
+    val labels = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val allZero = values.all { it <= 0.0 }
+    val maxValue = (values.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
+    val maxBar = 30.dp
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        labels.forEachIndexed { i, label ->
+            val v = values.getOrElse(i) { 0.0 }
+            val barHeight = when {
+                allZero -> maxBar * (0.10f + 0.90f * i / 11f)
+                v <= 0.0 -> 3.dp
+                else -> (maxBar * (v / maxValue).toFloat()).coerceAtLeast(5.dp)
+            }
+            val barColor = when {
+                allZero -> AppColors.AzurePrimary.copy(alpha = 0.08f)
+                v > 0.0 -> AppColors.AzurePrimary
+                else -> AppColors.AzurePrimary.copy(alpha = 0.12f)
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(maxBar),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(14.dp)
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(barColor)
+                    )
+                }
+                Spacer(modifier = Modifier.height(1.dp))
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    color = AppColors.TextMuted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RevenueStatBox(
+    icon: ImageVector,
+    label: String,
+    amount: Double,
+    subText: String,
+    color: Color,
+    labelColor: Color,
+    labelSize: androidx.compose.ui.unit.TextUnit,
+    amountSize: androidx.compose.ui.unit.TextUnit,
+    subSize: androidx.compose.ui.unit.TextUnit,
+    iconSize: androidx.compose.ui.unit.Dp,
+    hPad: androidx.compose.ui.unit.Dp,
+    iconGap: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val amountText = if (amount >= 10000) {
+        "₹${String.format(Locale.ENGLISH, "%,.0f", amount)}"
+    } else {
+        "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}"
+    }
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = color.copy(alpha = 0.10f),
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = hPad, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(iconSize)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize * 0.53f))
+            }
+            
