@@ -249,9 +249,7 @@ fun RevenueView(vm: RentViewModel) {
                 monthlyTotals = monthlyTotals,
                 forCurrentYearOnly = isCurrentYearOnly
             )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = "BILLING HISTORY & RECEIPTS",
