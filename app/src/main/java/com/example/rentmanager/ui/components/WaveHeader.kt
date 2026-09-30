@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddHomeWork
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -115,10 +117,12 @@ fun WaveHeader(
                 withTransform({
                     scale(size.width / ART_W, size.height / ART_H, Offset.Zero)
                 }) {
-                    drawDotShimmer(time)
-                    drawWarmPulse(time)
-                    drawWindowTwinkle(time)
-                    drawSparks(paths, time)
+                    clipPath(paths.sky) {
+                        drawDotShimmer(time)
+                        drawWarmPulse(time)
+                        drawWindowTwinkle(time)
+                        drawSparks(paths, time)
+                    }
                     drawRimShimmer(paths, time)
                 }
             }
@@ -129,7 +133,8 @@ fun WaveHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
-                .padding(start = 16.dp, end = 12.dp, top = 14.dp),
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 12.dp, top = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -191,17 +196,21 @@ private fun HeaderActionButton(
 
 // ───────────────────────────── EFFECT PATHS ─────────────────────────────
 
+private fun buildRim(): Path = Path().apply {
+    moveTo(0f, 672f)
+    cubicTo(120f, 622f, 260f, 587f, 440f, 587f)
+    cubicTo(720f, 590f, 900f, 712f, 1180f, 712f)
+    cubicTo(1450f, 712f, 1600f, 592f, 1850f, 592f)
+    cubicTo(1950f, 592f, 2020f, 625f, ART_W, 655f)
+}
+
 private class FxPaths {
     val lineA = Path().apply { moveTo(1533f, 0f); cubicTo(1480f, 150f, 1400f, 260f, 1300f, 345f) }
     val lineB = Path().apply { moveTo(640f, 655f); cubicTo(800f, 590f, 950f, 545f, 1100f, 505f) }
     val lineC = Path().apply { moveTo(1755f, 615f); cubicTo(1850f, 560f, 1960f, 490f, ART_W, 437f) }
-    val rim = Path().apply {
-        moveTo(0f, 672f)
-        cubicTo(120f, 622f, 260f, 587f, 440f, 587f)
-        cubicTo(720f, 590f, 900f, 712f, 1180f, 712f)
-        cubicTo(1450f, 712f, 1600f, 592f, 1850f, 592f)
-        cubicTo(1950f, 592f, 2020f, 625f, ART_W, 655f)
-    }
+    val rim = buildRim()
+    // everything ABOVE the wave edge: effects are clipped to this so they never spill onto the wave / content
+    val sky = buildRim().apply { lineTo(ART_W, 0f); lineTo(0f, 0f); close() }
     val mA = PathMeasure().apply { setPath(lineA, false) }
     val mB = PathMeasure().apply { setPath(lineB, false) }
     val mC = PathMeasure().apply { setPath(lineC, false) }
@@ -305,7 +314,7 @@ private fun DrawScope.drawRimShimmer(p: FxPaths, time: Float) {
         p.rim,
         Brush.horizontalGradient(
             0f to Color.Transparent,
-            0.5f to Color(0xFFBFE4FF).copy(alpha = 0.95f),
+            0.5f to Color(0xFF8CCBFF).copy(alpha = 0.85f),
             1f to Color.Transparent,
             startX = pos - 300f, endX = pos + 300f
         ),
