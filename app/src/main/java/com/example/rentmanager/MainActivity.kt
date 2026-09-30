@@ -210,7 +210,7 @@ fun MainAppRoot(viewModel: RentViewModel) {
                             vm = viewModel,
                             onNavigateToRevenue = { currentTabIndex = 1 }
                         )
-                        1 -> RevenueView(vm = viewModel)
+                        1 -> RevenueView(vm = viewModel, onAddRecord = { currentTabIndex = 0 })
                         2 -> ExpensesView(vm = viewModel)
                         3 -> ProfileView(onOpenSettings = { showSettingsDialog = true })
                     }
