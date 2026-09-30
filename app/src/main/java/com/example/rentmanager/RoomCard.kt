@@ -434,4 +434,214 @@ fun RoomDetailsDialog(
     onViewHistory: () -> Unit,
     onEditTenant: () -> Unit = {}
 ) {
-    
+     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Room ${room.roomNumber}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "₹${room.baseRent.toInt()} / mo",
+                    fontSize = 13.sp,
+                    color = AppColors.TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Bolt,
+                        contentDescription = null,
+                        tint = AppColors.TextMuted,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Rate: ₹${room.electricityRate}/unit | Initial Meter: ${room.initialMeterReading}",
+                        fontSize = 12.sp,
+                        color = AppColors.TextMuted
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = AppColors.BorderSubtle)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (room.isOccupied && tenant != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tenant Details",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                        IconButton(
+                            onClick = onEditTenant,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Edit tenant details",
+                                tint = AppColors.AzurePrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    DetailRow("Name", tenant.name)
+                    DetailRow("Phone", tenant.phoneNumber)
+                    DetailRow("Aadhaar", tenant.aadhaarNumber.ifBlank { "Not provided" })
+                    DetailRow("Address", tenant.permanentAddress.ifBlank { "Not provided" })
+                    DetailRow("Move-In Date", dateFormatter.format(Date(tenant.moveInDate)))
+                    DetailRow(
+                        "Deposit",
+                        if (tenant.securityDeposit > 0.0) "₹${tenant.securityDeposit.toInt()}" else "None"
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (pendingDue > 0)
+                            "Due: ₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)}"
+                        else "All Settled",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (pendingDue > 0) AppColors.CrimsonAlert else AppColors.EmeraldSuccess
+                    )
+                } else {
+                    Text(
+                        text = "This room is currently vacant.",
+                        fontSize = 13.sp,
+                        color = AppColors.TextSecondary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider(color = AppColors.BorderSubtle)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (room.isOccupied) {
+                        Button(
+                            onClick = onLodgeBill,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppColors.AzurePrimary,
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f).height(40.dp)
+                        ) {
+                            Icon(imageVector = Icons.Rounded.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Lodge Bill", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        Button(
+                            onClick = onAssignTenant,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppColors.AzurePrimary,
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f).height(40.dp)
+                        ) {
+                            Icon(imageVector = Icons.Rounded.Person, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Assign Tenant", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onViewHistory,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Icon(imageVector = Icons.Rounded.History, contentDescription = null, tint = AppColors.TextSecondary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("History", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEditRoom,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Icon(imageVector = Icons.Rounded.Edit, contentDescription = null, tint = AppColors.TextSecondary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    }
+
+                    if (room.isOccupied) {
+                        OutlinedButton(
+                            onClick = onVacateRoom,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.5f)),
+                            modifier = Modifier.weight(1f).height(40.dp)
+                        ) {
+                            Text("Vacate", fontSize = 12.sp, color = AppColors.CrimsonAlert, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onDeleteRoom,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.5f)),
+                            modifier = Modifier.weight(1f).height(40.dp)
+                        ) {
+                            Icon(imageVector = Icons.Rounded.DeleteOutline, contentDescription = null, tint = AppColors.CrimsonAlert, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Delete", fontSize = 12.sp, color = AppColors.CrimsonAlert)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+    ) {
+        Text(text = "$label: ", fontSize = 12.sp, color = AppColors.TextMuted, fontWeight = FontWeight.SemiBold)
+        Text(text = value, fontSize = 12.sp, color = AppColors.TextSecondary)
+    }
+}
