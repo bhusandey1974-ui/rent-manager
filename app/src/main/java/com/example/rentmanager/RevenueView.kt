@@ -19,6 +19,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import kotlin.math.roundToInt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Bolt
@@ -103,11 +126,16 @@ private fun parseBillYearMonth(bill: Bill): Pair<Int, Int> {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RevenueView(vm: RentViewModel) {
+fun RevenueView(vm: RentViewModel, onAddRecord: () -> Unit = {}) {
     val context = LocalContext.current
     val bills by vm.bills.collectAsState()
     val rooms by vm.rooms.collectAsState()
     var isCurrentYearOnly by remember { mutableStateOf(true) }
+    var categoryFilter by remember { mutableStateOf("All") }
+    var showSearch by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var modeFilter by remember { mutableStateOf<String?>(null) }
+    var showModeMenu by remember { mutableStateOf(false) }
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
     val revenueSummary = vm.getRevenueSummary(forCurrentYearOnly = isCurrentYearOnly)
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH) }
@@ -124,10 +152,53 @@ fun RevenueView(vm: RentViewModel) {
         }
     }
 
+    // Counts shown under each category box
+    val rentCount = filteredBills.count { it.baseRent > 0 }
+    val electricityCount = filteredBills.count { it.electricityAmount > 0 }
+    val maintenanceCount = filteredBills.count { it.maintenanceAmount > 0 }
+    val duesCount = filteredBills.count { it.remainingDue > 0 }
+    val advanceCount = filteredBills.count { it.amountPaid > it.totalPayable }
+
+    // "% from last year"
+    val thisYearTotal = remember(bills) { bills.filter { parseBillYearMonth(it).first == currentYear }.sumOf { it.amountPaid } }
+    val lastYearTotal = remember(bills) { bills.filter { parseBillYearMonth(it).first == currentYear - 1 }.sumOf { it.amountPaid } }
+    val growthUp = thisYearTotal >= lastYearTotal
+    val growthText: String? = when {
+        !isCurrentYearOnly -> null
+        lastYearTotal > 0 -> "${kotlin.math.abs(((thisYearTotal - lastYearTotal) / lastYearTotal * 100).roundToInt())}% from last year"
+        thisYearTotal > 0 -> "First year of records"
+        else -> "0% from last year"
+    }
+
+    val paymentModes = remember(bills) { bills.map { it.paymentMode.toString() }.distinct().sorted() }
+
+    val visibleBills = remember(filteredBills, categoryFilter, searchQuery, modeFilter) {
+        filteredBills
+            .filter { b ->
+                when (categoryFilter) {
+                    "Rent" -> b.baseRent > 0
+                    "Electricity" -> b.electricityAmount > 0
+                    "Maintenance" -> b.maintenanceAmount > 0
+                    "Dues" -> b.remainingDue > 0
+                    "Advance" -> b.amountPaid > b.totalPayable
+                    else -> true
+                }
+            }
+            .filter { modeFilter == null || it.paymentMode.toString() == modeFilter }
+            .filter { b ->
+                searchQuery.isBlank() || run {
+                    val r = vm.getRoomForBill(b)
+                    val t = vm.getTenantForBill(b)
+                    (r?.roomNumber?.contains(searchQuery, ignoreCase = true) == true) ||
+                        (t?.name?.contains(searchQuery, ignoreCase = true) == true)
+                }
+            }
+    }
+
     // Every room's bills clubbed together by month, and every month clubbed under its year.
-    val yearGroups = remember(filteredBills) {
+    val yearGroups = remember(visibleBills) {
         val monthNameFmt = SimpleDateFormat("MMMM", Locale.ENGLISH)
-        val byYear = filteredBills.groupBy { parseBillYearMonth(it).first }
+        val byYear = visibleBills.groupBy { parseBillYearMonth(it).first }
         byYear.keys.sortedDescending().map { year ->
             val billsThisYear = byYear[year] ?: emptyList()
             val byMonth = billsThisYear.groupBy { parseBillYearMonth(it).second }
@@ -153,9 +224,9 @@ fun RevenueView(vm: RentViewModel) {
     }
 
     // Each room's single most recent bill, in room order — a quick "what's the latest" snapshot.
-    val recentBillsByRoom = remember(filteredBills, rooms) {
+    val recentBillsByRoom = remember(visibleBills, rooms) {
         rooms.mapNotNull { room ->
-            filteredBills.filter { it.roomId == room.id }.maxByOrNull { it.timestamp }
+            visibleBills.filter { it.roomId == room.id }.maxByOrNull { it.timestamp }
         }
     }
 
@@ -174,60 +245,196 @@ fun RevenueView(vm: RentViewModel) {
     Scaffold(
         containerColor = AppColors.ScaffoldBackground
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            // ---- Title + Year/Lifetime toggle
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Financial Ledger",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "Track your income, expenses and dues",
+                            fontSize = 11.sp,
+                            color = AppColors.TextSecondary,
+                            maxLines = 1
+                        )
+                    }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = AppColors.SurfaceWhite,
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Row {
+                            listOf(true to "Year $currentYear", false to "Lifetime").forEach { (isYear, label) ->
+                                val sel = isCurrentYearOnly == isYear
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (sel) AppColors.AzureDark else Color.Transparent)
+                                        .clickable { isCurrentYearOnly = isYear }
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        color = if (sel) Color.White else AppColors.TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ---- Collections card
+            item {
+                RevenueCollectionsCard(
+                    vm = vm,
+                    year = currentYear,
+                    totalCollections = revenueSummary.totalCollected,
+                    rentTotal = revenueSummary.rentCollected,
+                    electricityTotal = revenueSummary.electricityCollected,
+                    maintenanceTotal = revenueSummary.maintenanceCollected,
+                    duesTotal = revenueSummary.activeDues,
+                    advanceTotal = vm.getTotalAdvance(),
+                    rentCount = rentCount,
+                    electricityCount = electricityCount,
+                    maintenanceCount = maintenanceCount,
+                    duesCount = duesCount,
+                    advanceCount = advanceCount,
+                    growthText = growthText,
+                    growthUp = growthUp,
+                    monthlyTotals = monthlyTotals,
+                    forCurrentYearOnly = isCurrentYearOnly
+                )
+            }
+
+            // ---- Billing History header (title, search, filter, Add)
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Financial Ledger",
-                        fontSize = 18.sp,
+                        text = "Billing History & Receipts",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.TextPrimary,
-                        maxLines = 1
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = "Track your income and dues",
-                        fontSize = 11.sp,
-                        color = AppColors.TextSecondary,
-                        maxLines = 1
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    HeaderIconButton(
+                        icon = if (showSearch) Icons.Rounded.Close else Icons.Rounded.Search,
+                        active = showSearch,
+                        onClick = {
+                            showSearch = !showSearch
+                            if (!showSearch) searchQuery = ""
+                        }
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Box {
+                        HeaderIconButton(
+                            icon = Icons.Rounded.FilterList,
+                            active = modeFilter != null,
+                            onClick = { showModeMenu = true }
+                        )
+                        DropdownMenu(
+                            expanded = showModeMenu,
+                            onDismissRequest = { showModeMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All payment modes", fontSize = 13.sp) },
+                                onClick = { modeFilter = null; showModeMenu = false }
+                            )
+                            paymentModes.forEach { mode ->
+                                DropdownMenuItem(
+                                    text = { Text(mode, fontSize = 13.sp) },
+                                    onClick = { modeFilter = mode; showModeMenu = false }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AppColors.AzureDark,
+                        modifier = Modifier
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onAddRecord() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        }
+                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = AppColors.SurfaceWhite,
-                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
-                ) {
-                    Row {
-                        listOf(true to "Year $currentYear", false to "Lifetime").forEach { (isYear, label) ->
-                            val sel = isCurrentYearOnly == isYear
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (sel) AppColors.AzureDark else Color.Transparent)
-                                    .clickable { isCurrentYearOnly = isYear }
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    color = if (sel) Color.White else AppColors.TextSecondary
+            // ---- Search field (only when the search button is active)
+            if (showSearch) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = AppColors.SurfaceWhite,
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Search, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (searchQuery.isEmpty()) {
+                                    Text("Search room or tenant...", fontSize = 13.sp, color = AppColors.TextMuted, maxLines = 1)
+                                }
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = LocalTextStyle.current.merge(
+                                        TextStyle(fontSize = 13.sp, color = AppColors.TextPrimary)
+                                    ),
+                                    cursorBrush = SolidColor(AppColors.AzurePrimary),
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
@@ -235,102 +442,188 @@ fun RevenueView(vm: RentViewModel) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            RevenueCollectionsCard(
-                vm = vm,
-                year = currentYear,
-                totalCollections = revenueSummary.totalCollected,
-                rentTotal = revenueSummary.rentCollected,
-                electricityTotal = revenueSummary.electricityCollected,
-                maintenanceTotal = revenueSummary.maintenanceCollected,
-                duesTotal = revenueSummary.activeDues,
-                advanceTotal = vm.getTotalAdvance(),
-                monthlyTotals = monthlyTotals,
-                forCurrentYearOnly = isCurrentYearOnly
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = "BILLING HISTORY & RECEIPTS",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = AppColors.TextMuted,
-                letterSpacing = 1.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (yearGroups.isEmpty()) {
-                Box(
+            // ---- Category chips
+            item {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = if (isCurrentYearOnly) "No billing records found for $currentYear." else "No billing records found.",
-                        color = AppColors.TextMuted,
-                        fontSize = 13.sp
+                    listOf("All", "Rent", "Electricity", "Maintenance", "Dues", "Advance").forEach { tag ->
+                        val isSel = categoryFilter == tag
+                        FilterChip(
+                            selected = isSel,
+                            onClick = { categoryFilter = tag },
+                            modifier = Modifier.height(28.dp),
+                            label = {
+                                Text(
+                                    text = tag,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            },
+                            shape = RoundedCornerShape(50),
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = AppColors.SurfaceWhite,
+                                labelColor = AppColors.TextSecondary,
+                                selectedContainerColor = AppColors.AzureDark,
+                                selectedLabelColor = Color.White
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = AppColors.BorderSubtle,
+                                selectedBorderColor = AppColors.AzureDark,
+                                enabled = true,
+                                selected = isSel
+                            )
+                        )
+                    }
+                }
+            }
+
+            // ---- Bills / empty state
+            if (yearGroups.isEmpty()) {
+                item {
+                    EmptyBillingState(
+                        message = when {
+                            filteredBills.isNotEmpty() -> "No records match your filters."
+                            isCurrentYearOnly -> "No billing records found for $currentYear."
+                            else -> "No billing records found."
+                        },
+                        showAddButton = filteredBills.isEmpty(),
+                        onAddRecord = onAddRecord
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (recentBillsByRoom.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "RECENT BY ROOM",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.TextMuted,
-                                letterSpacing = 1.sp,
-                                modifier = Modifier.padding(bottom = 2.dp)
-                            )
-                        }
-                        items(recentBillsByRoom, key = { "recent-${it.id}" }) { bill ->
-                            BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
-                        }
-                        item {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Divider(color = AppColors.BorderSubtle)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "BY YEAR",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.TextMuted,
-                                letterSpacing = 1.sp,
-                                modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
-                            )
-                        }
-                    }
-                    items(yearGroups, key = { it.year }) { yearGroup ->
-                        YearGroupCard(
-                            yearGroup = yearGroup,
-                            isExpanded = expandedYears.contains(yearGroup.year),
-                            onToggleYear = {
-                                expandedYears = if (expandedYears.contains(yearGroup.year))
-                                    expandedYears - yearGroup.year
-                                else
-                                    expandedYears + yearGroup.year
-                            },
-                            expandedMonthKeys = expandedMonthKeys,
-                            onToggleMonth = { key ->
-                                expandedMonthKeys = if (expandedMonthKeys.contains(key))
-                                    expandedMonthKeys - key
-                                else
-                                    expandedMonthKeys + key
-                            },
-                            vm = vm,
-                            context = context,
-                            dateFormat = dateFormat
+                if (recentBillsByRoom.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "RECENT BY ROOM",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextMuted,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(20.dp)) }
+                    items(recentBillsByRoom, key = { "recent-${it.id}" }) { bill ->
+                        BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Divider(color = AppColors.BorderSubtle)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "BY YEAR",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextMuted,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                        )
+                    }
                 }
+                items(yearGroups, key = { it.year }) { yearGroup ->
+                    YearGroupCard(
+                        yearGroup = yearGroup,
+                        isExpanded = expandedYears.contains(yearGroup.year),
+                        onToggleYear = {
+                            expandedYears = if (expandedYears.contains(yearGroup.year))
+                                expandedYears - yearGroup.year
+                            else
+                                expandedYears + yearGroup.year
+                        },
+                        expandedMonthKeys = expandedMonthKeys,
+                        onToggleMonth = { key ->
+                            expandedMonthKeys = if (expandedMonthKeys.contains(key))
+                                expandedMonthKeys - key
+                            else
+                                expandedMonthKeys + key
+                        },
+                        vm = vm,
+                        context = context,
+                        dateFormat = dateFormat
+                    )
+                }
+            }
+            item { Spacer(modifier = Modifier.height(20.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun HeaderIconButton(icon: ImageVector, active: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (active) AppColors.AzureContainer else AppColors.SurfaceWhite,
+        border = BorderStroke(1.dp, if (active) AppColors.AzurePrimary else AppColors.BorderSubtle),
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun EmptyBillingState(message: String, showAddButton: Boolean, onAddRecord: () -> Unit) {
+    val borderColor = AppColors.BorderSubtle
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawRoundRect(
+                    color = borderColor,
+                    cornerRadius = CornerRadius(16.dp.toPx()),
+                    style = Stroke(
+                        width = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+                    )
+                )
+            }
+            .padding(horizontal = 16.dp, vertical = 22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(AppColors.AzureContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ReceiptLong,
+                contentDescription = null,
+                tint = AppColors.AzureDark,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(message, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AppColors.TextPrimary)
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = "Add rent or utility payments to see them here.",
+            fontSize = 11.sp,
+            color = AppColors.TextSecondary
+        )
+        if (showAddButton) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Button(
+                onClick = onAddRecord,
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.AzureDark,
+                    contentColor = Color.White
+                ),
+                contentPadding = PaddingValues(horizontal = 18.dp),
+                modifier = Modifier.height(34.dp)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Add First Record", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -400,452 +693,6 @@ private fun YearGroupCard(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MonthRow(
-    monthGroup: MonthGroup,
-    isExpanded: Boolean,
-    onToggle: () -> Unit,
-    vm: RentViewModel,
-    context: Context,
-    dateFormat: SimpleDateFormat
-) {
-    val hasBills = monthGroup.bills.isNotEmpty()
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = hasBills) { onToggle() }
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (hasBills && isExpanded) Icons.Rounded.KeyboardArrowDown else Icons.Rounded.ChevronRight,
-                    contentDescription = null,
-                    tint = if (hasBills) AppColors.TextSecondary else AppColors.TextMuted.copy(alpha = 0.4f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = monthGroup.monthName,
-                    fontSize = 13.sp,
-                    color = if (hasBills) AppColors.TextPrimary else AppColors.TextMuted,
-                    fontWeight = if (hasBills) FontWeight.Medium else FontWeight.Normal
-                )
-            }
-            Text(
-                text = "₹${String.format(Locale.ENGLISH, "%,.0f", monthGroup.totalCollected)}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (hasBills) AppColors.TextPrimary else AppColors.TextMuted
-            )
-        }
-
-        if (isExpanded && hasBills) {
-            Column(modifier = Modifier.padding(start = 22.dp, end = 14.dp, bottom = 8.dp)) {
-                monthGroup.bills.forEach { bill ->
-                    BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BillDetailRow(
-    bill: Bill,
-    vm: RentViewModel,
-    context: Context,
-    dateFormat: SimpleDateFormat
-) {
-    val tenant = vm.getTenantForBill(bill)
-    val room = vm.getRoomForBill(bill)
-
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = AppColors.SurfaceWhite,
-        border = BorderStroke(1.dp, AppColors.BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Icon(
-                        imageVector = Icons.Rounded.DoorFront,
-                        contentDescription = null,
-                        tint = AppColors.AzurePrimary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Column {
-                        Text(
-                            text = "Room ${room?.roomNumber ?: bill.roomId} • ${tenant?.name ?: "Unknown"}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AppColors.TextPrimary
-                        )
-                        Text(
-                            text = dateFormat.format(Date(bill.timestamp)),
-                            fontSize = 10.sp,
-                            color = AppColors.TextMuted
-                        )
-                    }
-                }
-                if (tenant != null && tenant.phoneNumber.isNotBlank()) {
-                    IconButton(
-                        onClick = {
-                            val receiptMsg = ReceiptFormatter.formatReceipt(
-                                tenantName = tenant.name,
-                                roomNumber = room?.roomNumber ?: bill.roomId,
-                                billingPeriod = bill.billingPeriod,
-                                paymentDateMillis = bill.timestamp,
-                                previousReading = bill.previousReading,
-                                currentReading = bill.currentReading,
-                                unitsConsumed = bill.unitsConsumed,
-                                ratePerUnit = bill.electricityRate,
-                                totalElectricity = bill.electricityAmount,
-                                baseRent = bill.baseRent,
-                                maintenanceAmount = bill.maintenanceAmount,
-                                totalAmount = bill.totalPayable,
-                                amountPaid = bill.amountPaid,
-                                paymentMode = bill.paymentMode,
-                                remainingDue = bill.remainingDue
-                            )
-                            ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
-                        },
-                        modifier = Modifier.size(26.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ReceiptLong,
-                            contentDescription = "Share WhatsApp Receipt",
-                            tint = AppColors.WhatsAppGreen,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-            Divider(color = AppColors.BorderSubtle)
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = if (bill.maintenanceAmount > 0) "Rent + Elec + Maint" else "Rent + Elec",
-                        fontSize = 9.sp,
-                        color = AppColors.TextSecondary
-                    )
-                    Text(
-                        text = if (bill.maintenanceAmount > 0)
-                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()} + ₹${bill.maintenanceAmount.toInt()}"
-                        else
-                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = AppColors.TextPrimary
-                    )
-                }
-                Column {
-                    Text("Paid (${bill.paymentMode})", fontSize = 9.sp, color = AppColors.TextSecondary)
-                    Text(
-                        text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.amountPaid)}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.EmeraldSuccess
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Status", fontSize = 9.sp, color = AppColors.TextSecondary)
-                    if (bill.remainingDue > 0) {
-                        Text(
-                            text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.remainingDue)} Due",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppColors.CrimsonAlert
-                        )
-                    } else {
-                        Text(
-                            text = "Settled",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppColors.EmeraldSuccess
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RevenueCollectionsCard(
-    vm: RentViewModel,
-    year: Int,
-    totalCollections: Double,
-    rentTotal: Double,
-    electricityTotal: Double,
-    maintenanceTotal: Double,
-    duesTotal: Double,
-    advanceTotal: Double,
-    monthlyTotals: List<Double> = List(12) { 0.0 },
-    forCurrentYearOnly: Boolean
-) {
-    var activeCategory by remember { mutableStateOf<String?>(null) }
-    val blue = Color(0xFF1E6FD9)
-
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = AppColors.SurfaceWhite,
-        shadowElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column {
-                    Text(
-                        text = if (forCurrentYearOnly) "Total Collections ($year)" else "Total Collections (Lifetime)",
-                        fontSize = 12.sp,
-                        color = AppColors.TextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextPrimary
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(AppColors.AzureContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.AccountBalanceWallet,
-                        contentDescription = null,
-                        tint = AppColors.AzurePrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            MonthlyBarChart(values = monthlyTotals)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                RevenueStatBox(
-                    icon = Icons.Rounded.Home,
-                    label = "Rent Income",
-                    amount = rentTotal,
-                    color = AppColors.EmeraldSuccess,
-                    labelSize = 12.sp,
-                    amountSize = 17.sp,
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeCategory = "rent" }
-                )
-                RevenueStatBox(
-                    icon = Icons.Rounded.Bolt,
-                    label = "Electricity",
-                    amount = electricityTotal,
-                    color = AppColors.AmberWarning,
-                    labelSize = 12.sp,
-                    amountSize = 17.sp,
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeCategory = "electricity" }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                RevenueStatBox(
-                    icon = Icons.Rounded.Handyman,
-                    label = "Maintenance",
-                    amount = maintenanceTotal,
-                    color = blue,
-                    labelSize = 10.sp,
-                    amountSize = 14.sp,
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeCategory = "maintenance" }
-                )
-                RevenueStatBox(
-                    icon = Icons.Rounded.WarningAmber,
-                    label = "Dues",
-                    amount = duesTotal,
-                    color = AppColors.CrimsonAlert,
-                    labelSize = 10.sp,
-                    amountSize = 14.sp,
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeCategory = "dues" }
-                )
-                RevenueStatBox(
-                    icon = Icons.Rounded.Savings,
-                    label = "Advance",
-                    amount = advanceTotal,
-                    color = AppColors.EmeraldSuccess,
-                    labelSize = 10.sp,
-                    amountSize = 14.sp,
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeCategory = "advance" }
-                )
-            }
-        }
-    }
-
-    activeCategory?.let { category ->
-        val items = vm.getRoomWiseBreakdown(category, forCurrentYearOnly)
-        val (title, color) = when (category) {
-            "rent" -> "Rent Collected" to AppColors.AzurePrimary
-            "electricity" -> "Electricity Collected" to AppColors.AmberWarning
-            "dues" -> "Pending Dues" to AppColors.CrimsonAlert
-            "advance" -> "Advance Owed" to AppColors.EmeraldSuccess
-            else -> "" to AppColors.TextPrimary
-        }
-        RoomWiseBreakdownDialog(
-            title = title,
-            items = items,
-            accentColor = color,
-            onDismiss = { activeCategory = null }
-        )
-    }
-}
-
-@Composable
-private fun MonthlyBarChart(values: List<Double>) {
-    val labels = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-    val maxValue = (values.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
-    val maxBar = 40.dp
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        labels.forEachIndexed { i, label ->
-            val v = values.getOrElse(i) { 0.0 }
-            val barHeight = if (v <= 0.0) 3.dp else (maxBar * (v / maxValue).toFloat()).coerceAtLeast(6.dp)
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(maxBar),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(barHeight)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                if (v > 0.0) AppColors.AzurePrimary
-                                else AppColors.AzurePrimary.copy(alpha = 0.12f)
-                            )
-                    )
-                }
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = label,
-                    fontSize = 9.sp,
-                    color = AppColors.TextMuted,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RevenueStatBox(
-    icon: ImageVector,
-    label: String,
-    amount: Double,
-    color: Color,
-    labelSize: androidx.compose.ui.unit.TextUnit,
-    amountSize: androidx.compose.ui.unit.TextUnit,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = color.copy(alpha = 0.10f),
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() }
-    ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(color.copy(alpha = 0.18f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
-                }
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = label,
-                    fontSize = labelSize,
-                    fontWeight = FontWeight.Medium,
-                    color = color,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}",
-                    fontSize = amountSize,
-                    fontWeight = FontWeight.Bold,
-                    color = AppColors.TextPrimary,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    imageVector = Icons.Rounded.ChevronRight,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(16.dp)
-                )
             }
         }
     }
