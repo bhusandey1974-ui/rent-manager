@@ -23,6 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.rounded.CurrencyRupee
 import androidx.compose.material.icons.rounded.DoorFront
 import androidx.compose.material.icons.rounded.Group
@@ -103,13 +108,13 @@ private fun PropertyStatsCard(
     monthlyRent: Double
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = AppColors.SurfaceWhite,
-        shadowElevation = 2.dp,
+        shadowElevation = 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PropertyStatItem(Icons.Rounded.Home, AppColors.EmeraldSuccess, "$totalRooms", "Total Rooms", Modifier.weight(1f))
@@ -137,17 +142,17 @@ private fun PropertyStatItem(
     label: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(horizontal = 3.dp)) {
+    Column(modifier = modifier.padding(horizontal = 6.dp)) {
         Box(
             modifier = Modifier
-                .size(26.dp)
+                .size(25.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = value,
             fontSize = 16.sp,
@@ -170,8 +175,8 @@ private fun PropertyStatDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(56.dp)
-            .background(AppColors.BorderSubtle)
+            .height(48.dp)
+            .background(AppColors.BorderSubtle.copy(alpha = 0.7f))
     )
 }
 
@@ -232,7 +237,7 @@ fun PropertiesView(
     val occupiedCount = currentRooms.count { it.isOccupied }
     val vacantCount = currentRooms.count { !it.isOccupied }
     val duesCount = currentRooms.count { it.isOccupied && vm.getPendingDueForCurrentTenant(it.id) > 0.0 }
-    val totalMonthlyRent = 0.0
+    val totalMonthlyRent = 0.0 // TODO: sum of each room's monthly rent field
     val chipCounts = mapOf(
         "All" to currentRooms.size,
         "Occupied" to occupiedCount,
@@ -325,32 +330,56 @@ fun PropertiesView(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search room number or tenant...", fontSize = 14.sp) },
-                leadingIcon = {
-                    Icon(Icons.Rounded.Search, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(22.dp))
-                },
-                trailingIcon = {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = AppColors.SurfaceWhite,
+                shadowElevation = 1.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Search, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = "Search room number or tenant...",
+                                fontSize = 13.sp,
+                                color = AppColors.TextMuted,
+                                maxLines = 1
+                            )
+                        }
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.merge(
+                                TextStyle(fontSize = 13.sp, color = AppColors.TextPrimary)
+                            ),
+                            cursorBrush = SolidColor(AppColors.AzurePrimary),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                        IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
                         }
                     } else {
-                        Icon(Icons.Rounded.FilterList, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(22.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(20.dp)
+                                .background(AppColors.BorderSubtle)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Icon(Icons.Rounded.Tune, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(20.dp))
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = AppColors.AzurePrimary,
-                    unfocusedBorderColor = AppColors.BorderSubtle,
-                    focusedContainerColor = AppColors.SurfaceWhite,
-                    unfocusedContainerColor = AppColors.SurfaceWhite
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -366,10 +395,11 @@ fun PropertiesView(
                     FilterChip(
                         selected = isSel,
                         onClick = { selectedFilter = filterTag },
+                        modifier = Modifier.height(30.dp),
                         label = {
                             Text(
                                 text = "$filterTag (${chipCounts[filterTag] ?: 0})",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal
                             )
                         },
@@ -694,4 +724,3 @@ fun PropertiesView(
         )
     }
 }
-                    
