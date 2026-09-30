@@ -141,6 +141,7 @@ fun MainAppRoot(viewModel: RentViewModel) {
     var currentTabIndex by remember { mutableIntStateOf(0) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showAlertsDialog by remember { mutableStateOf(false) }
+    var showAddPropertyDialog by remember { mutableStateOf(false) }
 
     val rooms by viewModel.rooms.collectAsState()
     val tenants by viewModel.tenants.collectAsState()
@@ -162,7 +163,8 @@ fun MainAppRoot(viewModel: RentViewModel) {
                     subtitle = if (currentTabIndex == 0) "Manage Smarter. Earn Better." else "Manage Properties, Grow Smarter.",
                     onSettingsClick = { showSettingsDialog = true },
                     hasAlerts = dueRooms.isNotEmpty(),
-                    onBellClick = { showAlertsDialog = true }
+                    onBellClick = { showAlertsDialog = true },
+                    onAddPropertyClick = if (currentTabIndex == 0) ({ showAddPropertyDialog = true }) else null
                 )
             },
             bottomBar = {
@@ -217,7 +219,9 @@ fun MainAppRoot(viewModel: RentViewModel) {
                     when (tabIndex) {
                         0 -> PropertiesView(
                             vm = viewModel,
-                            onNavigateToRevenue = { currentTabIndex = 1 }
+                            onNavigateToRevenue = { currentTabIndex = 1 },
+                            addPropertyRequested = showAddPropertyDialog,
+                            onAddPropertyHandled = { showAddPropertyDialog = false }
                         )
                         1 -> RevenueView(vm = viewModel, onAddRecord = { currentTabIndex = 0 })
                         2 -> ExpensesView(vm = viewModel)
