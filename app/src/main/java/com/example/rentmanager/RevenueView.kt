@@ -1245,4 +1245,43 @@ private fun RevenueStatBox(
             ) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize * 0.53f))
             }
+            Spacer(modifier = Modifier.width(iconGap))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = labelSize,
+                    fontWeight = FontWeight.Medium,
+                    color = labelColor,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = amountText,
+                        fontSize = amountSize,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = labelColor,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+                Text(
+                    text = subText,
+                    fontSize = subSize,
+                    color = AppColors.TextSecondary,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
             
