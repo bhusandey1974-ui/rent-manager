@@ -562,7 +562,7 @@ fun AssignTenantDialog(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Assign Tenant")
+                        Text("Assign", maxLines = 1)
                     }
                 }
             }
