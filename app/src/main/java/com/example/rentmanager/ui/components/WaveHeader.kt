@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddHomeWork
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Eco
@@ -57,7 +58,8 @@ fun WaveHeader(
     subtitle: String,
     onSettingsClick: () -> Unit,
     hasAlerts: Boolean = false,
-    onBellClick: () -> Unit = {}
+    onBellClick: () -> Unit = {},
+    onAddPropertyClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -158,6 +160,25 @@ fun WaveHeader(
                                 .size(8.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFFFF3B30))
+                        )
+                    }
+                }
+
+                // Add property (only when a handler is passed)
+                if (onAddPropertyClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.14f))
+                            .clickable { onAddPropertyClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AddHomeWork,
+                            contentDescription = "Add property",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
