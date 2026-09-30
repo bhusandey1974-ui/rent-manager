@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -92,20 +93,26 @@ fun RoomCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { showDetails = true },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWhite),
-        border = BorderStroke(1.dp, AppColors.BorderSubtle),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
+        // Reference sizes (dp, on a 360dp-wide screen):
+        //   occupied card ~ 338 x 106  -> inner row 92 + 7 padding top/bottom
+        //   vacant card   ~ 338 x  99  -> inner row 85 + 7 padding top/bottom
+        //   photo 85 wide, 14 corner radius; gap between cards 10
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(IntrinsicSize.Min)
+                .padding(7.dp)
+                .height(if (room.isOccupied) 92.dp else 85.dp)
         ) {
+            // ---- Photo
             Box(
                 modifier = Modifier
-                    .width(112.dp)
+                    .width(85.dp)
                     .fillMaxHeight()
+                    .clip(RoundedCornerShape(14.dp))
             ) {
                 Image(
                     painter = painterResource(
@@ -113,41 +120,46 @@ fun RoomCard(
                     ),
                     contentDescription = if (room.isOccupied) "Occupied room" else "Vacant room",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp))
+                    modifier = Modifier.matchParentSize()
                 )
                 Box(
                     modifier = Modifier
-                        .padding(8.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .padding(5.dp)
+                        .clip(RoundedCornerShape(7.dp))
                         .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "#${room.roomNumber}",
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
+            // ---- Content (title row / tenant info / bottom row, spread evenly)
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 14.dp, top = 12.dp, end = 10.dp, bottom = 12.dp)
+                    .fillMaxHeight()
+                    .padding(start = 10.dp, end = 2.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
+                // Title + status pill + chevron
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Room ${room.roomNumber}",
-                        fontSize = 19.sp,
+                        fontSize = 17.sp,
+                        lineHeight = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AppColors.TextPrimary
+                        color = AppColors.TextPrimary,
+                        maxLines = 1
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val statusColor = if (room.isOccupied) AppColors.EmeraldSuccess else AppColors.AmberWarning
@@ -159,11 +171,11 @@ fun RoomCard(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(7.dp)
+                                        .size(6.dp)
                                         .clip(CircleShape)
                                         .background(statusColor)
                                 )
@@ -171,52 +183,58 @@ fun RoomCard(
                                 Text(
                                     text = statusLabel,
                                     color = statusColor,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(2.dp))
                         Icon(
                             imageVector = Icons.Rounded.ChevronRight,
                             contentDescription = null,
                             tint = AppColors.TextMuted,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
+                // Tenant info
                 if (room.isOccupied && tenant != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Person,
-                            contentDescription = null,
-                            tint = AppColors.TextSecondary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = tenant.name,
-                            fontSize = 13.sp,
-                            color = AppColors.TextSecondary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Phone,
-                            contentDescription = null,
-                            tint = AppColors.TextSecondary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = tenant.phoneNumber,
-                            fontSize = 13.sp,
-                            color = AppColors.TextSecondary
-                        )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Person,
+                                contentDescription = null,
+                                tint = AppColors.TextSecondary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = tenant.name,
+                                fontSize = 12.sp,
+                                lineHeight = 14.sp,
+                                color = AppColors.TextSecondary,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Phone,
+                                contentDescription = null,
+                                tint = AppColors.TextSecondary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = tenant.phoneNumber,
+                                fontSize = 12.sp,
+                                lineHeight = 14.sp,
+                                color = AppColors.TextSecondary,
+                                maxLines = 1
+                            )
+                        }
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -224,19 +242,20 @@ fun RoomCard(
                             imageVector = Icons.Rounded.Home,
                             contentDescription = null,
                             tint = AppColors.TextSecondary,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "No tenant assigned",
-                            fontSize = 13.sp,
-                            color = AppColors.TextSecondary
+                            fontSize = 12.sp,
+                            lineHeight = 14.sp,
+                            color = AppColors.TextSecondary,
+                            maxLines = 1
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
+                // Bottom row: rent-due box (occupied) or Add Tenant box (vacant) + kebab
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -245,31 +264,39 @@ fun RoomCard(
                         Row(
                             modifier = Modifier
                                 .weight(1f)
+                                .height(33.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(AppColors.SlateBackground)
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .padding(horizontal = 9.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.CalendarToday,
                                 contentDescription = null,
                                 tint = AppColors.TextSecondary,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                            Spacer(modifier = Modifier.width(7.dp))
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
-                                    text = if (pendingDue > 0) "Rent Due" else "Rent Status",
-                                    fontSize = 12.sp,
-                                    color = AppColors.TextSecondary
+                                    text = "Rent Due",
+                                    fontSize = 10.sp,
+                                    lineHeight = 12.sp,
+                                    color = AppColors.TextSecondary,
+                                    maxLines = 1
                                 )
                                 Text(
                                     text = if (pendingDue > 0)
                                         "₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)} pending"
-                                    else "All bills settled",
-                                    fontSize = 13.sp,
+                                    else nextRentDueLabel(tenant?.moveInDate ?: System.currentTimeMillis()),
+                                    fontSize = 12.sp,
+                                    lineHeight = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppColors.TextPrimary
+                                    color = AppColors.TextPrimary,
+                                    maxLines = 1
                                 )
                             }
                             if (pendingDue > 0) {
@@ -283,13 +310,13 @@ fun RoomCard(
                                             )
                                             ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, reminderMsg)
                                         },
-                                        modifier = Modifier.size(30.dp)
+                                        modifier = Modifier.size(26.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.NotificationsActive,
                                             contentDescription = "Send rent reminder via WhatsApp",
                                             tint = AppColors.CrimsonAlert,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                 }
@@ -301,6 +328,7 @@ fun RoomCard(
                                         text = "Due",
                                         color = Color.White,
                                         fontSize = 11.sp,
+                                        lineHeight = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                                     )
@@ -313,9 +341,10 @@ fun RoomCard(
                                     Text(
                                         text = "\u2713 Settled",
                                         color = Color.White,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
                                     )
                                 }
                             }
@@ -324,15 +353,16 @@ fun RoomCard(
                         Row(
                             modifier = Modifier
                                 .weight(1f)
+                                .height(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(AppColors.AmberContainer)
+                                .background(Color(0xFFFEF4E2))
                                 .clickable { onAssignTenant() }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .padding(horizontal = 9.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(22.dp)
+                                    .size(20.dp)
                                     .clip(CircleShape)
                                     .border(BorderStroke(1.5.dp, AppColors.TextPrimary), CircleShape),
                                 contentAlignment = Alignment.Center
@@ -341,31 +371,36 @@ fun RoomCard(
                                     imageVector = Icons.Rounded.Add,
                                     contentDescription = null,
                                     tint = AppColors.TextPrimary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(12.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Column {
+                            Column(verticalArrangement = Arrangement.Center) {
                                 Text(
                                     text = "Add Tenant",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
+                                    lineHeight = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppColors.TextPrimary
+                                    color = AppColors.TextPrimary,
+                                    maxLines = 1
                                 )
                                 Text(
                                     text = "Assign a tenant to this room",
-                                    fontSize = 11.sp,
-                                    color = AppColors.TextSecondary
+                                    fontSize = 10.5.sp,
+                                    lineHeight = 13.sp,
+                                    color = AppColors.TextSecondary,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
 
                     IconButton(
                         onClick = { showDetails = true },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
@@ -382,266 +417,4 @@ fun RoomCard(
     if (showDetails) {
         RoomDetailsDialog(
             room = room,
-            tenant = tenant,
-            pendingDue = pendingDue,
-            onDismiss = { showDetails = false },
-            onAssignTenant = { showDetails = false; onAssignTenant() },
-            onLodgeBill = { showDetails = false; onLodgeBill() },
-            onEditRoom = { showDetails = false; onEditRoom() },
-            onDeleteRoom = { showDetails = false; onDeleteRoom() },
-            onVacateRoom = { showDetails = false; showVacateConfirm = true },
-            onViewHistory = { showDetails = false; onViewHistory() },
-            onEditTenant = { showDetails = false; onEditTenant() }
-        )
-    }
-
-    if (showVacateConfirm) {
-        VacateSettlementDialog(
-            tenantName = tenant?.name ?: "Tenant",
-            settlementAmount = pendingDue,
-            securityDeposit = tenant?.securityDeposit ?: 0.0,
-            onDismiss = { showVacateConfirm = false },
-            onConfirm = { note, depositRefunded ->
-                showVacateConfirm = false
-                if (tenant != null && tenant.phoneNumber.isNotBlank()) {
-                    val receiptMsg = ReceiptFormatter.formatVacateReceipt(
-                        tenantName = tenant.name,
-                        roomNumber = room.roomNumber,
-                        securityDeposit = tenant.securityDeposit,
-                        depositRefunded = depositRefunded,
-                        settlementAmount = pendingDue,
-                        settlementNote = note
-                    )
-                    ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
-                }
-                onConfirmVacate(note, depositRefunded)
-            }
-        )
-    }
-}
-
-@Composable
-fun RoomDetailsDialog(
-    room: Room,
-    tenant: Tenant?,
-    pendingDue: Double,
-    onDismiss: () -> Unit,
-    onAssignTenant: () -> Unit,
-    onLodgeBill: () -> Unit,
-    onEditRoom: () -> Unit,
-    onDeleteRoom: () -> Unit,
-    onVacateRoom: () -> Unit,
-    onViewHistory: () -> Unit,
-    onEditTenant: () -> Unit = {}
-) {
-     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = AppColors.SurfaceWhite,
-            border = BorderStroke(1.dp, AppColors.BorderSubtle),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Room ${room.roomNumber}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextPrimary
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Close")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "₹${room.baseRent.toInt()} / mo",
-                    fontSize = 13.sp,
-                    color = AppColors.TextSecondary
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Bolt,
-                        contentDescription = null,
-                        tint = AppColors.TextMuted,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Rate: ₹${room.electricityRate}/unit | Initial Meter: ${room.initialMeterReading}",
-                        fontSize = 12.sp,
-                        color = AppColors.TextMuted
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = AppColors.BorderSubtle)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (room.isOccupied && tenant != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Tenant Details",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppColors.TextPrimary
-                        )
-                        IconButton(
-                            onClick = onEditTenant,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Edit,
-                                contentDescription = "Edit tenant details",
-                                tint = AppColors.AzurePrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    DetailRow("Name", tenant.name)
-                    DetailRow("Phone", tenant.phoneNumber)
-                    DetailRow("Aadhaar", tenant.aadhaarNumber.ifBlank { "Not provided" })
-                    DetailRow("Address", tenant.permanentAddress.ifBlank { "Not provided" })
-                    DetailRow("Move-In Date", dateFormatter.format(Date(tenant.moveInDate)))
-                    DetailRow(
-                        "Deposit",
-                        if (tenant.securityDeposit > 0.0) "₹${tenant.securityDeposit.toInt()}" else "None"
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (pendingDue > 0)
-                            "Due: ₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)}"
-                        else "All Settled",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (pendingDue > 0) AppColors.CrimsonAlert else AppColors.EmeraldSuccess
-                    )
-                } else {
-                    Text(
-                        text = "This room is currently vacant.",
-                        fontSize = 13.sp,
-                        color = AppColors.TextSecondary
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-                Divider(color = AppColors.BorderSubtle)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (room.isOccupied) {
-                        Button(
-                            onClick = onLodgeBill,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.AzurePrimary,
-                                contentColor = Color.White
-                            ),
-                            modifier = Modifier.weight(1f).height(40.dp)
-                        ) {
-                            Icon(imageVector = Icons.Rounded.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Lodge Bill", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        Button(
-                            onClick = onAssignTenant,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.AzurePrimary,
-                                contentColor = Color.White
-                            ),
-                            modifier = Modifier.weight(1f).height(40.dp)
-                        ) {
-                            Icon(imageVector = Icons.Rounded.Person, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Assign Tenant", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = onViewHistory,
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
-                        modifier = Modifier.weight(1f).height(40.dp)
-                    ) {
-                        Icon(imageVector = Icons.Rounded.History, contentDescription = null, tint = AppColors.TextSecondary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("History", fontSize = 12.sp, color = AppColors.TextSecondary)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onEditRoom,
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
-                        modifier = Modifier.weight(1f).height(40.dp)
-                    ) {
-                        Icon(imageVector = Icons.Rounded.Edit, contentDescription = null, tint = AppColors.TextSecondary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Edit", fontSize = 12.sp, color = AppColors.TextSecondary)
-                    }
-
-                    if (room.isOccupied) {
-                        OutlinedButton(
-                            onClick = onVacateRoom,
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.5f)),
-                            modifier = Modifier.weight(1f).height(40.dp)
-                        ) {
-                            Text("Vacate", fontSize = 12.sp, color = AppColors.CrimsonAlert, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = onDeleteRoom,
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.5f)),
-                            modifier = Modifier.weight(1f).height(40.dp)
-                        ) {
-                            Icon(imageVector = Icons.Rounded.DeleteOutline, contentDescription = null, tint = AppColors.CrimsonAlert, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Delete", fontSize = 12.sp, color = AppColors.CrimsonAlert)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DetailRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp)
-    ) {
-        Text(text = "$label: ", fontSize = 12.sp, color = AppColors.TextMuted, fontWeight = FontWeight.SemiBold)
-        Text(text = value, fontSize = 12.sp, color = AppColors.TextSecondary)
-    }
-}
+            
