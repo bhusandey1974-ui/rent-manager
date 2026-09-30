@@ -1176,14 +1176,11 @@ fun LodgeBillDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Section 5: Payment Received
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = amountPaidStr,
                         onValueChange = { amountPaidStr = it },
-                        label = { Text("Amount Paid (₹)") },
+                        label = { Text("Paid (₹)", maxLines = 1) },
                         placeholder = { Text(grossPayable.toInt().toString()) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -1192,21 +1189,46 @@ fun LodgeBillDialog(
                             unfocusedBorderColor = AppColors.BorderSubtle,
                             focusedLabelColor = AppColors.AzurePrimary
                         ),
-                        modifier = Modifier.weight(1.3f)
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    OutlinedTextField(
-                        value = paymentMode,
-                        onValueChange = { paymentMode = it },
-                        label = { Text("Mode") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AppColors.AzurePrimary,
-                            unfocusedBorderColor = AppColors.BorderSubtle,
-                            focusedLabelColor = AppColors.AzurePrimary
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Payment mode", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("UPI", "Cash", "NetBanking", "Cheque").forEach { mode ->
+                            val selected = paymentMode == mode
+                            Surface(
+                                shape = RoundedCornerShape(18.dp),
+                                color = if (selected) AppColors.AzureDark else AppColors.SurfaceWhite,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (selected) AppColors.AzureDark else AppColors.BorderSubtle
+                                ),
+                                modifier = Modifier
+                                    .weight(if (mode == "NetBanking") 1.7f else 1f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .clickable { paymentMode = mode }
+                            ) {
+                                Text(
+                                    text = mode,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (selected) Color.White else AppColors.TextPrimary,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
