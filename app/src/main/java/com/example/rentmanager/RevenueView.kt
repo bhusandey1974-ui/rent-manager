@@ -79,6 +79,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,6 +94,17 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private class Ref(val s: Float) {
+    fun dp(px: Number) = (px.toFloat() * s).dp
+    fun sp(px: Number) = (px.toFloat() * s).sp
+}
+
+@Composable
+private fun rememberRef(): Ref {
+    val w = LocalConfiguration.current.screenWidthDp
+    return remember(w) { Ref(w / 841f) }
+}
 
 private data class MonthGroup(
     val year: Int,
