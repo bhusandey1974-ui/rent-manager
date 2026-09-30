@@ -890,4 +890,352 @@ private fun BillDetailRow(
     }
 }
 
+@Composable
+fun RevenueCollectionsCard(
+    vm: RentViewModel,
+    year: Int,
+    totalCollections: Double,
+    rentTotal: Double,
+    electricityTotal: Double,
+    maintenanceTotal: Double,
+    duesTotal: Double,
+    advanceTotal: Double,
+    rentCount: Int = 0,
+    electricityCount: Int = 0,
+    maintenanceCount: Int = 0,
+    duesCount: Int = 0,
+    advanceCount: Int = 0,
+    growthText: String? = null,
+    growthUp: Boolean = true,
+    monthlyTotals: List<Double> = List(12) { 0.0 },
+    forCurrentYearOnly: Boolean
+) {
+    var activeCategory by remember { mutableStateOf<String?>(null) }
+    val blue = Color(0xFF1E6FD9)
+    val navy = Color(0xFF17408F)
+    val growthColor = if (growthUp) AppColors.EmeraldSuccess else AppColors.CrimsonAlert
 
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = AppColors.SurfaceWhite,
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                // Subtle dot pattern, strongest at the top-right and fading toward bottom-left
+                .drawBehind {
+                    val gap = 12.dp.toPx()
+                    val r = 0.9.dp.toPx()
+                    val maxD = kotlin.math.sqrt(size.width * size.width + size.height * size.height)
+                    var x = gap / 2
+                    while (x < size.width) {
+                        var y = gap / 2
+                        while (y < size.height) {
+                            val dx = size.width - x
+                            val d = kotlin.math.sqrt(dx * dx + y * y) / maxD
+                            val a = 0.11f * (1f - d * 1.25f)
+                            if (a > 0.004f) {
+                                drawCircle(AppColors.AzurePrimary.copy(alpha = a), r, Offset(x, y))
+                            }
+                            y += gap
+                        }
+                        x += gap
+                    }
+                }
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = if (forCurrentYearOnly) "Total Collections ($year)" else "Total Collections (Lifetime)",
+                        fontSize = 12.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp,
+                        color = AppColors.TextPrimary
+                    )
+                    if (growthText != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(growthColor.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (growthUp) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                                    contentDescription = null,
+                                    tint = growthColor,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(growthText, fontSize = 11.sp, color = growthColor)
+                        }
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AppColors.AzureContainer.copy(alpha = 0.7f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = AppColors.AzureDark,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            MonthlyBarChart(values = monthlyTotals)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RevenueStatBox(
+                    icon = Icons.Rounded.Home,
+                    label = "Rent Income",
+                    amount = rentTotal,
+                    subText = "$rentCount payments",
+                    color = AppColors.EmeraldSuccess,
+                    labelColor = AppColors.EmeraldSuccess,
+                    labelSize = 11.sp,
+                    iconSize = 30.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "rent" }
+                )
+                RevenueStatBox(
+                    icon = Icons.Rounded.Bolt,
+                    label = "Electricity",
+                    amount = electricityTotal,
+                    subText = "$electricityCount payments",
+                    color = AppColors.AmberWarning,
+                    labelColor = AppColors.AmberWarning,
+                    labelSize = 11.sp,
+                    iconSize = 30.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "electricity" }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                RevenueStatBox(
+                    icon = Icons.Rounded.Handyman,
+                    label = "Maintenance",
+                    amount = maintenanceTotal,
+                    subText = "$maintenanceCount expenses",
+                    color = blue,
+                    labelColor = navy,
+                    labelSize = 9.5.sp,
+                    iconSize = 26.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "maintenance" }
+                )
+                RevenueStatBox(
+                    icon = Icons.Rounded.WarningAmber,
+                    label = "Dues",
+                    amount = duesTotal,
+                    subText = "$duesCount pending",
+                    color = AppColors.CrimsonAlert,
+                    labelColor = AppColors.CrimsonAlert,
+                    labelSize = 9.5.sp,
+                    iconSize = 26.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "dues" }
+                )
+                RevenueStatBox(
+                    icon = Icons.Rounded.Savings,
+                    label = "Advance",
+                    amount = advanceTotal,
+                    subText = "$advanceCount records",
+                    color = AppColors.EmeraldSuccess,
+                    labelColor = AppColors.EmeraldSuccess,
+                    labelSize = 9.5.sp,
+                    iconSize = 26.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = { activeCategory = "advance" }
+                )
+            }
+        }
+    }
+
+    activeCategory?.let { category ->
+        val items = vm.getRoomWiseBreakdown(category, forCurrentYearOnly)
+        val (title, color) = when (category) {
+            "rent" -> "Rent Collected" to AppColors.AzurePrimary
+            "electricity" -> "Electricity Collected" to AppColors.AmberWarning
+            "dues" -> "Pending Dues" to AppColors.CrimsonAlert
+            "advance" -> "Advance Owed" to AppColors.EmeraldSuccess
+            else -> "" to AppColors.TextPrimary
+        }
+        RoomWiseBreakdownDialog(
+            title = title,
+            items = items,
+            accentColor = color,
+            onDismiss = { activeCategory = null }
+        )
+    }
+}
+
+@Composable
+private fun MonthlyBarChart(values: List<Double>) {
+    val labels = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val allZero = values.all { it <= 0.0 }
+    val maxValue = (values.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
+    val maxBar = 44.dp
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        labels.forEachIndexed { i, label ->
+            val v = values.getOrElse(i) { 0.0 }
+            // With no data yet, show a faint ascending placeholder like the design.
+            val barHeight = when {
+                allZero -> maxBar * (0.12f + 0.88f * i / 11f)
+                v <= 0.0 -> 3.dp
+                else -> (maxBar * (v / maxValue).toFloat()).coerceAtLeast(6.dp)
+            }
+            val barColor = when {
+                allZero -> AppColors.AzurePrimary.copy(alpha = 0.08f)
+                v > 0.0 -> AppColors.AzurePrimary
+                else -> AppColors.AzurePrimary.copy(alpha = 0.12f)
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(maxBar),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(10.dp)
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(barColor)
+                    )
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = label,
+                    fontSize = 8.sp,
+                    color = AppColors.TextMuted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RevenueStatBox(
+    icon: ImageVector,
+    label: String,
+    amount: Double,
+    subText: String,
+    color: Color,
+    labelColor: Color,
+    labelSize: androidx.compose.ui.unit.TextUnit,
+    iconSize: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val amountText = if (amount >= 10000) {
+        "₹${String.format(Locale.ENGLISH, "%,.0f", amount)}"
+    } else {
+        "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}"
+    }
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = color.copy(alpha = 0.10f),
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(iconSize)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize * 0.53f))
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = labelSize,
+                    fontWeight = FontWeight.Medium,
+                    color = labelColor,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = amountText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = labelColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                Text(
+                    text = subText,
+                    fontSize = 10.sp,
+                    color = AppColors.TextSecondary,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
+
+            
