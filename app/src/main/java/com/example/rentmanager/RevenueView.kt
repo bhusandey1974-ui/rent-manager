@@ -1272,13 +1272,6 @@ private fun RevenueStatBox(
                         modifier = Modifier.size(13.dp)
                     )
                 }
-                Text(
-                    text = subText,
-                    fontSize = subSize,
-                    color = AppColors.TextSecondary,
-                    maxLines = 1,
-                    softWrap = false
-                )
             }
         }
     }
