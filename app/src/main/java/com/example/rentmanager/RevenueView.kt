@@ -1189,4 +1189,26 @@ private fun RevenueStatBox(
                         fontWeight = FontWeight.Bold,
                         color = AppColors.TextPrimary,
                         maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = labelColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                Text(
+                    text = subText,
+                    fontSize = 10.sp,
+                    color = AppColors.TextSecondary,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
             
