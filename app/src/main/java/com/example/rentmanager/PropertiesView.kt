@@ -109,27 +109,29 @@ private fun PropertyStatsCard(
     monthlyRent: Double
 ) {
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         color = AppColors.SurfaceWhite,
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .height(IntrinsicSize.Min)
         ) {
-            PropertyStatItem(Icons.Rounded.Home, AppColors.EmeraldSuccess, "$totalRooms", "Total Rooms", Modifier.weight(1.15f))
+            PropertyStatItem(Icons.Rounded.Home, Color(0xFF1E8E5A), "$totalRooms", "Total Rooms", Modifier.weight(20f))
             PropertyStatDivider()
-            PropertyStatItem(Icons.Rounded.Group, Color(0xFF1E6FD9), "$occupied", "Occupied", Modifier.weight(1f))
+            PropertyStatItem(Icons.Rounded.Group, Color(0xFF2A6FC9), "$occupied", "Occupied", Modifier.weight(17f))
             PropertyStatDivider()
-            PropertyStatItem(Icons.Rounded.DoorFront, AppColors.AmberWarning, "$vacant", "Vacant", Modifier.weight(0.85f))
+            PropertyStatItem(Icons.Rounded.DoorFront, Color(0xFFE58A12), "$vacant", "Vacant", Modifier.weight(16f))
             PropertyStatDivider()
             PropertyStatItem(
                 Icons.Rounded.CurrencyRupee,
-                AppColors.EmeraldSuccess,
+                Color(0xFF1E8E5A),
                 "₹ ${String.format(Locale.ENGLISH, "%,.0f", monthlyRent)}",
                 "Total Monthly Rent",
-                Modifier.weight(1.5f)
+                Modifier.weight(27f)
             )
         }
     }
@@ -143,28 +145,29 @@ private fun PropertyStatItem(
     label: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(horizontal = 6.dp)) {
+    Column(modifier = modifier.padding(start = 14.dp, end = 6.dp)) {
         Box(
             modifier = Modifier
-                .size(25.dp)
+                .size(26.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
         }
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = value,
-            fontSize = 16.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.3).sp,
             color = AppColors.TextPrimary,
-            maxLines = 1
+            maxLines = 1,
+            softWrap = false
         )
         Text(
             text = label,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
+            letterSpacing = 0.2.sp,
             color = AppColors.TextSecondary,
             maxLines = 1,
             softWrap = false
@@ -177,8 +180,8 @@ private fun PropertyStatDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(48.dp)
-            .background(AppColors.BorderSubtle.copy(alpha = 0.7f))
+            .fillMaxHeight()
+            .background(AppColors.BorderSubtle.copy(alpha = 0.5f))
     )
 }
 
