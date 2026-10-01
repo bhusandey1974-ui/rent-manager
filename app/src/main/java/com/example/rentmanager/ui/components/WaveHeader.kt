@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.outlined.AddHomeWork
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -82,7 +85,7 @@ fun WaveHeader(
     hasAlerts: Boolean = false,
     animated: Boolean = true,
     liftContent: Dp = 30.dp,     // how far the content below the header moves up (overlaps the dark wave)
-    trimTop: Dp = 16.dp,         // cuts the empty band at the top of the picture; text and icons move up with it
+    trimTop: Dp = 26.dp,         // cuts the empty band at the top of the picture; text and icons move up with it
     contentTop: Dp = 8.dp        // gap above the title and icons; lower it to move them higher
 ) {
     val fx = rememberInfiniteTransition(label = "headerFx")
@@ -131,6 +134,19 @@ fun WaveHeader(
             }
         }
 
+        // Dark fade behind the title so the text is easy to read
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth(0.75f)
+                .fillMaxHeight(0.5f)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color.Black.copy(alpha = 0.60f), Color.Transparent)
+                    )
+                )
+        )
+
         // 3. Title + buttons on ONE line, in the clear sky above the building
         Row(
             modifier = Modifier
@@ -144,16 +160,23 @@ fun WaveHeader(
                 Text(
                     title,
                     color = Color.White,
-                    fontSize = 22.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    style = LocalTextStyle.current.copy(
+                        shadow = Shadow(Color.Black.copy(alpha = 0.75f), Offset(0f, 3f), 8f)
+                    )
                 )
                 Text(
                     subtitle,
-                    color = Color.White.copy(alpha = 0.80f),
-                    fontSize = 10.5.sp,
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                     letterSpacing = 0.3.sp,
-                    maxLines = 1
+                    maxLines = 1,
+                    style = LocalTextStyle.current.copy(
+                        shadow = Shadow(Color.Black.copy(alpha = 0.75f), Offset(0f, 2f), 6f)
+                    )
                 )
             }
             Row(
