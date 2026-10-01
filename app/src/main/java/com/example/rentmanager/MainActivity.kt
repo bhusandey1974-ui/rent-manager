@@ -124,7 +124,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             RentManagerTheme {
                 WithInterFont {
-                    MainAppRoot(viewModel = viewModel)
+                    androidx.compose.material3.Surface(
+                        color = AppColors.ScaffoldBackground,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        MainAppRoot(viewModel = viewModel)
+                    }
                 }
             }
         }
