@@ -967,26 +967,38 @@ fun RevenueCollectionsCard(
                         val gap = 12.dp.toPx()
                         val r = 0.9.dp.toPx()
                         val maxD = kotlin.math.sqrt(size.width * size.width + size.height * size.height)
-                        val band = 70.dp.toPx()
-                        val pos = shimmer * (size.width + size.height * 0.5f + 2 * band) - band
+                        var col = 0
                         var x = gap / 2
                         while (x < size.width) {
+                            var row = 0
                             var y = gap / 2
                             while (y < size.height) {
                                 val dx = size.width - x
                                 val d = kotlin.math.sqrt(dx * dx + y * y) / maxD
                                 val base = (0.11f * (1f - d * 1.25f)).coerceAtLeast(0.04f)
-                                val t = ((x + y * 0.5f) - pos) / band
-                                val glow = kotlin.math.exp(-(t * t))
-                                val a = (base + glow * 0.40f).coerceIn(0f, 1f)
+
+                                // each dot gets its own random-looking number from 0 to 1
+                                val h = kotlin.math.abs(((col * 73856093) xor (row * 19349663)) % 1000) / 1000f
+
+                                // only about 45% of the dots twinkle; the rest stay still
+                                var glow = 0f
+                                if (h > 0.55f) {
+                                    val cycles = if (h > 0.8f) 2 else 1
+                                    val s = (kotlin.math.sin(2.0 * kotlin.math.PI * (shimmer * cycles + h * 7.0)) + 1.0) / 2.0
+                                    glow = (s * s * s).toFloat()
+                                }
+
+                                val a = (base + glow * 0.45f).coerceIn(0f, 1f)
                                 drawCircle(
                                     AppColors.AzurePrimary.copy(alpha = a),
-                                    r * (1f + glow * 0.7f),
+                                    r * (1f + glow * 0.6f),
                                     Offset(x, y)
                                 )
                                 y += gap
+                                row++
                             }
                             x += gap
+                            col++
                         }
                     }
         
