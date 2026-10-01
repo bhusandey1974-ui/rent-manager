@@ -61,6 +61,16 @@ import com.example.rentmanager.ui.screens.PropertiesView
 import com.example.rentmanager.ui.screens.RevenueView
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.painterResource
+import kotlinx.coroutines.delay
 
 // ---------------------------------------------------------------------------
 // App-wide font (Inter). Requires these files in app/src/main/res/font/:
@@ -129,11 +139,44 @@ class MainActivity : ComponentActivity() {
                         color = AppColors.ScaffoldBackground,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        MainAppRoot(viewModel = viewModel)
+                        var showSplash by rememberSaveable { mutableStateOf(true) }
+                        LaunchedEffect(Unit) {
+                            delay(1200)
+                            showSplash = false
+                        }
+                        Box(Modifier.fillMaxSize()) {
+                            MainAppRoot(viewModel = viewModel)
+                            AnimatedVisibility(
+                                visible = showSplash,
+                                exit = fadeOut(androidx.compose.animation.core.tween(400))
+                            ) {
+                                GradientSplash()
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun GradientSplash() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFFFFFFF), Color(0xFFDCEBFF), Color(0xFF2F7BFF))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_launcher),
+            contentDescription = null,
+            modifier = Modifier.size(150.dp)
+        )
     }
 }
 
