@@ -270,6 +270,7 @@ fun PropertiesView(
         containerColor = AppColors.ScaffoldBackground,
         floatingActionButton = {
             FloatingActionButton(
+                modifier = Modifier.offset(y = (-100).dp),
                 onClick = { showAddRoomDialog = true },
                 containerColor = AppColors.AzurePrimary,
                 contentColor = Color.White,
