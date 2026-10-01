@@ -8,7 +8,7 @@
         android:roundIcon="@drawable/ic_launcher"
         android:label="Rent Manager"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.NoTitleBar">
+        android:theme="@style/Theme.RentManager">
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4334614941668154~8907479071" />
