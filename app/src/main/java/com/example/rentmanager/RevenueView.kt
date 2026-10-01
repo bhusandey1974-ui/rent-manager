@@ -941,6 +941,14 @@ fun RevenueCollectionsCard(
     val navy = Color(0xFF17408F)
     val growthColor = if (growthUp) AppColors.EmeraldSuccess else AppColors.CrimsonAlert
 
+    val dotClock = rememberInfiniteTransition(label = "dots")
+    val shimmer by dotClock.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(5000, easing = LinearEasing), RepeatMode.Restart),
+        label = "dotShimmer"
+    )
+
     // Lock the card's text to normal size so it looks the same on every phone,
     // even when the phone's font size is set larger.
     val currentDensity = LocalDensity.current
@@ -959,21 +967,29 @@ fun RevenueCollectionsCard(
                         val gap = 12.dp.toPx()
                         val r = 0.9.dp.toPx()
                         val maxD = kotlin.math.sqrt(size.width * size.width + size.height * size.height)
+                        val band = 70.dp.toPx()
+                        val pos = shimmer * (size.width + size.height * 0.5f + 2 * band) - band
                         var x = gap / 2
                         while (x < size.width) {
                             var y = gap / 2
                             while (y < size.height) {
                                 val dx = size.width - x
                                 val d = kotlin.math.sqrt(dx * dx + y * y) / maxD
-                                val a = 0.11f * (1f - d * 1.25f)
-                                if (a > 0.004f) {
-                                    drawCircle(AppColors.AzurePrimary.copy(alpha = a), r, Offset(x, y))
-                                }
+                                val base = (0.11f * (1f - d * 1.25f)).coerceAtLeast(0.04f)
+                                val t = ((x + y * 0.5f) - pos) / band
+                                val glow = kotlin.math.exp(-(t * t))
+                                val a = (base + glow * 0.40f).coerceIn(0f, 1f)
+                                drawCircle(
+                                    AppColors.AzurePrimary.copy(alpha = a),
+                                    r * (1f + glow * 0.7f),
+                                    Offset(x, y)
+                                )
                                 y += gap
                             }
                             x += gap
                         }
                     }
+        
                     .padding(start = 10.dp, end = 10.dp, top = 11.dp, bottom = 10.dp)
             ) {
                 Row(
