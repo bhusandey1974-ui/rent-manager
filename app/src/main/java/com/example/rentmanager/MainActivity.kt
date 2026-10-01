@@ -174,6 +174,11 @@ fun MainAppRoot(viewModel: RentViewModel) {
                 )
             },
             bottomBar = {
+                Column {
+                BannerAdView(
+                    adUnitId = "ca-app-pub-4334614941668154/7590527977",
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
                 Surface(
                     color = AppColors.SurfaceWhite,
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
