@@ -213,7 +213,6 @@ fun MainAppRoot(viewModel: RentViewModel) {
                 }
                 }
                 }
-                }
             }
         ) { paddingValues ->
             Box(
