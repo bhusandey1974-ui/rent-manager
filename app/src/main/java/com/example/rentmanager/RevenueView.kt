@@ -1249,7 +1249,7 @@ private fun RevenueStatBox(
     }
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.10f),
+        color = AppColors.SurfaceWhite,
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() }
