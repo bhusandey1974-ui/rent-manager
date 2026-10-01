@@ -1255,7 +1255,9 @@ private fun RevenueStatBox(
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = hPad, vertical = 7.dp),
+            modifier = Modifier
+                .background(color.copy(alpha = 0.10f))
+                .padding(horizontal = hPad, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
