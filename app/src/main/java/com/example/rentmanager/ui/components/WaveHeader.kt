@@ -81,7 +81,9 @@ fun WaveHeader(
     onSettingsClick: (() -> Unit)? = null,
     hasAlerts: Boolean = false,
     animated: Boolean = true,
-    liftContent: Dp = 30.dp      // how far the content below the header moves up (overlaps the dark wave)
+    liftContent: Dp = 30.dp,     // how far the content below the header moves up (overlaps the dark wave)
+    trimTop: Dp = 16.dp,         // cuts the empty band at the top of the picture; text and icons move up with it
+    contentTop: Dp = 8.dp        // gap above the title and icons; lower it to move them higher
 ) {
     val fx = rememberInfiniteTransition(label = "headerFx")
     val clock = fx.animateFloat(
