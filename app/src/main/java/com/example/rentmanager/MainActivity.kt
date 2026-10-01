@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.example.rentmanager.ui.components.BannerAdView
 import com.example.rentmanager.ui.components.SettingsDialog
 import com.example.rentmanager.ui.screens.AuthView
 import com.example.rentmanager.ui.screens.ExpensesView
