@@ -117,8 +117,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.statusBarColor = android.graphics.Color.rgb(42, 107, 85) // matches AppColors.HeaderTop
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
 
         MobileAds.initialize(this) {}
