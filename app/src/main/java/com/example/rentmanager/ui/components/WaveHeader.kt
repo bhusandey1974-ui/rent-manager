@@ -137,7 +137,7 @@ fun WaveHeader(
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
-                .padding(start = 16.dp, end = 12.dp, top = 8.dp),
+                .padding(start = 16.dp, end = 12.dp, top = contentTop),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
