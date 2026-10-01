@@ -101,7 +101,8 @@ fun WaveHeader(
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
                 val lift = liftContent.roundToPx().coerceIn(0, placeable.height)
-                layout(placeable.width, placeable.height - lift) { placeable.place(0, 0) }
+                val trim = trimTop.roundToPx().coerceIn(0, placeable.height)
+                layout(placeable.width, placeable.height - lift - trim) { placeable.place(0, -trim) }
             }
     ) {
         // 1. Realistic artwork
