@@ -768,3 +768,422 @@ return sdf.format(cal.time)
                 paidOn = System.currentTimeMillis()
             )
         }
+        // 3) Any genuine surplus left after every known due (including this period's
+        //    own bill) is cleared becomes an advance credit folded into this period's
+        //    bill, rather than being silently dropped.
+        val updatedExisting: Bill? = existingBillForPeriod?.let { existing ->
+            val totalApplied = existingApplied + paymentLeft
+            val rentGap = (existing.baseRent - existing.rentPaid).coerceAtLeast(0.0)
+val rentApplied = minOf(totalApplied, rentGap)
+val afterRent = totalApplied - rentApplied
+val elecGap = (existing.electricityAmount - existing.electricityPaid).coerceAtLeast(0.0)
+val elecApplied = minOf(afterRent, elecGap)
+            existing.copy(
+                rentPaid = existing.rentPaid + rentApplied,
+                electricityPaid = existing.electricityPaid + elecApplied,
+                amountPaid = existing.amountPaid + totalApplied,
+                remainingDue = existing.remainingDue - totalApplied,
+                paymentMode = paymentMode,
+                paidOn = if (totalApplied > 0.0) System.currentTimeMillis() else existing.paidOn
+            )
+        }
+
+        val newBill: Bill
+
+        if (existingBillForPeriod != null) {
+            // No new row — this period's existing bill was already updated above.
+            newBill = updatedExisting!!
+            _bills.value = _bills.value.map { b ->
+                if (b.id == newBill.id) newBill else (settledOthers.find { it.id == b.id } ?: b)
+            }
+        } else {
+            // A genuinely new period. Whatever's left after arrears are cleared goes
+            // toward this month's rent, then electricity. Any surplus beyond this
+            // month's own charge becomes an advance credit rather than being dropped.
+            val prevReading = getLastRecordedMeterReading(roomId)
+            val units = (currentReading - prevReading).coerceAtLeast(0.0)
+            val electricityTotal = kotlin.math.round(units * room.electricityRate)
+            val tenant = _tenants.value.find { it.id == tenantId }
+val billPeriodCal = Calendar.getInstance()
+try {
+    SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).parse(billingPeriod.trim())?.let { billPeriodCal.time = it }
+} catch (e: Exception) { /* fall back to current calendar values below */ }
+
+val isJoinMonth = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.let {
+    it.get(Calendar.YEAR) == billPeriodCal.get(Calendar.YEAR) && it.get(Calendar.MONTH) == billPeriodCal.get(Calendar.MONTH)
+}
+val joinedAfter15th = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.get(Calendar.DAY_OF_MONTH) > 15
+
+val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 else room.baseRent
+            val currentMonthCharge = kotlin.math.round(proratedBaseRent + electricityTotal + maintenanceAmount)
+            val priorDue = otherOutstanding.sumOf { it.remainingDue }
+
+            val rentContribution = minOf(proratedBaseRent, paymentLeft)
+            val afterRent = (paymentLeft - rentContribution).coerceAtLeast(0.0)
+            val elecContribution = minOf(electricityTotal, afterRent)
+
+            newBill = Bill(
+                id = UUID.randomUUID().toString(),
+                roomId = roomId,
+                tenantId = tenantId,
+                billingPeriod = billingPeriod,
+                previousReading = prevReading,
+                currentReading = currentReading,
+                unitsConsumed = units,
+                electricityRate = room.electricityRate,
+                electricityAmount = electricityTotal,
+                baseRent = proratedBaseRent,
+                maintenanceAmount = maintenanceAmount,
+                totalPayable = currentMonthCharge + priorDue,
+                rentPaid = rentContribution,
+                electricityPaid = elecContribution,
+                amountPaid = paymentLeft,
+                paymentMode = paymentMode,
+                remainingDue = currentMonthCharge - paymentLeft,
+                timestamp = System.currentTimeMillis(),
+                paidOn = if (paymentLeft > 0.0) System.currentTimeMillis() else 0L
+            )
+
+            _bills.value = _bills.value.map { b -> settledOthers.find { it.id == b.id } ?: b } + newBill
+        }
+
+        saveToLocalStorage()
+        syncBillToCloud(newBill)
+        settledOthers.forEach { syncBillToCloud(it) }
+        return newBill
+    }
+
+    fun backfillUnpaidRent(roomId: String, tenantId: String, paidThroughMonthMillis: Long) {
+    val room = _rooms.value.find { it.id == roomId } ?: return
+
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = paidThroughMonthMillis
+    cal.set(Calendar.DAY_OF_MONTH, 1)
+    cal.add(Calendar.MONTH, 1) // start from the month AFTER the last paid month
+
+    val now = Calendar.getInstance()
+    val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+    val newBills = mutableListOf<Bill>()
+
+    while (
+        cal.get(Calendar.YEAR) < now.get(Calendar.YEAR) ||
+        (cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) && cal.get(Calendar.MONTH) < now.get(Calendar.MONTH))
+    ) {
+        val billTimestamp = cal.timeInMillis
+        newBills.add(
+            Bill(
+                id = UUID.randomUUID().toString(),
+                roomId = roomId,
+                tenantId = tenantId,
+                billingPeriod = sdf.format(Date(billTimestamp)),
+                previousReading = 0.0,
+                currentReading = 0.0,
+                unitsConsumed = 0.0,
+                electricityRate = room.electricityRate,
+                electricityAmount = 0.0,
+                baseRent = room.baseRent,
+                maintenanceAmount = 0.0,
+                totalPayable = room.baseRent,
+                rentPaid = 0.0,
+                electricityPaid = 0.0,
+                amountPaid = 0.0,
+                paymentMode = "Backfilled",
+                remainingDue = room.baseRent,
+                timestamp = billTimestamp
+            )
+        )
+        cal.add(Calendar.MONTH, 1)
+    }
+
+    if (newBills.isNotEmpty()) {
+        _bills.value = _bills.value + newBills
+        saveToLocalStorage()
+        newBills.forEach { syncBillToCloud(it) }
+    }
+    }
+
+    fun settleLumpSumArrears(
+        tenantId: String,
+        baseRentPayment: Double,
+        electricityPayment: Double
+    ) {
+        val tenantBills = _bills.value
+            .filter { it.tenantId == tenantId }
+            .sortedBy { it.timestamp }
+
+        var availableRent = baseRentPayment
+        var availableElec = electricityPayment
+
+        val updatedTenantBills = tenantBills.map { bill ->
+            var currentRentPaid = bill.rentPaid
+            var currentElecPaid = bill.electricityPaid
+
+            val unpaidRent = (bill.baseRent - currentRentPaid).coerceAtLeast(0.0)
+            if (unpaidRent > 0.0 && availableRent > 0.0) {
+                val payment = minOf(unpaidRent, availableRent)
+                currentRentPaid += payment
+                availableRent -= payment
+            }
+
+            val unpaidElec = (bill.electricityAmount - currentElecPaid).coerceAtLeast(0.0)
+            if (unpaidElec > 0.0 && availableElec > 0.0) {
+                val payment = minOf(unpaidElec, availableElec)
+                currentElecPaid += payment
+                availableElec -= payment
+            }
+
+            val newAmountPaid = currentRentPaid + currentElecPaid
+            val newRemainingDue = bill.totalPayable - newAmountPaid
+
+            bill.copy(
+                rentPaid = currentRentPaid,
+                electricityPaid = currentElecPaid,
+                amountPaid = newAmountPaid,
+                remainingDue = newRemainingDue,
+                paidOn = if (newAmountPaid > bill.amountPaid) System.currentTimeMillis() else bill.paidOn
+            )
+        }
+
+        val updatedIds = updatedTenantBills.map { it.id }.toSet()
+        val otherBills = _bills.value.filter { it.id !in updatedIds }
+        _bills.value = otherBills + updatedTenantBills
+
+        saveToLocalStorage()
+        updatedTenantBills.forEach { syncBillToCloud(it) }
+    }
+
+    fun wasHistoricalDueSettled(bill: Bill): Boolean {
+        if (bill.remainingDue <= 0.0) return false
+        val laterBills = _bills.value
+            .filter { it.tenantId == bill.tenantId && it.timestamp > bill.timestamp }
+            .sortedBy { it.timestamp }
+        return laterBills.any { it.amountPaid >= bill.remainingDue || it.remainingDue <= 0.0 }
+    }
+
+    fun wasHistoricalAdvanceConsumed(bill: Bill): Boolean {
+        if (bill.remainingDue >= 0.0) return false
+        val laterBills = _bills.value
+            .filter { it.tenantId == bill.tenantId && it.timestamp > bill.timestamp }
+        return laterBills.isNotEmpty()
+    }
+
+    fun getTenantForBill(bill: Bill): Tenant? = _tenants.value.find { it.id == bill.tenantId }
+
+    fun getRoomForBill(bill: Bill): Room? = _rooms.value.find { it.id == bill.roomId }
+
+    private fun saveToLocalStorage() {
+        viewModelScope.launch {
+            try {
+                val propArr = JSONArray()
+                _properties.value.forEach {
+                    val obj = JSONObject()
+                    obj.put("id", it.id)
+                    obj.put("name", it.name)
+                    obj.put("address", it.address)
+                    obj.put("createdAt", it.createdAt)
+                    propArr.put(obj)
+                }
+                prefs.edit().putString("saved_properties", propArr.toString()).apply()
+
+                val roomArr = JSONArray()
+                _rooms.value.forEach { r ->
+                    val obj = JSONObject()
+                    obj.put("id", r.id)
+                    obj.put("propertyId", r.propertyId)
+                    obj.put("roomNumber", r.roomNumber)
+                    obj.put("baseRent", r.baseRent)
+                    obj.put("electricityRate", r.electricityRate)
+                    obj.put("initialMeterReading", r.initialMeterReading)
+                    obj.put("isOccupied", r.isOccupied)
+                    obj.put("currentTenantId", r.currentTenantId)
+
+                    val rateArr = JSONArray()
+                    r.rateHistory.forEach { rh ->
+                        val rhObj = JSONObject()
+                        rhObj.put("id", rh.id)
+                        rhObj.put("timestamp", rh.timestamp)
+                        rhObj.put("previousRent", rh.previousRent)
+                        rhObj.put("newRent", rh.newRent)
+                        rhObj.put("previousElectricityRate", rh.previousElectricityRate)
+                        rhObj.put("newElectricityRate", rh.newElectricityRate)
+                        rateArr.put(rhObj)
+                    }
+                    obj.put("rateHistory", rateArr)
+                    roomArr.put(obj)
+                }
+                prefs.edit().putString("saved_rooms", roomArr.toString()).apply()
+
+                val tenantArr = JSONArray()
+                _tenants.value.forEach {
+                    val obj = JSONObject()
+                    obj.put("id", it.id)
+                    obj.put("roomId", it.roomId)
+                    obj.put("name", it.name)
+                    obj.put("phoneNumber", it.phoneNumber)
+                    obj.put("aadhaarNumber", it.aadhaarNumber)
+                    obj.put("permanentAddress", it.permanentAddress)
+                    obj.put("moveInDate", it.moveInDate)
+                    if (it.moveOutDate != null) obj.put("moveOutDate", it.moveOutDate)
+                    obj.put("isCurrent", it.isCurrent)
+                    tenantArr.put(obj)
+                }
+                prefs.edit().putString("saved_tenants", tenantArr.toString()).apply()
+
+                val billArr = JSONArray()
+                _bills.value.forEach {
+                    val obj = JSONObject()
+                    obj.put("id", it.id)
+                    obj.put("roomId", it.roomId)
+                    obj.put("tenantId", it.tenantId)
+                    obj.put("billingPeriod", it.billingPeriod)
+                    obj.put("previousReading", it.previousReading)
+                    obj.put("currentReading", it.currentReading)
+                    obj.put("unitsConsumed", it.unitsConsumed)
+                    obj.put("electricityRate", it.electricityRate)
+                    obj.put("electricityAmount", it.electricityAmount)
+                    obj.put("baseRent", it.baseRent)
+                    obj.put("maintenanceAmount", it.maintenanceAmount)
+                    obj.put("totalPayable", it.totalPayable)
+                    obj.put("rentPaid", it.rentPaid)
+                    obj.put("electricityPaid", it.electricityPaid)
+                    obj.put("amountPaid", it.amountPaid)
+                    obj.put("paymentMode", it.paymentMode)
+                    obj.put("remainingDue", it.remainingDue)
+                    obj.put("timestamp", it.timestamp)
+                    obj.put("paidOn", it.paidOn)
+                    billArr.put(obj)
+                }
+                prefs.edit().putString("saved_bills", billArr.toString()).apply()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun loadFromLocalStorage() {
+        try {
+            val propStr = prefs.getString("saved_properties", null)
+            if (!propStr.isNullOrEmpty()) {
+                val arr = JSONArray(propStr)
+                val list = mutableListOf<Property>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(Property(
+                        id = obj.optString("id", UUID.randomUUID().toString()),
+                        name = obj.optString("name", "Main Building"),
+                        address = obj.optString("address", ""),
+                        createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                    ))
+                }
+                _properties.value = list
+            } else {
+                val defaultProp = Property(id = "default_property", name = "Main Property", address = "Primary Location")
+                _properties.value = listOf(defaultProp)
+            }
+
+            val roomStr = prefs.getString("saved_rooms", null)
+            if (!roomStr.isNullOrEmpty()) {
+                val arr = JSONArray(roomStr)
+                val list = mutableListOf<Room>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val rHist = mutableListOf<RateHistoryRecord>()
+                    val rateArr = obj.optJSONArray("rateHistory")
+                    if (rateArr != null) {
+                        for (j in 0 until rateArr.length()) {
+                            val rObj = rateArr.getJSONObject(j)
+                            rHist.add(RateHistoryRecord(
+                                id = rObj.optString("id", UUID.randomUUID().toString()),
+                                timestamp = rObj.optLong("timestamp", System.currentTimeMillis()),
+                                previousRent = rObj.optDouble("previousRent", 0.0),
+                                newRent = rObj.optDouble("newRent", 0.0),
+                                previousElectricityRate = rObj.optDouble("previousElectricityRate", 10.0),
+                                newElectricityRate = rObj.optDouble("newElectricityRate", 10.0)
+                            ))
+                        }
+                    }
+                    list.add(Room(
+                        id = obj.getString("id"),
+                        propertyId = obj.optString("propertyId", "default_property"),
+                        roomNumber = obj.getString("roomNumber"),
+                        baseRent = obj.getDouble("baseRent"),
+                        electricityRate = obj.optDouble("electricityRate", 10.0),
+                        initialMeterReading = obj.optDouble("initialMeterReading", 0.0),
+                        isOccupied = obj.optBoolean("isOccupied", false),
+                        currentTenantId = obj.optString("currentTenantId", ""),
+                        rateHistory = rHist
+                    ))
+                }
+                _rooms.value = list
+            }
+
+            val tenantStr = prefs.getString("saved_tenants", null)
+            if (!tenantStr.isNullOrEmpty()) {
+                val arr = JSONArray(tenantStr)
+                val list = mutableListOf<Tenant>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(Tenant(
+                        id = obj.getString("id"),
+                        roomId = obj.getString("roomId"),
+                        name = obj.getString("name"),
+                        phoneNumber = obj.optString("phoneNumber", ""),
+                        aadhaarNumber = obj.optString("aadhaarNumber", ""),
+                        permanentAddress = obj.optString("permanentAddress", ""),
+                        moveInDate = obj.optLong("moveInDate", System.currentTimeMillis()),
+                        moveOutDate = if (obj.has("moveOutDate")) obj.getLong("moveOutDate") else null,
+                        isCurrent = obj.optBoolean("isCurrent", true)
+                    ))
+                }
+                _tenants.value = list
+            }
+
+            val billStr = prefs.getString("saved_bills", null)
+            if (!billStr.isNullOrEmpty()) {
+                val arr = JSONArray(billStr)
+                val list = mutableListOf<Bill>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(Bill(
+                        id = obj.getString("id"),
+                        roomId = obj.getString("roomId"),
+                        tenantId = obj.optString("tenantId", ""),
+                        billingPeriod = obj.getString("billingPeriod"),
+                        previousReading = obj.optDouble("previousReading", 0.0),
+                        currentReading = obj.optDouble("currentReading", 0.0),
+                        unitsConsumed = obj.optDouble("unitsConsumed", 0.0),
+                        electricityRate = obj.optDouble("electricityRate", 10.0),
+                        electricityAmount = obj.optDouble("electricityAmount", 0.0),
+                        baseRent = obj.optDouble("baseRent", 0.0),
+                        maintenanceAmount = obj.optDouble("maintenanceAmount", 0.0),
+                        totalPayable = obj.getDouble("totalPayable"),
+                        rentPaid = obj.optDouble("rentPaid", 0.0),
+                        electricityPaid = obj.optDouble("electricityPaid", 0.0),
+                        amountPaid = obj.getDouble("amountPaid"),
+                        paymentMode = obj.optString("paymentMode", "Cash"),
+                        remainingDue = obj.getDouble("remainingDue"),
+                        timestamp = obj.getLong("timestamp"),
+                        paidOn = obj.optLong("paidOn", 0L)
+                    ))
+                }
+                _bills.value = list
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun syncWithCloudIfAvailable() {
+        val user = auth.currentUser ?: return
+        val uid = user.uid
+
+        // IMPORTANT: cloud data is merged INTO local data, never used to replace it.
+        // Local storage is always the freshest copy (writes land there instantly),
+        // while the matching Firestore upload can still be in flight. Blindly
+        // overwriting with whatever the cloud returns caused tenant assignments
+        // and other recent edits to randomly "disappear" until the delayed
+        // upload eventually caught up. Cloud is only used to bring in items this
+        // device doesn't have yet (e.g. after a reinstall or on a new device).
+
+        firestore.collection("users").document(uid).collection("properties")
+            
