@@ -224,6 +224,111 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
     }
+    // ---------- Expenses ----------
+
+    fun addExpense(title: String, amount: Double, category: String, location: String, timestamp: Long) {
+        val e = Expense(
+            id = UUID.randomUUID().toString(),
+            title = title.trim(),
+            amount = amount,
+            category = category,
+            location = location.trim(),
+            timestamp = timestamp
+        )
+        _expenses.value = _expenses.value + e
+        saveExpensesToLocal()
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("expenses")
+            .document(e.id).set(e, SetOptions.merge())
+    }
+
+    fun deleteExpense(id: String) {
+        _expenses.value = _expenses.value.filter { it.id != id }
+        saveExpensesToLocal()
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("expenses")
+            .document(id).delete()
+    }
+
+    /** month is 0 to 11, like Calendar.MONTH */
+    fun getExpensesForMonth(year: Int, month: Int): List<Expense> {
+        val cal = Calendar.getInstance()
+        return _expenses.value
+            .filter { e ->
+                cal.timeInMillis = e.timestamp
+                cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
+            }
+            .sortedByDescending { it.timestamp }
+    }
+
+    fun getExpenseTotalForMonth(year: Int, month: Int): Double =
+        getExpensesForMonth(year, month).sumOf { it.amount }
+
+    fun getCategoryTotalsForMonth(year: Int, month: Int): Map<String, Double> =
+        getExpensesForMonth(year, month)
+            .groupBy { it.category }
+            .mapValues { (_, list) -> list.sumOf { it.amount } }
+
+    fun getTotalExpensesAllTime(): Double = _expenses.value.sumOf { it.amount }
+
+    private fun saveExpensesToLocal() {
+        try {
+            val arr = JSONArray()
+            _expenses.value.forEach {
+                val obj = JSONObject()
+                obj.put("id", it.id)
+                obj.put("title", it.title)
+                obj.put("amount", it.amount)
+                obj.put("category", it.category)
+                obj.put("location", it.location)
+                obj.put("timestamp", it.timestamp)
+                arr.put(obj)
+            }
+            prefs.edit().putString("saved_expenses", arr.toString()).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun loadExpensesFromLocal() {
+        try {
+            val str = prefs.getString("saved_expenses", null)
+            if (!str.isNullOrEmpty()) {
+                val arr = JSONArray(str)
+                val list = mutableListOf<Expense>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(Expense(
+                        id = obj.getString("id"),
+                        title = obj.optString("title", ""),
+                        amount = obj.optDouble("amount", 0.0),
+                        category = obj.optString("category", "Other"),
+                        location = obj.optString("location", ""),
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis())
+                    ))
+                }
+                _expenses.value = list
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun syncExpensesFromCloud() {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("expenses")
+            .get().addOnSuccessListener { snaps ->
+                if (!snaps.isEmpty) {
+                    val cloud = snaps.toObjects(Expense::class.java)
+                    val localIds = _expenses.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _expenses.value = _expenses.value + missing
+                        saveExpensesToLocal()
+                    }
+                }
+            }
+    }
     fun clearAllData(onComplete: () -> Unit) {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid
