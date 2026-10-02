@@ -1464,5 +1464,24 @@ private fun RevenueStatBox(
         }
     }
 }
+private fun Modifier.dotPattern(): Modifier = this.drawBehind {
+    val gap = 12.dp.toPx()
+    val r = 0.9.dp.toPx()
+    val maxD = kotlin.math.sqrt(size.width * size.width + size.height * size.height)
+    var x = gap / 2
+    while (x < size.width) {
+        var y = gap / 2
+        while (y < size.height) {
+            val dx = size.width - x
+            val d = kotlin.math.sqrt(dx * dx + y * y) / maxD
+            val a = 0.14f * (1f - d * 1.25f)
+            if (a > 0.004f) {
+                drawCircle(AppColors.AzurePrimary.copy(alpha = a), r, Offset(x, y))
+            }
+            y += gap
+        }
+        x += gap
+    }
+}
     
        
