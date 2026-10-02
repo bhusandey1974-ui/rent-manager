@@ -681,6 +681,29 @@ fun PropertiesView(
         )
     }
 
+    propertyToDelete?.let { prop ->
+        DeleteConfirmationDialog(
+            title = if (propertyDeleteStep == 1) "Remove \"${prop.name}\"?" else "Are you absolutely sure?",
+            message = if (propertyDeleteStep == 1)
+                "This removes the floor, its rooms, their tenants and all billing records."
+            else
+                "Last check: \"${prop.name}\" and everything in it will be permanently deleted. This cannot be undone.",
+            onDismiss = {
+                propertyToDelete = null
+                propertyDeleteStep = 1
+            },
+            onConfirm = {
+                if (propertyDeleteStep == 1) {
+                    propertyDeleteStep = 2
+                } else {
+                    vm.deleteProperty(prop.id)
+                    propertyToDelete = null
+                    propertyDeleteStep = 1
+                }
+            }
+        )
+    }
+
     roomForDeleting?.let { room ->
         DeleteConfirmationDialog(
             title = "Delete Room ${room.roomNumber}?",
