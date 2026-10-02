@@ -70,10 +70,10 @@ import kotlin.math.sin
  *    light sparks travelling along the glowing lines, and a highlight gliding along the wave rim.
  *
  * PNG must be at: app/src/main/res/drawable/rent_manager_header.png
- * Effects are drawn in the PNG's own coordinate space (2060 x 763) so they line up exactly.
+ * Effects are drawn in the PNG's own coordinate space (2064 x 762) so they line up exactly.
  */
-private const val ART_W = 2060f
-private const val ART_H = 763f
+private const val ART_W = 2064f
+private const val ART_H = 762f
 
 @Composable
 fun WaveHeader(
@@ -84,7 +84,7 @@ fun WaveHeader(
     onSettingsClick: (() -> Unit)? = null,
     hasAlerts: Boolean = false,
     animated: Boolean = true,
-    liftContent: Dp = 30.dp,     // how far the content below the header moves up (overlaps the dark wave)
+    liftContent: Dp = 56.dp,     // how far the content below the header moves up (overlaps the dark wave)
     trimTop: Dp = 30.dp,         // cuts the empty band at the top of the picture; text and icons move up with it
     contentTop: Dp = 8.dp        // gap above the title and icons; lower it to move them higher
 ) {
@@ -128,8 +128,8 @@ fun WaveHeader(
                         drawWarmPulse(time)
                         drawWindowTwinkle(time)
                         drawSparks(paths, time)
+                        drawRimShimmer(paths, time)
                     }
-                    drawRimShimmer(paths, time)
                 }
             }
         }
@@ -161,7 +161,8 @@ fun WaveHeader(
                     title,
                     color = Color.White,
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.2).sp,
                     maxLines = 1,
                     style = LocalTextStyle.current.copy(
                         shadow = Shadow(Color.Black.copy(alpha = 0.75f), Offset(0f, 3f), 8f)
@@ -170,9 +171,9 @@ fun WaveHeader(
                 Text(
                     subtitle,
                     color = Color.White.copy(alpha = 0.95f),
-                    fontSize = 12.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp,
+                    letterSpacing = 0.4.sp,
                     maxLines = 1,
                     style = LocalTextStyle.current.copy(
                         shadow = Shadow(Color.Black.copy(alpha = 0.75f), Offset(0f, 2f), 6f)
@@ -184,7 +185,9 @@ fun WaveHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HeaderActionButton(Icons.Outlined.Notifications, "Alerts", onBellClick, hasAlerts)
-                HeaderActionButton(Icons.Outlined.AddHomeWork, "Add property", onAddPropertyClick)
+                if (onAddPropertyClick != null) {
+                    HeaderActionButton(Icons.Outlined.AddHomeWork, "Add property", onAddPropertyClick)
+                }
                 HeaderActionButton(Icons.Outlined.Settings, "Settings", onSettingsClick)
             }
         }
@@ -222,21 +225,46 @@ private fun HeaderActionButton(
 
 // ───────────────────────────── EFFECT PATHS ─────────────────────────────
 
-private fun buildRim(): Path = Path().apply {
-    moveTo(0f, 672f)
-    cubicTo(120f, 622f, 260f, 587f, 440f, 587f)
-    cubicTo(720f, 590f, 900f, 712f, 1180f, 712f)
-    cubicTo(1450f, 712f, 1600f, 592f, 1850f, 592f)
-    cubicTo(1950f, 592f, 2020f, 625f, ART_W, 655f)
+/** Smooth curve through points (Catmull-Rom -> cubic Béziers). */
+private fun smoothPath(pts: List<Offset>): Path = Path().apply {
+    moveTo(pts[0].x, pts[0].y)
+    for (i in 0 until pts.size - 1) {
+        val p0 = pts[maxOf(i - 1, 0)]
+        val p1 = pts[i]
+        val p2 = pts[i + 1]
+        val p3 = pts[minOf(i + 2, pts.size - 1)]
+        cubicTo(
+            p1.x + (p2.x - p0.x) / 6f, p1.y + (p2.y - p0.y) / 6f,
+            p2.x - (p3.x - p1.x) / 6f, p2.y - (p3.y - p1.y) / 6f,
+            p2.x, p2.y
+        )
+    }
 }
 
+// Where the PNG turns transparent (the white wave's top edge), measured from the artwork.
+private val waveEdge = listOf(
+    0f to 529f, 100f to 497f, 200f to 484f, 300f to 484f, 400f to 494f, 500f to 510f,
+    600f to 528f, 700f to 547f, 800f to 563f, 900f to 577f, 1000f to 586f, 1100f to 589f,
+    1200f to 588f, 1300f to 580f, 1400f to 568f, 1500f to 552f, 1600f to 535f, 1700f to 518f,
+    1800f to 507f, 1900f to 507f, 2000f to 527f, 2064f to 551f
+).map { Offset(it.first, it.second) }
+
+// The bright glowing line along the top of the wave.
+private val waveRim = listOf(
+    0f to 505f, 100f to 482f, 200f to 462f, 300f to 457f, 440f to 455f, 600f to 478f,
+    800f to 505f, 1000f to 552f, 1150f to 572f, 1300f to 556f, 1500f to 516f,
+    1700f to 484f, 1850f to 481f, 2000f to 500f, 2064f to 525f
+).map { Offset(it.first, it.second) }
+
 private class FxPaths {
-    val lineA = Path().apply { moveTo(1533f, 0f); cubicTo(1480f, 150f, 1400f, 260f, 1300f, 345f) }
-    val lineB = Path().apply { moveTo(640f, 655f); cubicTo(800f, 590f, 950f, 545f, 1100f, 505f) }
-    val lineC = Path().apply { moveTo(1755f, 615f); cubicTo(1850f, 560f, 1960f, 490f, ART_W, 437f) }
-    val rim = buildRim()
-    // everything ABOVE the wave edge: effects are clipped to this so they never spill onto the wave / content
-    val sky = buildRim().apply { lineTo(ART_W, 0f); lineTo(0f, 0f); close() }
+    val lineA = Path().apply { moveTo(1535f, 0f); cubicTo(1490f, 120f, 1420f, 200f, 1340f, 268f) }
+    val lineB = Path().apply { moveTo(745f, 497f); cubicTo(900f, 450f, 1030f, 400f, 1160f, 360f) }
+    val lineC = Path().apply { moveTo(1860f, 484f); cubicTo(1930f, 440f, 2000f, 400f, ART_W, 368f) }
+    val rim = smoothPath(waveRim)
+
+    /** Everything ABOVE the wave edge. All effects are clipped to this, so they never touch the content below. */
+    val sky = smoothPath(waveEdge).apply { lineTo(ART_W, 0f); lineTo(0f, 0f); close() }
+
     val mA = PathMeasure().apply { setPath(lineA, false) }
     val mB = PathMeasure().apply { setPath(lineB, false) }
     val mC = PathMeasure().apply { setPath(lineC, false) }
@@ -247,20 +275,20 @@ private fun pulse(time: Float, cycles: Int, phase: Float): Float =
 
 // ───────────────────────────── EFFECTS ─────────────────────────────
 
-/** A cyan wave of light travelling across the dot grid. */
+/** A cyan wave of light travelling across the dot grid (left side). */
 private fun DrawScope.drawDotShimmer(time: Float) {
-    val pos = time * 1000f - 150f
-    for (r in 0..7) for (c in 0..15) {
-        val x = 28f + c * 38.6f
-        val y = 368f + r * 39.5f
-        val base = ((1f - x / 640f) * (0.3f + 0.7f * r / 7f)).coerceIn(0f, 1f)
+    val pos = time * 800f - 100f
+    for (r in 0..5) for (c in 0..8) {
+        val x = 33f + c * 42.3f
+        val y = 292f + r * 43.2f
+        val base = ((1f - x / 400f) * (0.35f + 0.65f * r / 5f)).coerceIn(0f, 1f)
         if (base < 0.05f) continue
-        val d = (x - pos) / 110f
+        val d = (x - pos) / 90f
         val b = exp(-(d * d))
         if (b > 0.03f) {
             drawCircle(
                 Color(0xFF7FF0FF).copy(alpha = (b * 0.9f).coerceIn(0f, 1f)),
-                radius = 5.5f + r * 0.2f,
+                radius = 6.5f,
                 center = Offset(x, y),
                 blendMode = BlendMode.Plus
             )
@@ -268,41 +296,42 @@ private fun DrawScope.drawDotShimmer(time: Float) {
     }
 }
 
+/** Warm orange light glowing at the side of the building. */
 private fun DrawScope.drawWarmPulse(time: Float) {
-    val a = 0.18f + 0.22f * pulse(time, 1, 0f)
+    val a = 0.15f + 0.20f * pulse(time, 1, 0f)
     drawCircle(
         Brush.radialGradient(
             listOf(Color(0xFFFFA64D).copy(alpha = a), Color.Transparent),
-            center = Offset(1490f, 560f), radius = 150f
+            center = Offset(1490f, 462f), radius = 130f
         ),
-        radius = 150f, center = Offset(1490f, 560f), blendMode = BlendMode.Plus
+        radius = 130f, center = Offset(1490f, 462f), blendMode = BlendMode.Plus
     )
 }
 
-// x, y, w, h, phase   (positions of the lit windows in the artwork)
+// x, y, w, h, phase : the lit windows in this artwork
 private val windows = listOf(
-    floatArrayOf(1308f, 430f, 23f, 54f, 0.00f),
-    floatArrayOf(1308f, 503f, 23f, 52f, 0.35f),
-    floatArrayOf(1346f, 443f, 20f, 44f, 0.60f),
-    floatArrayOf(1168f, 533f, 22f, 50f, 0.15f),
-    floatArrayOf(1088f, 553f, 18f, 26f, 0.80f),
-    floatArrayOf(1253f, 581f, 26f, 16f, 0.50f),
-    floatArrayOf(1436f, 545f, 12f, 30f, 0.25f),
-    floatArrayOf(1859f, 522f, 16f, 20f, 0.70f)
+    floatArrayOf(1312f, 336f, 26f, 52f, 0.00f),
+    floatArrayOf(1312f, 408f, 26f, 52f, 0.35f),
+    floatArrayOf(1349f, 346f, 22f, 46f, 0.60f),
+    floatArrayOf(1172f, 438f, 22f, 50f, 0.15f),
+    floatArrayOf(1088f, 460f, 20f, 30f, 0.80f),
+    floatArrayOf(1088f, 516f, 22f, 28f, 0.45f),
+    floatArrayOf(1252f, 486f, 26f, 14f, 0.50f),
+    floatArrayOf(1440f, 448f, 14f, 32f, 0.25f),
+    floatArrayOf(1913f, 410f, 14f, 16f, 0.70f),
+    floatArrayOf(1798f, 384f, 10f, 12f, 0.90f)
 )
 
 private fun DrawScope.drawWindowTwinkle(time: Float) {
     for (w in windows) {
         val p = pulse(time, 2, w[4])
         val a = 0.05f + 0.30f * p
-        // soft halo
-        drawRoundRect(
+        drawRoundRect(   // soft halo
             Color(0xFFFFB04A).copy(alpha = a * 0.45f),
             Offset(w[0] - 9f, w[1] - 9f), Size(w[2] + 18f, w[3] + 18f),
             CornerRadius(9f), blendMode = BlendMode.Plus
         )
-        // bright core
-        drawRoundRect(
+        drawRoundRect(   // bright core
             Color(0xFFFFE2A8).copy(alpha = a),
             Offset(w[0], w[1]), Size(w[2], w[3]),
             CornerRadius(2f), blendMode = BlendMode.Plus
@@ -310,7 +339,7 @@ private fun DrawScope.drawWindowTwinkle(time: Float) {
     }
 }
 
-/** Little comets of light running along the glowing lines. */
+/** Little comets of light running along the thin glowing lines. */
 private fun DrawScope.drawSparks(p: FxPaths, time: Float) {
     fun spark(m: PathMeasure, offset: Float) {
         val f = (time + offset) % 1f
