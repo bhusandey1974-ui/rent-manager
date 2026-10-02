@@ -117,6 +117,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
         _tenants.value = emptyList()
         _bills.value = emptyList()
         _withdrawals.value = emptyList()
+        _expenses.value = emptyList()
         _selectedPropertyId.value = null
         loadFromLocalStorage()
         onComplete()
@@ -247,6 +248,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
             _tenants.value = emptyList()
             _bills.value = emptyList()
             _withdrawals.value = emptyList()
+            _expenses.value = emptyList()
 
             onComplete()
         }
