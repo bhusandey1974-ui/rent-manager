@@ -273,7 +273,7 @@ fun PropertiesView(
         containerColor = AppColors.ScaffoldBackground,
         floatingActionButton = {
             FloatingActionButton(
-                modifier = Modifier.offset(y = 8.dp),   // sits just above the banner ad
+                modifier = Modifier.offset(y = -62.dp),   // sits just above the banner ad
                 onClick = { showAddRoomDialog = true },
                 containerColor = AppColors.AzurePrimary,
                 contentColor = Color.White,
