@@ -408,4 +408,23 @@ private fun AddExpenseDialog(
                                 color = if (sel) Color.White else st.fg,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
+                                    .background(if (sel) st.fg else st.bg)
+                                    .clickable { category = c }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = title.isNotBlank() && amt != null && amt > 0,
+                onClick = { onSave(title.trim(), category, property.trim().ifBlank { "General" }, amt ?: 0.0) }
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
         
