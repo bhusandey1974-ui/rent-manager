@@ -792,5 +792,463 @@ private fun MonthRow(
     }
 }
 
+@Composable
+private fun BillDetailRow(
+    bill: Bill,
+    vm: RentViewModel,
+    context: Context,
+    dateFormat: SimpleDateFormat
+) {
+    val tenant = vm.getTenantForBill(bill)
+    val room = vm.getRoomForBill(bill)
 
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = AppColors.SurfaceWhite,
+        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.DoorFront,
+                        contentDescription = null,
+                        tint = AppColors.AzurePrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Column {
+                        Text(
+                            text = "Room ${room?.roomNumber ?: bill.roomId} • ${tenant?.name ?: "Unknown"}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AppColors.TextPrimary
+                        )
+                        Text(
+                            text = "Bill month: ${billMonthLabel(bill)}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = AppColors.AzureDark
+                        )
+                        Text(
+                            text = "Paid on ${dateFormat.format(Date(bill.timestamp))}",
+                            fontSize = 10.sp,
+                            color = AppColors.TextMuted
+                        )
+                    }
+                }
+                if (tenant != null && tenant.phoneNumber.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            val receiptMsg = ReceiptFormatter.formatReceipt(
+                                tenantName = tenant.name,
+                                roomNumber = room?.roomNumber ?: bill.roomId,
+                                billingPeriod = bill.billingPeriod,
+                                paymentDateMillis = bill.timestamp,
+                                previousReading = bill.previousReading,
+                                currentReading = bill.currentReading,
+                                unitsConsumed = bill.unitsConsumed,
+                                ratePerUnit = bill.electricityRate,
+                                totalElectricity = bill.electricityAmount,
+                                baseRent = bill.baseRent,
+                                maintenanceAmount = bill.maintenanceAmount,
+                                totalAmount = bill.totalPayable,
+                                amountPaid = bill.amountPaid,
+                                paymentMode = bill.paymentMode,
+                                remainingDue = bill.remainingDue
+                            )
+                            ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
+                        },
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ReceiptLong,
+                            contentDescription = "Share WhatsApp Receipt",
+                            tint = AppColors.WhatsAppGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Divider(color = AppColors.BorderSubtle)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (bill.maintenanceAmount > 0) "Rent + Elec + Maint" else "Rent + Elec",
+                        fontSize = 9.sp,
+                        color = AppColors.TextSecondary
+                    )
+                    Text(
+                        text = if (bill.maintenanceAmount > 0)
+                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()} + ₹${bill.maintenanceAmount.toInt()}"
+                        else
+                            "₹${bill.baseRent.toInt()} + ₹${bill.electricityAmount.toInt()}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AppColors.TextPrimary
+                    )
+                }
+                Column {
+                    Text("Paid (${bill.paymentMode})", fontSize = 9.sp, color = AppColors.TextSecondary)
+                    Text(
+                        text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.amountPaid)}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.EmeraldSuccess
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Status", fontSize = 9.sp, color = AppColors.TextSecondary)
+                    if (bill.remainingDue > 0) {
+                        Text(
+                            text = "₹${String.format(Locale.ENGLISH, "%.2f", bill.remainingDue)} Due",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.CrimsonAlert
+                        )
+                    } else {
+                        Text(
+                            text = "Settled",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.EmeraldSuccess
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RevenueCollectionsCard(
+    vm: RentViewModel,
+    year: Int,
+    totalCollections: Double,
+    rentTotal: Double,
+    electricityTotal: Double,
+    maintenanceTotal: Double,
+    duesTotal: Double,
+    advanceTotal: Double,
+    rentCount: Int = 0,
+    electricityCount: Int = 0,
+    maintenanceCount: Int = 0,
+    duesCount: Int = 0,
+    advanceCount: Int = 0,
+    growthText: String? = null,
+    growthUp: Boolean = true,
+    monthlyTotals: List<Double> = List(12) { 0.0 },
+    forCurrentYearOnly: Boolean
+) {
+    var activeCategory by remember { mutableStateOf<String?>(null) }
+    var showPropertyBreakdown by remember { mutableStateOf(false) }
+    val allProperties by vm.properties.collectAsState()
+    val allRooms by vm.rooms.collectAsState()
+    val allBills by vm.bills.collectAsState()
+    val blue = Color(0xFF1E6FD9)
+    val navy = Color(0xFF17408F)
+    val growthColor = if (growthUp) AppColors.EmeraldSuccess else AppColors.CrimsonAlert
+
+    // Lock the card's text to normal size so it looks the same on every phone,
+    // even when the phone's font size is set larger.
+    val currentDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(currentDensity.density, fontScale = 1f)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = AppColors.SurfaceWhite,
+            border = BorderStroke(0.5.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(start = 10.dp, end = 10.dp, top = 11.dp, bottom = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { showPropertyBreakdown = true }
+                        .padding(horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column {
+                        Text(
+                            text = if (forCurrentYearOnly) "Total Collections ($year)" else "Total Collections (Lifetime)",
+                            fontSize = 12.sp,
+                            color = AppColors.TextSecondary
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.ENGLISH, "%,.2f", totalCollections)}",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp,
+                            color = AppColors.TextPrimary
+                        )
+                        if (growthText != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(growthColor.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (growthUp) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                                        contentDescription = null,
+                                        tint = growthColor,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(growthText, fontSize = 12.sp, color = growthColor)
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AppColors.AzureContainer.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = AppColors.AzureDark,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                MonthlyBarChart(values = monthlyTotals)
+                Spacer(modifier = Modifier.height(7.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Home,
+                        label = "Rent Income",
+                        amount = rentTotal,
+                        subText = "$rentCount payments",
+                        color = AppColors.EmeraldSuccess,
+                        labelColor = AppColors.EmeraldSuccess,
+                        labelSize = 12.sp,
+                        amountSize = 16.sp,
+                        subSize = 11.sp,
+                        iconSize = 28.dp,
+                        hPad = 10.dp,
+                        iconGap = 8.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "rent" }
+                    )
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Bolt,
+                        label = "Electricity",
+                        amount = electricityTotal,
+                        subText = "$electricityCount payments",
+                        color = AppColors.AmberWarning,
+                        labelColor = AppColors.AmberWarning,
+                        labelSize = 12.sp,
+                        amountSize = 16.sp,
+                        subSize = 11.sp,
+                        iconSize = 28.dp,
+                        hPad = 10.dp,
+                        iconGap = 8.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "electricity" }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Handyman,
+                        label = "Maintenance",
+                        amount = maintenanceTotal,
+                        subText = "$maintenanceCount expenses",
+                        color = blue,
+                        labelColor = navy,
+                        labelSize = 10.sp,
+                        amountSize = 13.sp,
+                        subSize = 10.sp,
+                        iconSize = 20.dp,
+                        hPad = 6.dp,
+                        iconGap = 4.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "maintenance" }
+                    )
+                    RevenueStatBox(
+                        icon = Icons.Rounded.WarningAmber,
+                        label = "Dues",
+                        amount = duesTotal,
+                        subText = "$duesCount pending",
+                        color = AppColors.CrimsonAlert,
+                        labelColor = AppColors.CrimsonAlert,
+                        labelSize = 10.sp,
+                        amountSize = 13.sp,
+                        subSize = 10.sp,
+                        iconSize = 20.dp,
+                        hPad = 6.dp,
+                        iconGap = 4.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "dues" }
+                    )
+                    RevenueStatBox(
+                        icon = Icons.Rounded.Savings,
+                        label = "Advance",
+                        amount = advanceTotal,
+                        subText = "$advanceCount records",
+                        color = AppColors.EmeraldSuccess,
+                        labelColor = AppColors.EmeraldSuccess,
+                        labelSize = 10.sp,
+                        amountSize = 13.sp,
+                        subSize = 10.sp,
+                        iconSize = 20.dp,
+                        hPad = 6.dp,
+                        iconGap = 4.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activeCategory = "advance" }
+                    )
+                }
+            }
+        }
+    }
+
+    if (showPropertyBreakdown) {
+        val cal = Calendar.getInstance()
+        fun inScope(b: Bill): Boolean {
+            if (!forCurrentYearOnly) return true
+            cal.timeInMillis = b.timestamp
+            return cal.get(Calendar.YEAR) == year
+        }
+        val rows = allProperties.map { p ->
+            val propRooms = allRooms.filter { it.propertyId == p.id }
+            val roomRows = propRooms.map { r ->
+                val rb = allBills.filter { it.roomId == r.id && inScope(it) }
+                PropertyRoomRow("Room ${r.roomNumber}", rb.sumOf { it.amountPaid }, rb.size)
+            }
+            PropertyBreakdownRow(
+                name = p.name,
+                total = roomRows.sumOf { it.total },
+                payments = roomRows.sumOf { it.payments },
+                rooms = roomRows
+            )
+        }.toMutableList()
+        // Bills whose room no longer exists (e.g. a removed property/room) so the total always adds up
+        val knownRoomIds = allRooms.map { it.id }.toSet()
+        val orphanBills = allBills.filter { it.roomId !in knownRoomIds && inScope(it) }
+        if (orphanBills.isNotEmpty()) {
+            rows.add(
+                PropertyBreakdownRow(
+                    name = "Removed properties / rooms",
+                    total = orphanBills.sumOf { it.amountPaid },
+                    payments = orphanBills.size,
+                    rooms = emptyList()
+                )
+            )
+        }
+        PropertyBreakdownDialog(
+            title = if (forCurrentYearOnly) "Collections by property ($year)" else "Collections by property (Lifetime)",
+            rows = rows,
+            grandTotal = totalCollections,
+            onDismiss = { showPropertyBreakdown = false }
+        )
+    }
+
+    activeCategory?.let { category ->
+        val items = vm.getRoomWiseBreakdown(category, forCurrentYearOnly)
+        val (title, color) = when (category) {
+            "rent" -> "Rent Collected" to AppColors.AzurePrimary
+            "electricity" -> "Electricity Collected" to AppColors.AmberWarning
+            "dues" -> "Pending Dues" to AppColors.CrimsonAlert
+            "advance" -> "Advance Owed" to AppColors.EmeraldSuccess
+            else -> "" to AppColors.TextPrimary
+        }
+        RoomWiseBreakdownDialog(
+            title = title,
+            items = items,
+            accentColor = color,
+            onDismiss = { activeCategory = null }
+        )
+    }
+}
+
+private data class PropertyRoomRow(val label: String, val total: Double, val payments: Int)
+
+private data class PropertyBreakdownRow(
+    val name: String,
+    val total: Double,
+    val payments: Int,
+    val rooms: List<PropertyRoomRow>
+)
+
+@Composable
+private fun PropertyBreakdownDialog(
+    title: String,
+    rows: List<PropertyBreakdownRow>,
+    grandTotal: Double,
+    onDismiss: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(setOf<String>()) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AppColors.SurfaceWhite,
+        title = {
+            Column {
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                Text(
+                    "Total ₹${String.format(Locale.ENGLISH, "%,.2f", grandTotal)}",
+                    fontSize = 12.sp,
+                    color = AppColors.TextSecondary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (rows.isEmpty()) {
+                    Text("No properties yet.", fontSize = 13.sp, color = AppColors.TextSecondary)
+                }
+                rows.forEach { row ->
+                    val isOpen = expanded.contains(row.name)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = AppColors.ScaffoldBackground,
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                expanded = if (isOpen) expanded - row.name else expanded + row.name
+                            }
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+    
        
