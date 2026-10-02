@@ -85,7 +85,7 @@ fun WaveHeader(
     hasAlerts: Boolean = false,
     animated: Boolean = true,
     liftContent: Dp = 56.dp,     // how far the content below the header moves up (overlaps the dark wave)
-    trimTop: Dp = 30.dp,         // cuts the empty band at the top of the picture; text and icons move up with it
+    trimTop: Dp = 44.dp,         // cuts the empty band at the top of the picture; text and icons move up with it
     contentTop: Dp = 8.dp        // gap above the title and icons; lower it to move them higher
 ) {
     val fx = rememberInfiniteTransition(label = "headerFx")
