@@ -1,6 +1,6 @@
 <resources>
     <style name="Theme.RentManager" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@drawable/splash_gradient</item>
+        <item name="android:windowBackground">#EAF2FF</item>
         <item name="android:windowSplashScreenBackground">#EAF2FF</item>
     </style>
 </resources>
