@@ -1186,4 +1186,86 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
         // device doesn't have yet (e.g. after a reinstall or on a new device).
 
         firestore.collection("users").document(uid).collection("properties")
+        .get().addOnSuccessListener { snaps ->
+                if (!snaps.isEmpty) {
+                    val cloud = snaps.toObjects(Property::class.java)
+                    val localIds = _properties.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _properties.value = _properties.value + missing
+                        saveToLocalStorage()
+                    }
+                }
+            }
+
+        firestore.collection("users").document(uid).collection("rooms")
+            .get().addOnSuccessListener { snaps ->
+                if (!snaps.isEmpty) {
+                    val cloud = snaps.toObjects(Room::class.java)
+                    val localIds = _rooms.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _rooms.value = _rooms.value + missing
+                        saveToLocalStorage()
+                    }
+                }
+            }
+
+        firestore.collection("users").document(uid).collection("tenants")
+            .get().addOnSuccessListener { snaps ->
+                if (!snaps.isEmpty) {
+                    val cloud = snaps.toObjects(Tenant::class.java)
+                    val localIds = _tenants.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _tenants.value = _tenants.value + missing
+                        saveToLocalStorage()
+                    }
+                }
+            }
+
+        firestore.collection("users").document(uid).collection("bills")
+            .get().addOnSuccessListener { snaps ->
+                if (!snaps.isEmpty) {
+                    val cloud = snaps.toObjects(Bill::class.java)
+                    val localIds = _bills.value.map { it.id }.toSet()
+                    val missing = cloud.filter { it.id !in localIds }
+                    if (missing.isNotEmpty()) {
+                        _bills.value = _bills.value + missing
+                        saveToLocalStorage()
+                    }
+                }
+            }
+    }
+    private fun syncPropertyToCloud(prop: Property) {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("properties")
+            .document(prop.id).set(prop, SetOptions.merge())
+    }
+
+    private fun syncRoomToCloud(room: Room) {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("rooms")
+            .document(room.id).set(room, SetOptions.merge())
+    }
+
+    private fun deleteRoomFromCloud(roomId: String) {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("rooms")
+            .document(roomId).delete()
+    }
+
+    private fun syncTenantToCloud(tenant: Tenant) {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("tenants")
+            .document(tenant.id).set(tenant, SetOptions.merge())
+    }
+
+    private fun syncBillToCloud(bill: Bill) {
+        val uid = auth.currentUser?.uid ?: return
+        firestore.collection("users").document(uid).collection("bills")
+            .document(bill.id).set(bill, SetOptions.merge())
+    }
+}
+
             
