@@ -1250,5 +1250,196 @@ private fun PropertyBreakdownDialog(
                             }
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Apartment,
+                                    contentDescription = null,
+                                    tint = AppColors.AzurePrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(row.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AppColors.TextPrimary)
+                                    Text("${row.payments} payments", fontSize = 11.sp, color = AppColors.TextSecondary)
+                                }
+                                Text(
+                                    "₹${String.format(Locale.ENGLISH, "%,.0f", row.total)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppColors.EmeraldSuccess
+                                )
+                                if (row.rooms.isNotEmpty()) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ChevronRight,
+                                        contentDescription = null,
+                                        tint = AppColors.TextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            if (isOpen && row.rooms.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                row.rooms.forEach { r ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("${r.label}  ·  ${r.payments} payments", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                        Text(
+                                            "₹${String.format(Locale.ENGLISH, "%,.0f", r.total)}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = AppColors.TextPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+@Composable
+private fun MonthlyBarChart(values: List<Double>) {
+    val labels = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val allZero = values.all { it <= 0.0 }
+    val maxValue = (values.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
+    val maxBar = 30.dp
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        labels.forEachIndexed { i, label ->
+            val v = values.getOrElse(i) { 0.0 }
+            val barHeight = when {
+                allZero -> maxBar * (0.10f + 0.90f * i / 11f)
+                v <= 0.0 -> 3.dp
+                else -> (maxBar * (v / maxValue).toFloat()).coerceAtLeast(5.dp)
+            }
+            val barColor = when {
+                allZero -> AppColors.AzurePrimary.copy(alpha = 0.08f)
+                v > 0.0 -> AppColors.AzurePrimary
+                else -> AppColors.AzurePrimary.copy(alpha = 0.12f)
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(maxBar),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(14.dp)
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(barColor)
+                    )
+                }
+                Spacer(modifier = Modifier.height(1.dp))
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    color = AppColors.TextMuted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RevenueStatBox(
+    icon: ImageVector,
+    label: String,
+    amount: Double,
+    subText: String,
+    color: Color,
+    labelColor: Color,
+    labelSize: androidx.compose.ui.unit.TextUnit,
+    amountSize: androidx.compose.ui.unit.TextUnit,
+    subSize: androidx.compose.ui.unit.TextUnit,
+    iconSize: androidx.compose.ui.unit.Dp,
+    hPad: androidx.compose.ui.unit.Dp,
+    iconGap: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val amountText = if (amount >= 10000) {
+        "₹${String.format(Locale.ENGLISH, "%,.0f", amount)}"
+    } else {
+        "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}"
+    }
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = AppColors.SurfaceWhite,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .background(color.copy(alpha = 0.10f))
+                .padding(horizontal = hPad, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(iconSize)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize * 0.53f))
+            }
+            Spacer(modifier = Modifier.width(iconGap))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = labelSize,
+                    fontWeight = FontWeight.Medium,
+                    color = labelColor,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = amountText,
+                        fontSize = amountSize,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = labelColor,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+            }
+        }
+    }
+}
     
        
