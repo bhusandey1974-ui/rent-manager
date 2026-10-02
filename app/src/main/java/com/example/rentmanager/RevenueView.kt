@@ -977,6 +977,7 @@ fun RevenueCollectionsCard(
         ) {
             Column(
                 modifier = Modifier
+                    .dotPattern()
                     .padding(start = 10.dp, end = 10.dp, top = 11.dp, bottom = 10.dp)
             ) {
                 Row(
