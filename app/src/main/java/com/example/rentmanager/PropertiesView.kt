@@ -224,6 +224,8 @@ fun PropertiesView(
     var roomForBilling by remember { mutableStateOf<Room?>(null) }
     var roomForEditing by remember { mutableStateOf<Room?>(null) }
     var roomForDeleting by remember { mutableStateOf<Room?>(null) }
+    var propertyToDelete by remember { mutableStateOf<Property?>(null) }
+    var propertyDeleteStep by remember { mutableStateOf(1) }
     var roomForHistory by remember { mutableStateOf<Room?>(null) }
     var tenantForEditing by remember { mutableStateOf<Pair<Room, Tenant>?>(null) }
 
