@@ -139,44 +139,11 @@ class MainActivity : ComponentActivity() {
                         color = AppColors.ScaffoldBackground,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        var showSplash by rememberSaveable { mutableStateOf(true) }
-                        LaunchedEffect(Unit) {
-                            delay(1200)
-                            showSplash = false
-                        }
-                        Box(Modifier.fillMaxSize()) {
-                            MainAppRoot(viewModel = viewModel)
-                            AnimatedVisibility(
-                                visible = showSplash,
-                                exit = fadeOut(androidx.compose.animation.core.tween(400))
-                            ) {
-                                GradientSplash()
-                            }
-                        }
+                        MainAppRoot(viewModel = viewModel)
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun GradientSplash() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFFFFFFFF), Color(0xFFDCEBFF), Color(0xFF2F7BFF))
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher),
-            contentDescription = null,
-            modifier = Modifier.size(150.dp)
-        )
     }
 }
 
