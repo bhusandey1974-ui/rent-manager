@@ -78,8 +78,15 @@ data class Bill(
     val amountPaid: Double = 0.0,
     val paymentMode: String = "Cash",
     val remainingDue: Double = 0.0,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    /** When money was last actually received for this bill. 0 = nothing paid yet.
+     *  (timestamp is the bill's creation/ordering time, so a backfilled bill keeps the
+     *  1st of its month there; that is where the stuck "01 Sep" came from.) */
+    val paidOn: Long = 0L
 )
+
+/** The date to show as "Paid on": the real payment date, or the bill date for older records. */
+fun Bill.paymentDate(): Long = if (paidOn > 0L) paidOn else timestamp
 
 data class Withdrawal(
     val id: String = "",
