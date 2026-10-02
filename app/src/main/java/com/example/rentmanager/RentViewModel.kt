@@ -70,6 +70,9 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     private val _withdrawals = MutableStateFlow<List<Withdrawal>>(emptyList())
     val withdrawals: StateFlow<List<Withdrawal>> = _withdrawals.asStateFlow()
 
+    private val _expenses = MutableStateFlow<List<Expense>>(emptyList())
+    val expenses: StateFlow<List<Expense>> = _expenses.asStateFlow()
+
     private val _billingConvention = MutableStateFlow(
         if (prefs.getString("billing_convention", BillingConvention.PREVIOUS_MONTH.name) == BillingConvention.CURRENT_MONTH.name)
             BillingConvention.CURRENT_MONTH
