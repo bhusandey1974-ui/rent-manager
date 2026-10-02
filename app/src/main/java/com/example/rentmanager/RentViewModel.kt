@@ -127,6 +127,7 @@ class RentViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshFromCloud() {
         syncWithCloudIfAvailable()
         syncWithdrawalsFromCloud()
+        syncExpensesFromCloud()          // add this line
     }
 
     // ---------- Withdrawals ----------
