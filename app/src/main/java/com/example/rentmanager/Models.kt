@@ -95,3 +95,11 @@ data class Withdrawal(
     val purpose: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
+data class Expense(
+    val id: String = "",
+    val title: String = "",
+    val amount: Double = 0.0,
+    val category: String = "Other",   // Maintenance, Electricity, Cleaning, Property Tax, Other
+    val location: String = "",        // room or building, for example "Room 204"
+    val timestamp: Long = System.currentTimeMillis()
+)
