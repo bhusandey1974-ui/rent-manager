@@ -35,7 +35,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.FindInPage
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.foundation.border
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Close
