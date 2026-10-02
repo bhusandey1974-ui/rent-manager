@@ -448,4 +448,349 @@ fun RevenueView(vm: RentViewModel, onAddRecord: () -> Unit = {}) {
 
             // ---- Search field (only when the search button is active)
             if (showSearch) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = AppColors.SurfaceWhite,
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Search, contentDescription = null, tint = AppColors.TextMuted, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (searchQuery.isEmpty()) {
+                                    Text("Search room or tenant...", fontSize = 13.sp, color = AppColors.TextMuted, maxLines = 1)
+                                }
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = LocalTextStyle.current.merge(
+                                        TextStyle(fontSize = 13.sp, color = AppColors.TextPrimary)
+                                    ),
+                                    cursorBrush = SolidColor(AppColors.AzurePrimary),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ---- Category chips
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("All", "Rent", "Electricity", "Maintenance", "Dues", "Advance").forEach { tag ->
+                        val isSel = categoryFilter == tag
+                        Box(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(if (isSel) AppColors.AzureDark else AppColors.SurfaceWhite)
+                                .border(
+                                    1.dp,
+                                    if (isSel) AppColors.AzureDark else AppColors.BorderSubtle,
+                                    RoundedCornerShape(50)
+                                )
+                                .clickable { categoryFilter = tag }
+                                .padding(horizontal = 11.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = tag,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSel) Color.White else AppColors.TextSecondary,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ---- Bills / empty state
+            if (yearGroups.isEmpty()) {
+                item {
+                    EmptyBillingState(
+                        message = when {
+                            filteredBills.isNotEmpty() -> "No records match your filters."
+                            isCurrentYearOnly -> "No billing records found for $currentYear."
+                            else -> "No billing records found."
+                        },
+                        showAddButton = filteredBills.isEmpty(),
+                        onAddRecord = onAddRecord
+                    )
+                }
+            } else {
+                if (recentBillsByRoom.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "RECENT BY ROOM",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextMuted,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                    items(recentBillsByRoom, key = { "recent-${it.id}" }) { bill ->
+                        BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Divider(color = AppColors.BorderSubtle)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "BY YEAR",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextMuted,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                        )
+                    }
+                }
+                items(yearGroups, key = { it.year }) { yearGroup ->
+                    YearGroupCard(
+                        yearGroup = yearGroup,
+                        isExpanded = expandedYears.contains(yearGroup.year),
+                        onToggleYear = {
+                            expandedYears = if (expandedYears.contains(yearGroup.year))
+                                expandedYears - yearGroup.year
+                            else
+                                expandedYears + yearGroup.year
+                        },
+                        expandedMonthKeys = expandedMonthKeys,
+                        onToggleMonth = { key ->
+                            expandedMonthKeys = if (expandedMonthKeys.contains(key))
+                                expandedMonthKeys - key
+                            else
+                                expandedMonthKeys + key
+                        },
+                        vm = vm,
+                        context = context,
+                        dateFormat = dateFormat
+                    )
+                }
+            }
+            item { Spacer(modifier = Modifier.height(28.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun HeaderIconButton(icon: ImageVector, active: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (active) AppColors.AzureContainer else AppColors.SurfaceWhite,
+        border = BorderStroke(1.dp, if (active) AppColors.AzurePrimary else AppColors.BorderSubtle),
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = AppColors.TextPrimary, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun EmptyBillingState(message: String, showAddButton: Boolean, onAddRecord: () -> Unit) {
+    val borderColor = AppColors.AzureBorder
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawRoundRect(
+                    color = borderColor,
+                    cornerRadius = CornerRadius(16.dp.toPx()),
+                    style = Stroke(
+                        width = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+                    )
+                )
+            }
+            .padding(horizontal = 16.dp, vertical = 22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(AppColors.AzureContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.FindInPage,
+                contentDescription = null,
+                tint = AppColors.AzureDark,
+                modifier = Modifier.size(34.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(message, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppColors.TextPrimary)
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = "Add rent or utility payments to see them here.",
+            fontSize = 12.sp,
+            color = AppColors.TextSecondary
+        )
+        if (showAddButton) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Button(
+                onClick = onAddRecord,
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.AzureDark,
+                    contentColor = Color.White
+                ),
+                contentPadding = PaddingValues(horizontal = 18.dp),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Add First Record", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun YearGroupCard(
+    yearGroup: YearGroup,
+    isExpanded: Boolean,
+    onToggleYear: () -> Unit,
+    expandedMonthKeys: Set<String>,
+    onToggleMonth: (String) -> Unit,
+    vm: RentViewModel,
+    context: Context,
+    dateFormat: SimpleDateFormat
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWhite),
+        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleYear() }
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowDown else Icons.Rounded.ChevronRight,
+                        contentDescription = if (isExpanded) "Collapse year" else "Expand year",
+                        tint = AppColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${yearGroup.year}",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
+                    )
+                }
+                Text(
+                    text = "₹${String.format(Locale.ENGLISH, "%,.0f", yearGroup.totalCollected)}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.EmeraldSuccess
+                )
+            }
+
+            if (isExpanded) {
+                Divider(color = AppColors.BorderSubtle)
+                Column(modifier = Modifier.padding(bottom = 6.dp)) {
+                    yearGroup.months.forEach { monthGroup ->
+                        val monthKey = "${monthGroup.year}-${monthGroup.monthIndex}"
+                        MonthRow(
+                            monthGroup = monthGroup,
+                            isExpanded = expandedMonthKeys.contains(monthKey),
+                            onToggle = { onToggleMonth(monthKey) },
+                            vm = vm,
+                            context = context,
+                            dateFormat = dateFormat
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun MonthRow(
+    monthGroup: MonthGroup,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    vm: RentViewModel,
+    context: Context,
+    dateFormat: SimpleDateFormat
+) {
+    val hasBills = monthGroup.bills.isNotEmpty()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = hasBills) { onToggle() }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (hasBills && isExpanded) Icons.Rounded.KeyboardArrowDown else Icons.Rounded.ChevronRight,
+                    contentDescription = null,
+                    tint = if (hasBills) AppColors.TextSecondary else AppColors.TextMuted.copy(alpha = 0.4f),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = monthGroup.monthName,
+                    fontSize = 13.sp,
+                    color = if (hasBills) AppColors.TextPrimary else AppColors.TextMuted,
+                    fontWeight = if (hasBills) FontWeight.Medium else FontWeight.Normal
+                )
+            }
+            Text(
+                text = "₹${String.format(Locale.ENGLISH, "%,.0f", monthGroup.totalCollected)}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (hasBills) AppColors.TextPrimary else AppColors.TextMuted
+            )
+        }
+
+        if (isExpanded && hasBills) {
+            Column(modifier = Modifier.padding(start = 22.dp, end = 14.dp, bottom = 8.dp)) {
+                monthGroup.bills.forEach { bill ->
+                    BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+
        
