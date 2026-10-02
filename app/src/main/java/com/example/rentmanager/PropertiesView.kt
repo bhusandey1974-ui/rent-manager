@@ -72,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.rentmanager.AppColors
+import com.example.rentmanager.Property
 import com.example.rentmanager.RentViewModel
 import com.example.rentmanager.Room
 import com.example.rentmanager.Tenant
