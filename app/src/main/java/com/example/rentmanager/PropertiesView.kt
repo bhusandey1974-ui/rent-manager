@@ -308,7 +308,15 @@ fun PropertiesView(
                             1.dp,
                             if (isSelected) AppColors.AzurePrimary else AppColors.BorderSubtle
                         ),
-                        modifier = Modifier.clickable { vm.setSelectedProperty(prop.id) }
+                        modifier = Modifier.combinedClickable(
+                            onClick = { vm.setSelectedProperty(prop.id) },
+                            onLongClick = {
+                                if (properties.size > 1) {
+                                    propertyToDelete = prop
+                                    propertyDeleteStep = 1
+                                }
+                            }
+                        )
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
