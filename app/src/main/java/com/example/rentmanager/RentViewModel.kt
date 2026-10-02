@@ -521,4 +521,250 @@ fun confirmVacateRoom(
         val totalCollected = filteredBills.sumOf { it.amountPaid }
         val rentCollected = filteredBills.sumOf { it.rentPaid }
         val elecCollected = filteredBills.sumOf { it.electricityPaid }
-        
+        val maintCollected = filteredBills.sumOf { it.maintenanceAmount }
+
+        val activeDues = _rooms.value.filter { it.isOccupied }.sumOf { room ->
+            getPendingDueForCurrentTenant(room.id).coerceAtLeast(0.0)
+        }
+
+        return RevenueBreakdown(
+            totalCollected = totalCollected,
+            rentCollected = rentCollected,
+            electricityCollected = elecCollected,
+            maintenanceCollected = maintCollected,
+            activeDues = activeDues
+        )
+    }
+
+    fun getPendingDueForCurrentTenant(roomId: String): Double {
+        val currentRoom = _rooms.value.find { it.id == roomId } ?: return 0.0
+        val activeTenantId = currentRoom.currentTenantId
+        if (activeTenantId.isBlank()) return 0.0
+
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == activeTenantId }
+            .sumOf { it.remainingDue }
+    }
+
+fun getTotalAdvance(): Double {
+    return _rooms.value.filter { it.isOccupied }.sumOf { room ->
+        val due = getPendingDueForCurrentTenant(room.id)
+        if (due < 0.0) kotlin.math.abs(due) else 0.0
+    }
+}
+
+fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<RoomWiseAmount> {
+    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+    val cal = Calendar.getInstance()
+
+    val filteredBills = if (forCurrentYearOnly) {
+        _bills.value.filter { bill ->
+            cal.timeInMillis = bill.timestamp
+            cal.get(Calendar.YEAR) == currentYear
+        }
+    } else {
+        _bills.value
+    }
+
+    return when (category) {
+        "rent" -> {
+            _rooms.value.mapNotNull { room ->
+                val total = filteredBills
+                    .filter { it.roomId == room.id }
+                    .sumOf { it.rentPaid.takeIf { p -> p > 0 } ?: 0.0 }
+                if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
+        }
+        "electricity" -> {
+            _rooms.value.mapNotNull { room ->
+                val total = filteredBills
+                    .filter { it.roomId == room.id }
+                    .sumOf { it.electricityPaid.takeIf { p -> p > 0 } ?: 0.0 }
+                if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
+        }
+        "dues" -> {
+            _rooms.value.filter { it.isOccupied }.mapNotNull { room ->
+                val due = getPendingDueForCurrentTenant(room.id)
+                if (due > 0.0) RoomWiseAmount(room.roomNumber, due) else null
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
+        }
+        "advance" -> {
+            _rooms.value.filter { it.isOccupied }.mapNotNull { room ->
+                val due = getPendingDueForCurrentTenant(room.id)
+                if (due < 0.0) RoomWiseAmount(room.roomNumber, kotlin.math.abs(due)) else null
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
+        }
+        "maintenance" -> {
+            _rooms.value.mapNotNull { room ->
+                val total = filteredBills
+                    .filter { it.roomId == room.id }
+                    .sumOf { it.maintenanceAmount }
+                if (total > 0.0) RoomWiseAmount(room.roomNumber, total) else null
+            }.sortedBy { it.roomNumber.toIntOrNull() ?: Int.MAX_VALUE }
+        }
+        else -> emptyList()
+    }
+}
+
+    fun getLastRecordedMeterReading(roomId: String): Double {
+        val roomBills = _bills.value
+            .filter { it.roomId == roomId }
+            .sortedByDescending { it.timestamp }
+
+        return if (roomBills.isNotEmpty()) {
+            roomBills.first().currentReading
+        } else {
+            _rooms.value.find { it.id == roomId }?.initialMeterReading ?: 0.0
+        }
+    }
+
+    /**
+     * What billing period a new bill for this room should default to.
+     *
+     * If the current tenant already has a bill on record, this is simply
+     * (that bill's month + 1) — chained forward regardless of today's actual
+     * calendar date, so gaps or early/late payments don't throw it off.
+     *
+     * If there's no bill history yet (e.g. very first bill for this tenant),
+     * it falls back to the app-wide billing convention: the current calendar
+     * month if rent is collected during the month, or last month if collected
+     * in arrears.
+     */
+    fun getSuggestedBillingPeriod(roomId: String): String {
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+        val room = _rooms.value.find { it.id == roomId }
+        val tenantId = room?.currentTenantId.orEmpty()
+
+        val roomTenantBills = _bills.value.filter { it.roomId == roomId && it.tenantId == tenantId }
+
+        // Order by the billing month itself (not the creation time): backfilled and
+        // out-of-order bills have misleading timestamps.
+        fun periodMillis(b: Bill): Long =
+            try { sdf.parse(b.billingPeriod.trim())?.time ?: b.timestamp } catch (e: Exception) { b.timestamp }
+
+        // Arrears take priority: settle the oldest unpaid month first.
+        val oldestUnpaid = roomTenantBills
+            .filter { it.remainingDue > 0.0 }
+            .minByOrNull { periodMillis(it) }
+        if (oldestUnpaid != null) {
+            return oldestUnpaid.billingPeriod
+        }
+
+        val lastBill = roomTenantBills.maxByOrNull { periodMillis(it) }
+
+        if (lastBill != null) {
+            try {
+                val parsed = sdf.parse(lastBill.billingPeriod)
+                if (parsed != null) {
+                    val cal = Calendar.getInstance()
+                    cal.time = parsed
+                    cal.add(Calendar.MONTH, 1)
+                    return sdf.format(cal.time)
+                }
+            } catch (e: Exception) {
+                // Fall through to convention-based default below
+            }
+        }
+
+        val cal = Calendar.getInstance()
+if (_billingConvention.value == BillingConvention.PREVIOUS_MONTH) {
+    cal.add(Calendar.MONTH, -1)
+}
+
+val tenant = _tenants.value.find { it.id == tenantId }
+if (tenant != null) {
+    val moveInCal = Calendar.getInstance()
+    moveInCal.timeInMillis = tenant.moveInDate
+    val calBeforeMoveIn = cal.get(Calendar.YEAR) < moveInCal.get(Calendar.YEAR) ||
+        (cal.get(Calendar.YEAR) == moveInCal.get(Calendar.YEAR) && cal.get(Calendar.MONTH) < moveInCal.get(Calendar.MONTH))
+    if (calBeforeMoveIn) {
+        cal.timeInMillis = tenant.moveInDate
+    }
+}
+
+return sdf.format(cal.time)
+    }
+
+    /**
+     * Billing periods for this tenant that still have money outstanding,
+     * oldest first. Useful for flagging "you still owe for these months" on a
+     * fresh receipt after a backdated tenant has been backfilled.
+     */
+    fun getOutstandingUnpaidMonths(roomId: String, tenantId: String, excludeBillId: String? = null): List<String> {
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId && it.remainingDue > 0.0 && it.id != excludeBillId }
+            .sortedBy { it.timestamp }
+            .map { it.billingPeriod }
+    }
+
+    /** Every billing period (paid or not) that already has a bill for this tenant, lowercased for easy matching. */
+    fun getExistingBillingPeriods(roomId: String, tenantId: String): Set<String> {
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId }
+            .map { it.billingPeriod.trim().lowercase(Locale.ENGLISH) }
+            .toSet()
+    }
+    /** Snapshot of billingPeriod -> remainingDue for this tenant, taken before/after a payment to see what it settled. */
+    fun getBillsRemainingSnapshot(roomId: String, tenantId: String): Map<String, Double> {
+        return _bills.value
+            .filter { it.roomId == roomId && it.tenantId == tenantId }
+            .associate { it.billingPeriod to it.remainingDue }
+    }
+    
+    fun lodgeBill(
+        roomId: String,
+        billingPeriod: String,
+        currentReading: Double,
+        maintenanceAmount: Double,
+        amountPaid: Double,
+        paymentMode: String
+    ): Bill {
+        val room = _rooms.value.find { it.id == roomId } ?: throw IllegalStateException("Room not found")
+        val tenantId = room.currentTenantId
+
+        // If a bill already exists for this exact period (e.g. an old backfilled
+        // unpaid month being paid off), we settle that same bill directly —
+        // we never stack a second, duplicate charge on top of an existing period.
+        val existingBillForPeriod = _bills.value.find {
+            it.roomId == roomId && it.tenantId == tenantId &&
+                it.billingPeriod.equals(billingPeriod, ignoreCase = true)
+        }
+
+        // Every OTHER bill this tenant still owes on, oldest first. The period
+        // being lodged right now (if it already exists) is handled separately below.
+        val otherOutstanding = _bills.value
+            .filter {
+                it.roomId == roomId && it.tenantId == tenantId && it.remainingDue > 0.0 &&
+                    it.id != existingBillForPeriod?.id
+            }
+            .sortedBy { it.timestamp }
+
+        var paymentLeft = amountPaid
+
+        // 1) Set aside how much of this payment goes toward this exact period's own
+        //    bill (if any) — but don't finalize it yet, since a surplus after every
+        //    other due is cleared should still fold back into this bill as an advance.
+        val existingDue = existingBillForPeriod?.remainingDue?.coerceAtLeast(0.0) ?: 0.0
+        val existingApplied = minOf(existingDue, paymentLeft)
+        paymentLeft -= existingApplied
+
+        // 2) Whatever's left after that settles other outstanding arrears, oldest first.
+        val settledOthers = otherOutstanding.map { old ->
+            if (paymentLeft <= 0.0) return@map old
+            val applied = minOf(old.remainingDue, paymentLeft)
+            paymentLeft -= applied
+
+            // Within that old bill, apply its own share toward rent first, then electricity.
+            val rentGap = (old.baseRent - old.rentPaid).coerceAtLeast(0.0)
+            val rentApplied = minOf(applied, rentGap)
+            val elecApplied = applied - rentApplied
+
+            old.copy(
+                rentPaid = old.rentPaid + rentApplied,
+                electricityPaid = old.electricityPaid + elecApplied,
+                amountPaid = old.amountPaid + applied,
+                remainingDue = old.remainingDue - applied,
+                paidOn = System.currentTimeMillis()
+            )
+        }
