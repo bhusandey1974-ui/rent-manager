@@ -194,7 +194,7 @@ fun RevenueView(vm: RentViewModel, onAddRecord: () -> Unit = {}) {
     val electricityCount = filteredBills.count { it.electricityAmount > 0 }
     val maintenanceCount = filteredBills.count { it.maintenanceAmount > 0 }
     val duesCount = filteredBills.count { it.remainingDue > 0 }
-    val advanceCount = filteredBills.count { it.amountPaid > it.totalPayable }
+    val advanceCount = filteredBills.count { it.remainingDue < 0 }
 
     // "% from last year"
     val thisYearTotal = remember(bills) { bills.filter { parseBillYearMonth(it).first == currentYear }.sumOf { it.amountPaid } }
