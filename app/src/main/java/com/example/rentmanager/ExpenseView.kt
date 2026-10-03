@@ -155,10 +155,12 @@ fun ExpensesView(vm: RentViewModel) {
             Spacer(modifier = Modifier.height(14.dp))
 
             // Existing withdrawals / net cash card (Withdraw + History buttons live here)
-            WithdrawalsCard(
+            ExpenseSummaryCard(
                 vm = vm,
-                totalCollected = summary.totalCollected - allExpenses.sumOf { it.amount },
-                forCurrentYearOnly = false
+                collectedAfterExpenses = summary.totalCollected - allExpenses.sumOf { it.amount },
+                monthTotal = total,
+                prevTotal = prevTotal,
+                prevMonthLabel = monthLabel(selectedKey - 1)
             )
             Spacer(modifier = Modifier.height(12.dp))
 
