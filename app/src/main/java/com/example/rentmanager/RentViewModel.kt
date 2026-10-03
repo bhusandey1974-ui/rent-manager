@@ -895,52 +895,142 @@ val elecApplied = minOf(afterRent, elecGap)
             existing.copy(
                 rentPaid = existing.rentPaid + rentApplied,
                 electricityPaid = existing.electricityPaid + elecApplied,
+/** Turns "sept 2026", "Sep 2026" or "09/2026" into "September 2026". */
+    fun normalizeBillingPeriod(input: String): String {
+        val text = input.trim()
+            .replace(",", " ")
+            .replace(Regex("(?i)\\bsept\\b"), "Sep")
+            .replace(Regex("\\s+"), " ")
+        val output = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+        for (pattern in listOf("MMMM yyyy", "MMM yyyy", "MM/yyyy", "M/yyyy", "MM-yyyy")) {
+            try {
+                val parser = SimpleDateFormat(pattern, Locale.ENGLISH)
+                parser.isLenient = false
+                val parsed = parser.parse(text)
+                if (parsed != null) return output.format(parsed)
+            } catch (e: Exception) {
+                // try the next format
+            }
+        }
+        return text
+    }
+
+    /** Half rent when the tenant moved in after the 15th of this billing month. */
+    fun getProratedBaseRent(room: Room, tenant: Tenant?, billingPeriod: String): Double {
+        if (tenant == null) return room.baseRent
+        val periodCal = Calendar.getInstance()
+        try {
+            SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+                .parse(normalizeBillingPeriod(billingPeriod))?.let { periodCal.time = it }
+        } catch (e: Exception) { }
+        val move = Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }
+        val isJoinMonth = move.get(Calendar.YEAR) == periodCal.get(Calendar.YEAR) &&
+            move.get(Calendar.MONTH) == periodCal.get(Calendar.MONTH)
+        val joinedAfter15th = move.get(Calendar.DAY_OF_MONTH) > 15
+        return if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 else room.baseRent
+    }
+
+    fun lodgeBill(
+        roomId: String,
+        billingPeriod: String,
+        currentReading: Double,
+        maintenanceAmount: Double,
+        amountPaid: Double,
+        paymentMode: String
+    ): Bill {
+        val room = _rooms.value.find { it.id == roomId } ?: throw IllegalStateException("Room not found")
+        val tenantId = room.currentTenantId
+        val period = normalizeBillingPeriod(billingPeriod)
+        val now = System.currentTimeMillis()
+
+        val existingBillForPeriod = _bills.value.find {
+            it.roomId == roomId && it.tenantId == tenantId &&
+                it.billingPeriod.trim().equals(period, ignoreCase = true)
+        }
+
+        val otherOutstanding = _bills.value
+            .filter {
+                it.roomId == roomId && it.tenantId == tenantId && it.remainingDue > 0.0 &&
+                    it.id != existingBillForPeriod?.id
+            }
+            .sortedBy { it.timestamp }
+
+        var paymentLeft = amountPaid
+
+        val existingDue = existingBillForPeriod?.remainingDue?.coerceAtLeast(0.0) ?: 0.0
+        val existingApplied = minOf(existingDue, paymentLeft)
+        paymentLeft -= existingApplied
+
+        val settledOthers = otherOutstanding.map { old ->
+            if (paymentLeft <= 0.0) return@map old
+            val applied = minOf(old.remainingDue, paymentLeft)
+            paymentLeft -= applied
+
+            // Rent first, then electricity (never more than that bill's electricity)
+            val rentGap = (old.baseRent - old.rentPaid).coerceAtLeast(0.0)
+            val rentApplied = minOf(applied, rentGap)
+            val elecGap = (old.electricityAmount - old.electricityPaid).coerceAtLeast(0.0)
+            val elecApplied = minOf(applied - rentApplied, elecGap)
+
+            old.copy(
+                rentPaid = old.rentPaid + rentApplied,
+                electricityPaid = old.electricityPaid + elecApplied,
+                amountPaid = old.amountPaid + applied,
+                remainingDue = old.remainingDue - applied,
+                paidOn = now
+            )
+        }
+
+        val updatedExisting: Bill? = existingBillForPeriod?.let { existing ->
+            val totalApplied = existingApplied + paymentLeft
+            val rentGap = (existing.baseRent - existing.rentPaid).coerceAtLeast(0.0)
+            val rentApplied = minOf(totalApplied, rentGap)
+            val afterRent = totalApplied - rentApplied
+            val elecGap = (existing.electricityAmount - existing.electricityPaid).coerceAtLeast(0.0)
+            val elecApplied = minOf(afterRent, elecGap)
+            existing.copy(
+                rentPaid = existing.rentPaid + rentApplied,
+                electricityPaid = existing.electricityPaid + elecApplied,
                 amountPaid = existing.amountPaid + totalApplied,
                 remainingDue = existing.remainingDue - totalApplied,
                 paymentMode = paymentMode,
-                paidOn = if (totalApplied > 0.0) System.currentTimeMillis() else existing.paidOn
+                paidOn = if (totalApplied > 0.0) now else existing.paidOn
             )
         }
 
         val newBill: Bill
+        var clearedCredits: List<Bill> = emptyList()
 
         if (existingBillForPeriod != null) {
-            // No new row — this period's existing bill was already updated above.
             newBill = updatedExisting!!
             _bills.value = _bills.value.map { b ->
                 if (b.id == newBill.id) newBill else (settledOthers.find { it.id == b.id } ?: b)
             }
         } else {
-            // A genuinely new period. Whatever's left after arrears are cleared goes
-            // toward this month's rent, then electricity. Any surplus beyond this
-            // month's own charge becomes an advance credit rather than being dropped.
             val prevReading = getLastRecordedMeterReading(roomId)
             val units = (currentReading - prevReading).coerceAtLeast(0.0)
             val electricityTotal = kotlin.math.round(units * room.electricityRate)
             val tenant = _tenants.value.find { it.id == tenantId }
-val billPeriodCal = Calendar.getInstance()
-try {
-    SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).parse(billingPeriod.trim())?.let { billPeriodCal.time = it }
-} catch (e: Exception) { /* fall back to current calendar values below */ }
-
-val isJoinMonth = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.let {
-    it.get(Calendar.YEAR) == billPeriodCal.get(Calendar.YEAR) && it.get(Calendar.MONTH) == billPeriodCal.get(Calendar.MONTH)
-}
-val joinedAfter15th = tenant != null && Calendar.getInstance().apply { timeInMillis = tenant.moveInDate }.get(Calendar.DAY_OF_MONTH) > 15
-
-val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 else room.baseRent
+            val proratedBaseRent = getProratedBaseRent(room, tenant, period)
             val currentMonthCharge = kotlin.math.round(proratedBaseRent + electricityTotal + maintenanceAmount)
             val priorDue = otherOutstanding.sumOf { it.remainingDue }
 
-            val rentContribution = minOf(proratedBaseRent, paymentLeft)
-            val afterRent = (paymentLeft - rentContribution).coerceAtLeast(0.0)
+            // Any earlier advance (a bill with a negative balance) is used up by this bill.
+            val creditBills = _bills.value.filter {
+                it.roomId == roomId && it.tenantId == tenantId && it.remainingDue < 0.0
+            }
+            val creditAvailable = creditBills.sumOf { -it.remainingDue }
+
+            val fundsForCharge = paymentLeft + creditAvailable
+            val rentContribution = minOf(proratedBaseRent, fundsForCharge)
+            val afterRent = (fundsForCharge - rentContribution).coerceAtLeast(0.0)
             val elecContribution = minOf(electricityTotal, afterRent)
 
             newBill = Bill(
                 id = UUID.randomUUID().toString(),
                 roomId = roomId,
                 tenantId = tenantId,
-                billingPeriod = billingPeriod,
+                billingPeriod = period,
                 previousReading = prevReading,
                 currentReading = currentReading,
                 unitsConsumed = units,
@@ -948,22 +1038,29 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
                 electricityAmount = electricityTotal,
                 baseRent = proratedBaseRent,
                 maintenanceAmount = maintenanceAmount,
-                totalPayable = currentMonthCharge + priorDue,
+                totalPayable = currentMonthCharge + priorDue - creditAvailable,
                 rentPaid = rentContribution,
                 electricityPaid = elecContribution,
                 amountPaid = paymentLeft,
                 paymentMode = paymentMode,
-                remainingDue = currentMonthCharge - paymentLeft,
-                timestamp = System.currentTimeMillis(),
-                paidOn = if (paymentLeft > 0.0) System.currentTimeMillis() else 0L
+                remainingDue = currentMonthCharge - fundsForCharge,
+                timestamp = now,
+                paidOn = if (paymentLeft > 0.0) now else 0L,
+                advanceApplied = creditAvailable
             )
 
-            _bills.value = _bills.value.map { b -> settledOthers.find { it.id == b.id } ?: b } + newBill
+            clearedCredits = creditBills.map { it.copy(remainingDue = 0.0) }
+            _bills.value = _bills.value.map { b ->
+                settledOthers.find { it.id == b.id }
+                    ?: clearedCredits.find { it.id == b.id }
+                    ?: b
+            } + newBill
         }
 
         saveToLocalStorage()
         syncBillToCloud(newBill)
         settledOthers.forEach { syncBillToCloud(it) }
+        clearedCredits.forEach { syncBillToCloud(it) }
         return newBill
     }
 
