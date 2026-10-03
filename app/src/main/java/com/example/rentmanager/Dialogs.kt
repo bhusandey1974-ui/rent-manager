@@ -2038,6 +2038,370 @@ fun RoomHistoryDialog(
 
                                     // Row 2: Dates & Duration
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = AppColors.
+                                        Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = AppColors.AzurePrimary, modifier = Modifier.size(13.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        val moveInStr = dateFormat.format(Date(t.moveInDate))
+                                        val moveOutStr = t.moveOutDate?.let { dateFormat.format(Date(it)) } ?: "Present"
+                                        Text(
+                                            text = "$moveInStr → $moveOutStr (${itemSummary.daysStayed} days)",
+                                            fontSize = 11.sp,
+                                            color = AppColors.TextSecondary
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    // Row 3: Identity info
+                                    Text("Phone: ${t.phoneNumber}", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                    if (t.aadhaarNumber.isNotBlank()) {
+                                        Text("Aadhaar: ${t.aadhaarNumber}", fontSize = 12.sp, color = AppColors.TextPrimary)
+                                    }
+                                    if (t.permanentAddress.isNotBlank()) {
+                                        Text("Address: ${t.permanentAddress}", fontSize = 12.sp, color = AppColors.TextSecondary, maxLines = 2)
+                                    }
+
+                                    Divider(modifier = Modifier.padding(vertical = 8.dp), color = AppColors.BorderSubtle)
+
+                                    // Row 4: Financial Summary for this tenancy
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text("Rent Paid", fontSize = 10.sp, color = AppColors.TextSecondary)
+                                            Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalRentCollected)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                                        }
+                                        Column {
+                                            Text("Elec Paid", fontSize = 10.sp, color = AppColors.TextSecondary)
+                                            Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalElectricityCollected)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("Total Collected", fontSize = 10.sp, color = AppColors.TextSecondary)
+                                            Text("₹${String.format(Locale.ENGLISH, "%.0f", itemSummary.totalMoneyCollected)}", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = AppColors.AzurePrimary)
+                                        }
+                                    }
+
+                                    if (!t.isCurrent && t.securityDeposit > 0.0) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Deposit: ₹${t.securityDeposit.toInt()}",
+                                                fontSize = 11.sp,
+                                                color = AppColors.TextSecondary
+                                            )
+                                            Text(
+                                                text = when (t.depositRefunded) {
+                                                    true -> "Refunded"
+                                                    false -> "Not Refunded"
+                                                    null -> "Unknown"
+                                                },
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when (t.depositRefunded) {
+                                                    true -> AppColors.EmeraldSuccess
+                                                    false -> AppColors.CrimsonAlert
+                                                    null -> AppColors.TextMuted
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                ) {
+                    Text("Close", color = AppColors.TextPrimary)
+                }
+            }
+        }
+    }
+}
+@Composable
+fun DeleteConfirmationDialog(
+    title: String = "Delete Room",
+    message: String = "Are you sure you want to delete this room? This action cannot be undone.",
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.CrimsonAlert
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = message,
+                    fontSize = 14.sp,
+                    color = AppColors.TextSecondary,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Cancel", color = AppColors.TextSecondary)
+                    }
+
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.CrimsonAlert,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun SettingsDialog(
+    vm: RentViewModel,
+    onDismiss: () -> Unit,
+    onSignOutSuccess: () -> Unit
+) {
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = auth.currentUser
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Settings & Account",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = AppColors.TextPrimary
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Account status
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Person,
+                        contentDescription = null,
+                        tint = AppColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = currentUser?.email ?: "Local Offline Mode",
+                        fontSize = 14.sp,
+                        color = AppColors.TextPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = if (currentUser != null) "Cloud sync enabled" else "No cloud sync",
+                    fontSize = 12.sp,
+                    color = if (currentUser != null) UIGreenSuccess else AppColors.TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Billing convention
+                val billingConvention by vm.billingConvention.collectAsState()
+                Text(
+                    text = "Rent Collection Timing",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = AppColors.TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Only used as a starting guess for a tenant's very first bill.",
+                    fontSize = 11.sp,
+                    color = AppColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { vm.setBillingConvention(BillingConvention.CURRENT_MONTH) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = if (billingConvention == BillingConvention.CURRENT_MONTH)
+                            ButtonDefaults.outlinedButtonColors(containerColor = AppColors.AzureContainer)
+                        else
+                            ButtonDefaults.outlinedButtonColors(),
+                        border = BorderStroke(
+                            1.dp,
+                            if (billingConvention == BillingConvention.CURRENT_MONTH) AppColors.AzurePrimary else AppColors.BorderSubtle
+                        )
+                    ) {
+                        Text("Same month\n(e.g. Sept in Sept)", fontSize = 11.sp, textAlign = TextAlign.Center, color = AppColors.TextPrimary)
+                    }
+
+                    OutlinedButton(
+                        onClick = { vm.setBillingConvention(BillingConvention.PREVIOUS_MONTH) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = if (billingConvention == BillingConvention.PREVIOUS_MONTH)
+                            ButtonDefaults.outlinedButtonColors(containerColor = AppColors.AzureContainer)
+                        else
+                            ButtonDefaults.outlinedButtonColors(),
+                        border = BorderStroke(
+                            1.dp,
+                            if (billingConvention == BillingConvention.PREVIOUS_MONTH) AppColors.AzurePrimary else AppColors.BorderSubtle
+                        )
+                    ) {
+                       Text("Month after\n(e.g. Sept in Oct)", fontSize = 11.sp, textAlign = TextAlign.Center, color = AppColors.TextPrimary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Sign out
+                Button(
+                    onClick = {
+                        auth.signOut()
+                        onSignOutSuccess()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.AzurePrimary
+                    )
+                ) {
+                    Text(if (currentUser != null) "Sign Out" else "Exit Guest Mode")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Danger zone
+                Text(
+                    text = "Danger Zone",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = UIRedDanger
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { showDeleteConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, UIRedDanger)
+                ) {
+                    Text("Delete All Property Data", color = UIRedDanger)
+                }
+            }
+        }
+    }
+
+    if (showDeleteConfirmation) {
+        DeleteConfirmationDialog(
+            onConfirm = {
+                vm.clearAllData(onComplete = {})
+                showDeleteConfirmation = false
+                onDismiss()
+            },
+            onDismiss = { showDeleteConfirmation = false }
+        )
+    }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Delete All Data?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = UIRedDanger
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "This will permanently delete all properties, rooms, tenants, and bills from this device and the cloud. This cannot be undone.",
+                    fontSize = 13.sp,
+                    color = AppColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    OutlinedButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(containerColor = UIRedDanger)
+                    ) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
+    }
+}
                  
                              
