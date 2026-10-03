@@ -427,4 +427,287 @@ private fun CategoryTile(category: String, amount: Double, modifier: Modifier = 
         ) { Icon(iconFor(category), null, tint = st.fg, modifier = Modifier.size(15.dp)) }
         Spacer(modifier = Modifier.width(5.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text(category, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold, color = st.fg, maxLines = 1, softWrap = false)
+            Text(inr(amount), fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary, maxLines = 1)
+        }
+        Icon(Icons.Rounded.ChevronRight, null, tint = st.fg, modifier = Modifier.size(12.dp))
+    }
+}
+
+@Composable
+private fun AddExpenseDialog(
+    onDismiss: () -> Unit,
+    onSave: (title: String, category: String, property: String, amount: Double) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var property by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Maintenance") }
+    val amt = amount.toDoubleOrNull()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Expense", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true)
+                OutlinedTextField(amount, { amount = it }, label = { Text("Amount (₹)") }, singleLine = true)
+                OutlinedTextField(property, { property = it }, label = { Text("Property / Room") }, singleLine = true)
+                categoryStyles.keys.chunked(3).forEach { rowCats ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        rowCats.forEach { c ->
+                            val st = styleFor(c)
+                            val sel = c == category
+                            Text(
+                                text = c,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (sel) Color.White else st.fg,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (sel) st.fg else st.bg)
+                                    .clickable { category = c }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = title.isNotBlank() && amt != null && amt > 0,
+                onClick = { onSave(title.trim(), category, property.trim().ifBlank { "General" }, amt ?: 0.0) }
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+
+/** One card like the reference: Net Cash | Total Expenses (+ % badge) | Withdrawn, then the two buttons. */
+@Composable
+private fun ExpenseSummaryCard(
+    vm: RentViewModel,
+    collectedAfterExpenses: Double,
+    monthTotal: Double,
+    prevTotal: Double,
+    prevMonthLabel: String
+) {
+    val withdrawals by vm.withdrawals.collectAsState()
+    val withdrawn = withdrawals.sumOf { it.amount }
+    val netCash = collectedAfterExpenses - withdrawn
+    var showWithdraw by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = AppColors.SurfaceWhite,
+        border = BorderStroke(1.dp, AppColors.BorderSubtle),
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                // Net cash
+                Column(modifier = Modifier.weight(1.2f)) {
+                    Text("Net Cash Available", fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        inr(netCash),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32),
+                        maxLines = 1
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .width(1.dp)
+                        .height(44.dp)
+                        .background(AppColors.BorderSubtle)
+                )
+                // Total expenses + badge
+                Column(modifier = Modifier.weight(1.2f)) {
+                    Text("Total Expenses", fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        inr(monthTotal),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1
+                    )
+                    if (prevTotal > 0) {
+                        val pct = ((monthTotal - prevTotal) / prevTotal * 100).toInt()
+                        val up = pct >= 0
+                        val c = if (up) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                        val shortPrev = prevMonthLabel.substringBefore(' ').take(3) +
+                            " " + prevMonthLabel.substringAfterLast(' ')
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = (if (up) "↑ " else "↓ ") + kotlin.math.abs(pct) + "%",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = c,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(c.copy(alpha = 0.12f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("vs $shortPrev", fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)
+                        }
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .width(1.dp)
+                        .height(44.dp)
+                        .background(AppColors.BorderSubtle)
+                )
+                // Withdrawn
+                Column(modifier = Modifier.weight(0.9f), horizontalAlignment = Alignment.End) {
+                    Text("Withdrawn", fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        inr(withdrawn),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { showWithdraw = true },
+                    modifier = Modifier.weight(1f).height(32.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.AzurePrimary)
+                ) {
+                    Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Withdraw", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
+                OutlinedButton(
+                    onClick = { showHistory = true },
+                    modifier = Modifier.weight(1f).height(32.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, AppColors.BorderStrong)
+                ) {
+                    Text(
+                        "History (${withdrawals.size})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AppColors.AzurePrimary
+                    )
+                }
+            }
+        }
+    }
+
+    if (showWithdraw) {
+        ExpenseWithdrawDialog(
+            maxAmount = netCash.coerceAtLeast(0.0),
+            onDismiss = { showWithdraw = false },
+            onSave = { amount, recipient, purpose ->
+                vm.addWithdrawal(amount, recipient, purpose)
+                showWithdraw = false
+            }
+        )
+    }
+    if (showHistory) {
+        ExpenseHistoryDialog(vm = vm, onDismiss = { showHistory = false })
+    }
+}
+
+@Composable
+private fun ExpenseWithdrawDialog(
+    maxAmount: Double,
+    onDismiss: () -> Unit,
+    onSave: (amount: Double, recipient: String, purpose: String) -> Unit
+) {
+    var amount by remember { mutableStateOf("") }
+    var recipient by remember { mutableStateOf("") }
+    var purpose by remember { mutableStateOf("") }
+    val amt = amount.toDoubleOrNull()
+    val tooMuch = amt != null && amt > maxAmount
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Withdraw", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Available: " + inr(maxAmount), fontSize = 12.sp, color = AppColors.TextSecondary)
+                OutlinedTextField(
+                    amount, { amount = it },
+                    label = { Text("Amount (₹)") },
+                    singleLine = true,
+                    isError = tooMuch
+                )
+                if (tooMuch) {
+                    Text("More than the available cash", fontSize = 11.sp, color = Color(0xFFD32F2F))
+                }
+                OutlinedTextField(recipient, { recipient = it }, label = { Text("Withdrawn by") }, singleLine = true)
+                OutlinedTextField(purpose, { purpose = it }, label = { Text("Purpose") }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = amt != null && amt > 0 && !tooMuch,
+                onClick = {
+                    onSave(
+                        amt ?: 0.0,
+                        recipient.trim().ifBlank { "Owner" },
+                        purpose.trim().ifBlank { "General" }
+                    )
+                }
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun ExpenseHistoryDialog(vm: RentViewModel, onDismiss: () -> Unit) {
+    val list by vm.withdrawals.collectAsState()
+    val fmt = remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Withdrawal History", fontWeight = FontWeight.Bold) },
+        text = {
+            if (list.isEmpty()) {
+                Text("No withdrawals yet.", fontSize = 13.sp, color = AppColors.TextSecondary)
+            } else {
+                Column(
+                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    list.sortedByDescending { it.timestamp }.forEach { w ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(inr(w.amount), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                                Text(w.recipient + " · " + w.purpose, fontSize = 11.sp, color = AppColors.TextSecondary)
+                                Text(fmt.format(Date(w.timestamp)), fontSize = 10.sp, color = AppColors.TextMuted)
+                            }
+                            TextButton(onClick = { vm.deleteWithdrawal(w.id) }) {
+                                Text("Delete", color = Color(0xFFD32F2F))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
             
