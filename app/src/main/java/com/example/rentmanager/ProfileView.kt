@@ -719,8 +719,3 @@ private fun exportBillsCsv(context: Context, vm: RentViewModel) {
     }
     context.startActivity(Intent.createChooser(send, "Export bills"))
 }
-
-
-
-
-               
