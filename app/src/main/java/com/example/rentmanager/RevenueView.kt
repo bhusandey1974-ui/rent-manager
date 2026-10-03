@@ -1356,6 +1356,131 @@ private fun MonthlyBarChart(values: List<Double>) {
             }
             val barColor = when {
                 allZero -> AppColors.AzurePrimary.copy(alpha = 0.08f)
-        
-                    
-            
+                v > 0.0 -> AppColors.AzurePrimary
+                else -> AppColors.AzurePrimary.copy(alpha = 0.12f)
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(maxBar),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(14.dp)
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(barColor)
+                    )
+                }
+                Spacer(modifier = Modifier.height(1.dp))
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    color = AppColors.TextMuted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RevenueStatBox(
+    icon: ImageVector,
+    label: String,
+    amount: Double,
+    subText: String,
+    color: Color,
+    labelColor: Color,
+    labelSize: androidx.compose.ui.unit.TextUnit,
+    amountSize: androidx.compose.ui.unit.TextUnit,
+    subSize: androidx.compose.ui.unit.TextUnit,
+    iconSize: androidx.compose.ui.unit.Dp,
+    hPad: androidx.compose.ui.unit.Dp,
+    iconGap: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val amountText = if (amount >= 10000) {
+        "₹${String.format(Locale.ENGLISH, "%,.0f", amount)}"
+    } else {
+        "₹${String.format(Locale.ENGLISH, "%,.2f", amount)}"
+    }
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = AppColors.SurfaceWhite,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .background(color.copy(alpha = 0.10f))
+                .padding(horizontal = hPad, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(iconSize)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize * 0.53f))
+            }
+            Spacer(modifier = Modifier.width(iconGap))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = labelSize,
+                    fontWeight = FontWeight.Medium,
+                    color = labelColor,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = amountText,
+                        fontSize = amountSize,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = labelColor,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+private fun Modifier.dotPattern(): Modifier = this.drawBehind {
+    val gap = 12.dp.toPx()
+    val r = 0.9.dp.toPx()
+    val maxD = kotlin.math.sqrt(size.width * size.width + size.height * size.height)
+    var x = gap / 2
+    while (x < size.width) {
+        var y = gap / 2
+        while (y < size.height) {
+            val dx = size.width - x
+            val d = kotlin.math.sqrt(dx * dx + y * y) / maxD
+            val a = 0.14f * (1f - d * 1.25f)
+            if (a > 0.004f) {
+                drawCircle(AppColors.AzurePrimary.copy(alpha = a), r, Offset(x, y))
+            }
+            y += gap
+        }
+        x += gap
+    }
+}
