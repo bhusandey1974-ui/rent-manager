@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -61,16 +63,6 @@ import com.example.rentmanager.ui.screens.PropertiesView
 import com.example.rentmanager.ui.screens.RevenueView
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.auth.FirebaseAuth
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.res.painterResource
-import kotlinx.coroutines.delay
 
 // ---------------------------------------------------------------------------
 // App-wide font (Inter). Requires these files in app/src/main/res/font/:
@@ -125,21 +117,51 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: RentViewModel by viewModels()
 
+    // PIN lock: locked at launch if a PIN is set, and again after 30 s in the background.
+    private var locked by mutableStateOf(false)
+    private var lastStopTime = 0L
+
+    override fun onStop() {
+        super.onStop()
+        lastStopTime = System.currentTimeMillis()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (lastStopTime != 0L && PinStore.isEnabled(this) &&
+            System.currentTimeMillis() - lastStopTime > 30_000L
+        ) {
+            locked = true
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppPrefs.load(this)
+        locked = PinStore.isEnabled(this)
 
-        window.statusBarColor = android.graphics.Color.rgb(11, 31, 77) // matches AppColors.HeaderTop
+        window.statusBarColor = android.graphics.Color.rgb(42, 107, 85) // matches AppColors.HeaderTop
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
 
         MobileAds.initialize(this) {}
         setContent {
             RentManagerTheme {
                 WithInterFont {
-                    androidx.compose.material3.Surface(
-                        color = AppColors.ScaffoldBackground,
-                        modifier = Modifier.fillMaxSize()
+                    val baseDensity = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * AppPrefs.textScale)
                     ) {
-                        MainAppRoot(viewModel = viewModel)
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            androidx.compose.material3.Surface(
+                                color = AppColors.ScaffoldBackground,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                MainAppRoot(viewModel = viewModel)
+                            }
+                            if (locked) {
+                                PinLockScreen(onUnlocked = { locked = false })
+                            }
+                        }
                     }
                 }
             }
@@ -247,7 +269,13 @@ fun MainAppRoot(viewModel: RentViewModel) {
                         )
                         1 -> RevenueView(vm = viewModel, onAddRecord = { currentTabIndex = 0 })
                         2 -> ExpensesView(vm = viewModel)
-                        3 -> ProfileView(onOpenSettings = { showSettingsDialog = true })
+                        3 -> ProfileView(
+                            onOpenSettings = { showSettingsDialog = true },
+                            vm = viewModel,
+                            onOpenProperties = { currentTabIndex = 0 },
+                            onOpenRevenue = { currentTabIndex = 1 },
+                            onOpenAlerts = { showAlertsDialog = true }
+                        )
                     }
                 }
             }
