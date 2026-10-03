@@ -1251,7 +1251,7 @@ fun LodgeBillDialog(
 
 Button(
                     onClick = {
-                        val lodgedBill = onBillLodged(billingPeriod, currReading, maintAmount, amountPaid, paymentMode)
+                        val lodgedBill = onBillLodged(normalizedPeriod, currReading, maintAmount, amountPaid, paymentMode)
                         val snapshotAfter = vm.getBillsRemainingSnapshot(room.id, tenant.id)
 
                         val settledNow = sortedByPeriod(
@@ -1263,22 +1263,32 @@ Button(
                         )
                         val stillDue = sortedByPeriod(snapshotAfter.filter { it.value > 0.0 }.keys)
 
+                        val periodKey = lodgedBill.billingPeriod
+                        val previousDue = snapshotBefore
+                            .filter { it.key != periodKey && it.value > 0.0 }.values.sum()
+                        val ownCharge = lodgedBill.baseRent + lodgedBill.electricityAmount + lodgedBill.maintenanceAmount
+                        val ownOwedBefore = snapshotBefore[periodKey]?.coerceAtLeast(0.0)
+                        val paidEarlier = if (ownOwedBefore != null) (ownCharge - ownOwedBefore).coerceAtLeast(0.0) else 0.0
+                        val netAfter = snapshotAfter.values.sum()
+
                         var receiptMsg = ReceiptFormatter.formatReceipt(
                             tenantName = tenant.name,
                             roomNumber = room.roomNumber,
-                            billingPeriod = billingPeriod,
+                            billingPeriod = lodgedBill.billingPeriod,
                             paymentDateMillis = System.currentTimeMillis(),
-                            previousReading = previousReading,
-                            currentReading = currReading,
-                            unitsConsumed = units,
-                            ratePerUnit = room.electricityRate,
-                            totalElectricity = elecAmount,
-                            baseRent = room.baseRent,
-                            maintenanceAmount = maintAmount,
-                            totalAmount = grossPayable,
+                            previousReading = lodgedBill.previousReading,
+                            currentReading = lodgedBill.currentReading,
+                            unitsConsumed = lodgedBill.unitsConsumed,
+                            ratePerUnit = lodgedBill.electricityRate,
+                            totalElectricity = lodgedBill.electricityAmount,
+                            baseRent = lodgedBill.baseRent,
+                            maintenanceAmount = lodgedBill.maintenanceAmount,
+                            previousDue = previousDue,
+                            advanceApplied = lodgedBill.advanceApplied,
+                            paidEarlier = paidEarlier,
                             amountPaid = amountPaid,
                             paymentMode = paymentMode,
-                            remainingDue = remainingDue
+                            remainingDue = netAfter
                         )
                         if (settledNow.size > 1) {
                             receiptMsg += "\n\n✅ Rent settled for: ${settledNow.joinToString(", ")}"
