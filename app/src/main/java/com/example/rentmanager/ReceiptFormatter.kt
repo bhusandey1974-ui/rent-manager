@@ -26,17 +26,24 @@ object ReceiptFormatter {
         totalElectricity: Double,
         baseRent: Double,
         maintenanceAmount: Double = 0.0,
-        totalAmount: Double,
+        previousDue: Double = 0.0,
+        advanceApplied: Double = 0.0,
+        paidEarlier: Double = 0.0,
         amountPaid: Double,
         paymentMode: String = "Cash",
         remainingDue: Double
     ): String {
         val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH)
         val formattedDate = dateFormat.format(Date(paymentDateMillis))
+        val money = { v: Double -> String.format(Locale.ENGLISH, "%.2f", v) }
+
+        val totalAmount = baseRent + totalElectricity + maintenanceAmount +
+            previousDue - advanceApplied - paidEarlier
+        val due = if (kotlin.math.abs(remainingDue) < 0.005) 0.0 else remainingDue
 
         val statusLine = when {
-            remainingDue > 0.0 -> "⚠️ *Pending Due:* ₹${String.format(Locale.ENGLISH, "%.2f", remainingDue)}"
-            remainingDue < 0.0 -> "🎁 *Advance Credit:* ₹${String.format(Locale.ENGLISH, "%.2f", -remainingDue)}"
+            due > 0.0 -> "⚠️ *Pending Due:* ₹${money(due)}"
+            due < 0.0 -> "🎁 *Advance Credit:* ₹${money(-due)}"
             else -> "✅ *Status:* Fully Cleared (No Dues)"
         }
 
@@ -50,15 +57,16 @@ object ReceiptFormatter {
             append("• Previous Reading: ${String.format(Locale.ENGLISH, "%.1f", previousReading)}\n")
             append("• Current Reading: ${String.format(Locale.ENGLISH, "%.1f", currentReading)}\n")
             append("• Units Consumed: ${String.format(Locale.ENGLISH, "%.1f", unitsConsumed)}\n")
-            append("• Rate / Unit: ₹${String.format(Locale.ENGLISH, "%.2f", ratePerUnit)}\n")
-            append("• Total Electricity: ₹${String.format(Locale.ENGLISH, "%.2f", totalElectricity)}\n\n")
-            append("🏢 *Base Rent:* ₹${String.format(Locale.ENGLISH, "%.2f", baseRent)}\n")
-            if (maintenanceAmount > 0.0) {
-                append("🔧 *Maintenance:* ₹${String.format(Locale.ENGLISH, "%.2f", maintenanceAmount)}\n")
-            }
-            append("🧾 *Total Amount:* ₹${String.format(Locale.ENGLISH, "%.2f", totalAmount)}\n")
+            append("• Rate / Unit: ₹${money(ratePerUnit)}\n")
+            append("• Total Electricity: ₹${money(totalElectricity)}\n\n")
+            append("🏢 *Base Rent:* ₹${money(baseRent)}\n")
+            if (maintenanceAmount > 0.0) append("🔧 *Maintenance:* ₹${money(maintenanceAmount)}\n")
+            if (previousDue > 0.0) append("📌 *Previous Due:* ₹${money(previousDue)}\n")
+            if (advanceApplied > 0.0) append("🎁 *Advance Adjusted:* -₹${money(advanceApplied)}\n")
+            if (paidEarlier > 0.0) append("↩️ *Paid Earlier:* -₹${money(paidEarlier)}\n")
+            append("🧾 *Total Amount:* ₹${money(totalAmount)}\n")
             append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-            append("✅ *Amount Paid:* ₹${String.format(Locale.ENGLISH, "%.2f", amountPaid)} ($paymentMode)\n")
+            append("✅ *Amount Paid:* ₹${money(amountPaid)} ($paymentMode)\n")
             append("$statusLine\n")
             append("━━━━━━━━━━━━━━━━━━━━━━━━━\n")
             append("Thank you!")
