@@ -1165,6 +1165,7 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
                     obj.put("remainingDue", it.remainingDue)
                     obj.put("timestamp", it.timestamp)
                     obj.put("paidOn", it.paidOn)
+                    obj.put("advanceApplied", it.advanceApplied)
                     billArr.put(obj)
                 }
                 prefs.edit().putString("saved_bills", billArr.toString()).apply()
