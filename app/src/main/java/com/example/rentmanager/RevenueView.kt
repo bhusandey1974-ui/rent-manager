@@ -217,7 +217,7 @@ fun RevenueView(vm: RentViewModel, onAddRecord: () -> Unit = {}) {
                     "Electricity" -> b.electricityAmount > 0
                     "Maintenance" -> b.maintenanceAmount > 0
                     "Dues" -> b.remainingDue > 0
-                    "Advance" -> b.amountPaid > b.totalPayable
+                    "Advance" -> b.remainingDue < 0
                     else -> true
                 }
             }
@@ -837,7 +837,7 @@ private fun BillDetailRow(
                             color = AppColors.AzureDark
                         )
                         Text(
-                            text = "Paid on ${dateFormat.format(Date(bill.timestamp))}",
+                            text = "Paid on ${dateFormat.format(Date(bill.paymentDate()))}",
                             fontSize = 10.sp,
                             color = AppColors.TextMuted
                         )
@@ -850,7 +850,7 @@ private fun BillDetailRow(
                                 tenantName = tenant.name,
                                 roomNumber = room?.roomNumber ?: bill.roomId,
                                 billingPeriod = bill.billingPeriod,
-                                paymentDateMillis = bill.timestamp,
+                                paymentDateMillis = bill.paymentDate(),
                                 previousReading = bill.previousReading,
                                 currentReading = bill.currentReading,
                                 unitsConsumed = bill.unitsConsumed,
@@ -858,7 +858,7 @@ private fun BillDetailRow(
                                 totalElectricity = bill.electricityAmount,
                                 baseRent = bill.baseRent,
                                 maintenanceAmount = bill.maintenanceAmount,
-                                totalAmount = bill.totalPayable,
+                                advanceApplied = bill.advanceApplied,
                                 amountPaid = bill.amountPaid,
                                 paymentMode = bill.paymentMode,
                                 remainingDue = bill.remainingDue
