@@ -252,7 +252,7 @@ fun ExpensesView(vm: RentViewModel) {
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(e.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppColors.TextPrimary)
-                                    Text(e.propertyName + " · " + e.category, fontSize = 11.sp, color = AppColors.TextSecondary)
+                                    Text(e.location + " · " + e.category, fontSize = 11.sp, color = AppColors.TextSecondary)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(inr(e.amount), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
@@ -285,7 +285,7 @@ fun ExpensesView(vm: RentViewModel) {
             onDismissRequest = { selected = null },
             title = { Text(e.title, fontWeight = FontWeight.Bold) },
             text = {
-                Text(inr(e.amount) + "\n" + e.propertyName + " · " + e.category + "\n" + dateFmt.format(Date(e.timestamp)))
+                Text(inr(e.amount) + "\n" + e.location + " · " + e.category + "\n" + dateFmt.format(Date(e.timestamp)))
             },
             confirmButton = { TextButton(onClick = { selected = null }) { Text("Close") } },
             dismissButton = {
@@ -318,7 +318,7 @@ fun ExpensesView(vm: RentViewModel) {
         AddExpenseDialog(
             onDismiss = { showAdd = false },
             onSave = { title, cat, prop, amt ->
-                vm.addExpense(title, cat, prop, amt, System.currentTimeMillis())
+                vm.addExpense(title, amt, cat, prop, System.currentTimeMillis())
                 showAdd = false
             }
         )
@@ -408,23 +408,4 @@ private fun AddExpenseDialog(
                                 color = if (sel) Color.White else st.fg,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .background(if (sel) st.fg else st.bg)
-                                    .clickable { category = c }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = title.isNotBlank() && amt != null && amt > 0,
-                onClick = { onSave(title.trim(), category, property.trim().ifBlank { "General" }, amt ?: 0.0) }
-            ) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-        
+                
