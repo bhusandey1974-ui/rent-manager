@@ -98,6 +98,11 @@ fun AuthView(
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showForgot by remember { mutableStateOf(false) }
+
+    if (showForgot) {
+        ForgotPasswordDialog(initialEmail = email, onDismiss = { showForgot = false })
+    }
 
     val googleSignInClient = remember {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -357,6 +362,22 @@ fun AuthView(
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        if (!isSignUp) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { showForgot = true }) {
+                                    Text(
+                                        text = "Forgot password?",
+                                        fontSize = 12.sp,
+                                        color = AppColors.AzurePrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+
                         AnimatedVisibility(visible = isSignUp) {
                             Column {
                                 Spacer(modifier = Modifier.height(10.dp))
@@ -397,170 +418,4 @@ fun AuthView(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = AppColors.AzurePrimary,
                                 unfocusedBorderColor = AppColors.BorderSubtle,
-                                focusedLabelColor = AppColors.AzurePrimary
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        AnimatedVisibility(visible = otpSent) {
-                            Column {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                OutlinedTextField(
-                                    value = otpCode,
-                                    onValueChange = { if (it.length <= 6) otpCode = it.filter { c -> c.isDigit() }; errorMessage = null },
-                                    label = { Text("Enter OTP") },
-                                    placeholder = { Text("6-digit code") },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = AppColors.AzurePrimary,
-                                        unfocusedBorderColor = AppColors.BorderSubtle,
-                                        focusedLabelColor = AppColors.AzurePrimary
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                TextButton(onClick = { sendOtp() }) {
-                                    Text("Resend OTP", fontSize = 12.sp, color = AppColors.AzurePrimary)
-                                }
-                            }
-                        }
-                    }
-
-                    AnimatedVisibility(visible = errorMessage != null) {
-                        errorMessage?.let { msg ->
-                            Text(
-                                text = msg,
-                                color = AppColors.CrimsonAlert,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 10.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    Button(
-                        onClick = {
-                            when (authTab) {
-                                AuthTab.EMAIL -> {
-                                    val cleanEmail = email.trim()
-                                    val cleanPass = password.trim()
-
-                                    if (cleanEmail.isBlank() || cleanPass.isBlank()) {
-                                        errorMessage = "Email and password cannot be empty."
-                                        return@Button
-                                    }
-                                    if (isSignUp && cleanPass != confirmPassword.trim()) {
-                                        errorMessage = "Passwords do not match."
-                                        return@Button
-                                    }
-                                    if (cleanPass.length < 6) {
-                                        errorMessage = "Password must be at least 6 characters."
-                                        return@Button
-                                    }
-
-                                    isLoading = true
-                                    errorMessage = null
-
-                                    if (isSignUp) {
-                                        auth.createUserWithEmailAndPassword(cleanEmail, cleanPass)
-                                            .addOnSuccessListener { isLoading = false; onAuthSuccess() }
-                                            .addOnFailureListener { e ->
-                                                isLoading = false
-                                                errorMessage = e.localizedMessage ?: "Failed to create account."
-                                            }
-                                    } else {
-                                        auth.signInWithEmailAndPassword(cleanEmail, cleanPass)
-                                            .addOnSuccessListener { isLoading = false; onAuthSuccess() }
-                                            .addOnFailureListener { e ->
-                                                isLoading = false
-                                                errorMessage = e.localizedMessage ?: "Invalid email or password."
-                                            }
-                                    }
-                                }
-                                AuthTab.PHONE -> {
-                                    if (!otpSent) sendOtp() else verifyOtp()
-                                }
-                            }
-                        },
-                        enabled = !isLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AppColors.AzurePrimary,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        } else {
-                            val label = when (authTab) {
-                                AuthTab.EMAIL -> if (isSignUp) "Sign Up" else "Sign In"
-                                AuthTab.PHONE -> if (otpSent) "Verify OTP" else "Send OTP"
-                            }
-                            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    if (authTab == AuthTab.EMAIL) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(
-                            onClick = { isSignUp = !isSignUp; errorMessage = null }
-                        ) {
-                            Text(
-                                text = if (isSignUp) "Already have an account? Sign In" else "Don't have an account? Sign Up",
-                                fontSize = 12.sp,
-                                color = AppColors.AzurePrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Divider(modifier = Modifier.padding(vertical = 8.dp), color = AppColors.BorderSubtle)
-
-                    OutlinedButton(
-                        onClick = {
-                            errorMessage = null
-                            googleLauncher.launch(googleSignInClient.signInIntent)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .background(AppColors.ScaffoldBackground),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("G", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppColors.AzurePrimary)
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("Continue with Google", color = AppColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedButton(
-                        onClick = onContinueAsGuest,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(42.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
-                    ) {
-                        Text("Continue in Offline / Local Mode", color = AppColors.TextSecondary, fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-    }
-}
+                                
