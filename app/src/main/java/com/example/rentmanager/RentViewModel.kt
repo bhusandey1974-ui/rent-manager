@@ -1278,7 +1278,8 @@ val proratedBaseRent = if (isJoinMonth && joinedAfter15th) room.baseRent / 2.0 e
                         paymentMode = obj.optString("paymentMode", "Cash"),
                         remainingDue = obj.getDouble("remainingDue"),
                         timestamp = obj.getLong("timestamp"),
-                        paidOn = obj.optLong("paidOn", 0L)
+                        paidOn = obj.optLong("paidOn", 0L),
+                        advanceApplied = obj.optDouble("advanceApplied", 0.0)
                     ))
                 }
                 _bills.value = list
