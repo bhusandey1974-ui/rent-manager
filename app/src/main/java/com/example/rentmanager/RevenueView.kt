@@ -98,6 +98,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.example.rentmanager.AppColors
 import com.example.rentmanager.Bill
+import com.example.rentmanager.paymentDate
 import com.example.rentmanager.ReceiptFormatter
 import com.example.rentmanager.RentViewModel
 import com.example.rentmanager.ui.components.RoomWiseBreakdownDialog
