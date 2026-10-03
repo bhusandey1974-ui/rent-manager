@@ -351,20 +351,40 @@ private fun SectionHeader(title: String, actionLabel: String = "View All", onAct
     }
 }
 
+private fun iconFor(category: String) = when (category) {
+    "Maintenance" -> Icons.Rounded.Build
+    "Electricity" -> Icons.Rounded.Bolt
+    "Cleaning" -> Icons.Rounded.CleaningServices
+    "Property Tax" -> Icons.Rounded.Description
+    else -> Icons.Rounded.Inventory2
+}
+
 @Composable
 private fun ViewAllTile(modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        modifier = modifier.clip(RoundedCornerShape(16.dp)).background(AppColors.AzureContainer).clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 12.dp),
+        modifier = modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(AppColors.AzureContainer)
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.7f)),
+            modifier = Modifier.size(28.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.7f)),
             contentAlignment = Alignment.Center
-        ) { Text("•••", fontSize = 11.sp, color = AppColors.AzurePrimary, fontWeight = FontWeight.Bold) }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("View All Categories", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppColors.AzurePrimary, modifier = Modifier.weight(1f))
-        Icon(Icons.Rounded.ChevronRight, null, tint = AppColors.AzurePrimary, modifier = Modifier.size(18.dp))
+        ) { Icon(Icons.Rounded.MoreHoriz, null, tint = AppColors.AzurePrimary, modifier = Modifier.size(16.dp)) }
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+            "View All Categories",
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = AppColors.AzurePrimary,
+            maxLines = 2,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(Icons.Rounded.ChevronRight, null, tint = AppColors.AzurePrimary, modifier = Modifier.size(14.dp))
     }
 }
 
@@ -372,19 +392,23 @@ private fun ViewAllTile(modifier: Modifier = Modifier, onClick: () -> Unit) {
 private fun CategoryTile(category: String, amount: Double, modifier: Modifier = Modifier) {
     val st = styleFor(category)
     Row(
-        modifier = modifier.clip(RoundedCornerShape(16.dp)).background(st.bg).padding(horizontal = 10.dp, vertical = 12.dp),
+        modifier = modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(st.bg)
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.7f)),
+            modifier = Modifier.size(28.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.7f)),
             contentAlignment = Alignment.Center
-        ) { Text(st.emoji, fontSize = 15.sp) }
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(category, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = st.fg)
-            Text(inr(amount), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+        ) { Icon(iconFor(category), null, tint = st.fg, modifier = Modifier.size(16.dp)) }
+        Spacer(modifier = Modifier.width(5.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text(category, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = st.fg, maxLines = 1, softWrap = false)
+            Text(inr(amount), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary, maxLines = 1)
         }
-        Icon(Icons.Rounded.ChevronRight, null, tint = st.fg, modifier = Modifier.size(18.dp))
+        Icon(Icons.Rounded.ChevronRight, null, tint = st.fg, modifier = Modifier.size(14.dp))
     }
 }
 
