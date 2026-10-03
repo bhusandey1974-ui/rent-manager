@@ -1133,7 +1133,7 @@ fun LodgeBillDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Base Rent:", fontSize = 12.sp, color = AppColors.TextSecondary)
-                                Text("₹${String.format(Locale.ENGLISH, "%.2f", room.baseRent)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", baseRentForPeriod)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
