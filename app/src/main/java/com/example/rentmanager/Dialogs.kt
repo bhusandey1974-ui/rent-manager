@@ -803,3 +803,412 @@ fun VacateSettlementDialog(
         }
     }
 }
+@Composable
+fun RoomWiseBreakdownDialog(
+    title: String,
+    items: List<com.example.rentmanager.RoomWiseAmount>,
+    accentColor: Color,
+    onDismiss: () -> Unit
+) {
+    val total = items.sumOf { it.amount }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.TextPrimary
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Room-wise breakdown",
+                    fontSize = 12.sp,
+                    color = AppColors.TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No data for this category.",
+                            fontSize = 13.sp,
+                            color = AppColors.TextMuted
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp)
+                    ) {
+                        items.forEach { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Room ${item.roomNumber}",
+                                    fontSize = 14.sp,
+                                    color = AppColors.TextPrimary
+                                )
+                                Text(
+                                    text = "₹${String.format(Locale.ENGLISH, "%.0f", item.amount)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = accentColor
+                                )
+                            }
+                            Divider(color = AppColors.BorderSubtle)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Total",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.ENGLISH, "%.0f", total)}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accentColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                ) {
+                    Text("Close", color = AppColors.TextPrimary)
+                }
+            }
+        }
+    }
+}
+private fun sortedByPeriod(periods: Collection<String>): List<String> {
+    val sdf = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+    return periods.sortedBy { p ->
+        try { sdf.parse(p)?.time ?: Long.MAX_VALUE } catch (e: Exception) { Long.MAX_VALUE }
+    }
+}
+@Composable
+fun LodgeBillDialog(
+    context: Context,
+    vm: RentViewModel,
+    room: Room,
+    tenant: Tenant,
+    previousReading: Double,
+    priorDueOrAdvance: Double,
+    suggestedBillingPeriod: String,
+    outstandingMonths: List<String> = emptyList(),
+    existingBillingPeriods: Set<String> = emptySet(),
+    onDismiss: () -> Unit,
+    onBillLodged: (billingPeriod: String, currentReading: Double, maintenanceAmount: Double, amountPaid: Double, paymentMode: String) -> Bill
+) {
+    var billingPeriod by remember { mutableStateOf(suggestedBillingPeriod) }
+    var currentReadingStr by remember { mutableStateOf("") }
+    var maintenanceStr by remember { mutableStateOf("0") }
+    var amountPaidStr by remember { mutableStateOf("") }
+    var paymentMode by remember { mutableStateOf("Cash") }
+    val snapshotBefore = remember { vm.getBillsRemainingSnapshot(room.id, tenant.id) }
+
+    val normalizedPeriod = vm.normalizeBillingPeriod(billingPeriod)
+    val isExistingPeriod = existingBillingPeriods.contains(normalizedPeriod.lowercase(Locale.ENGLISH))
+
+    val currReading = currentReadingStr.toDoubleOrNull() ?: previousReading
+    val units = (currReading - previousReading).coerceAtLeast(0.0)
+    val elecAmount = kotlin.math.round(units * room.electricityRate)
+    val maintAmount = maintenanceStr.toDoubleOrNull() ?: 0.0
+    val baseRentForPeriod = vm.getProratedBaseRent(room, tenant, normalizedPeriod)
+    val monthCharge = kotlin.math.round(baseRentForPeriod + elecAmount + maintAmount)
+    val grossPayable = if (isExistingPeriod) priorDueOrAdvance else (monthCharge + priorDueOrAdvance)
+    val amountPaid = amountPaidStr.toDoubleOrNull() ?: 0.0
+    val remainingDue = grossPayable - amountPaid
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(AppColors.AzureContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ReceiptLong,
+                                contentDescription = null,
+                                tint = AppColors.AzurePrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Lodge Bill - Room ${room.roomNumber}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.TextPrimary
+                            )
+                            Text(
+                                text = "Tenant: ${tenant.name}",
+                                fontSize = 12.sp,
+                                color = AppColors.TextSecondary
+                            )
+                        }
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (outstandingMonths.isNotEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AppColors.CrimsonAlert.copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, AppColors.CrimsonAlert.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Warning,
+                                contentDescription = null,
+                                tint = AppColors.CrimsonAlert,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (outstandingMonths.size <= 3) "Still due: ${outstandingMonths.joinToString(", ")}"
+                                       else "Still due for ${outstandingMonths.size} months: ${outstandingMonths.first()} to ${outstandingMonths.last()}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AppColors.CrimsonAlert
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Section 1: Period
+                OutlinedTextField(
+                    value = billingPeriod,
+                    onValueChange = { billingPeriod = it },
+                    label = { Text("Billing Period / Month") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Section 2: Meter Readings
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = previousReading.toString(),
+                        onValueChange = {},
+                        label = { Text("Prev Meter") },
+                        enabled = false,
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledBorderColor = AppColors.BorderSubtle,
+                            disabledTextColor = AppColors.TextSecondary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    OutlinedTextField(
+                        value = currentReadingStr,
+                        onValueChange = { currentReadingStr = it },
+                        label = { Text("Curr Meter") },
+                        placeholder = { Text(previousReading.toString()) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Section 3: Extra Charges
+                OutlinedTextField(
+                    value = maintenanceStr,
+                    onValueChange = { maintenanceStr = it },
+                    label = { Text("Maintenance / Other (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Section 4: Live Calculated Breakdown
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.AzureContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        if (isExistingPeriod) {
+                            Text(
+                                text = "This period already has a bill — this payment settles outstanding dues only.",
+                                fontSize = 11.sp,
+                                color = AppColors.TextSecondary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Base Rent:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", baseRentForPeriod)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Electricity (${units}u @ ₹${room.electricityRate}):", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", elecAmount)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            if (maintAmount > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Maintenance:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                    Text("₹${String.format(Locale.ENGLISH, "%.2f", maintAmount)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                        if (priorDueOrAdvance != 0.0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(if (priorDueOrAdvance > 0) "Previous Due:" else "Previous Advance:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                                Text("₹${String.format(Locale.ENGLISH, "%.2f", priorDueOrAdvance)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Divider(modifier = Modifier.padding(vertical = 6.dp), color = AppColors.AzureBorder)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Total Payable:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                            Text("₹${String.format(Locale.ENGLISH, "%.2f", grossPayable)}", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = AppColors.AzurePrimary)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Section 5: Payment Received
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = amountPaidStr,
+                        onValueChange = { amountPaidStr = it },
+                        label = { Text("Paid (₹)", maxLines = 1) },
+                        placeholder = { Text(grossPayable.toInt().toString()) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Payment mode", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("UPI", "Cash", "NetBanking", "Cheque").forEach { mode ->
+                            val selected = paymentMode == mode
+                            Surface(
+                                shape = RoundedCornerShape(18.dp),
+                                color = if (selected) AppColors.AzureDark else AppColors.SurfaceWhite,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (selected) AppColors.AzureDark else AppColors.BorderSubtle
+                             
