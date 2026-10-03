@@ -1211,4 +1211,418 @@ fun LodgeBillDialog(
                                 border = BorderStroke(
                                     1.dp,
                                     if (selected) AppColors.AzureDark else AppColors.BorderSubtle
+                                    ),
+                                modifier = Modifier
+                                    .weight(if (mode == "NetBanking") 1.7f else 1f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .clickable { paymentMode = mode }
+                            ) {
+                                Text(
+                                    text = mode,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (selected) Color.White else AppColors.TextPrimary,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Remaining Balance:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    Text(
+                        text = if (remainingDue >= 0) "₹${String.format(Locale.ENGLISH, "%.2f", remainingDue)} Due"
+                               else "₹${String.format(Locale.ENGLISH, "%.2f", -remainingDue)} Advance",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (remainingDue > 0) AppColors.AmberWarning else AppColors.EmeraldSuccess
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+Button(
+                    onClick = {
+                        val lodgedBill = onBillLodged(normalizedPeriod, currReading, maintAmount, amountPaid, paymentMode)
+                        val snapshotAfter = vm.getBillsRemainingSnapshot(room.id, tenant.id)
+
+                        val settledNow = sortedByPeriod(
+                            snapshotAfter.filterKeys { period ->
+                                val before = snapshotBefore[period]
+                                val after = snapshotAfter[period] ?: 0.0
+                                after <= 0.0 && (before == null || before > 0.0)
+                            }.keys
+                        )
+                        val stillDue = sortedByPeriod(snapshotAfter.filter { it.value > 0.0 }.keys)
+
+                        val periodKey = lodgedBill.billingPeriod
+                        val previousDue = snapshotBefore
+                            .filter { it.key != periodKey && it.value > 0.0 }.values.sum()
+                        val ownCharge = lodgedBill.baseRent + lodgedBill.electricityAmount + lodgedBill.maintenanceAmount
+                        val ownOwedBefore = snapshotBefore[periodKey]?.coerceAtLeast(0.0)
+                        val paidEarlier = if (ownOwedBefore != null) (ownCharge - ownOwedBefore).coerceAtLeast(0.0) else 0.0
+                        val netAfter = snapshotAfter.values.sum()
+
+                        var receiptMsg = ReceiptFormatter.formatReceipt(
+                            tenantName = tenant.name,
+                            roomNumber = room.roomNumber,
+                            billingPeriod = lodgedBill.billingPeriod,
+                            paymentDateMillis = System.currentTimeMillis(),
+                            previousReading = lodgedBill.previousReading,
+                            currentReading = lodgedBill.currentReading,
+                            unitsConsumed = lodgedBill.unitsConsumed,
+                            ratePerUnit = lodgedBill.electricityRate,
+                            totalElectricity = lodgedBill.electricityAmount,
+                            baseRent = lodgedBill.baseRent,
+                            maintenanceAmount = lodgedBill.maintenanceAmount,
+                            previousDue = previousDue,
+                            advanceApplied = lodgedBill.advanceApplied,
+                            paidEarlier = paidEarlier,
+                            amountPaid = amountPaid,
+                            paymentMode = paymentMode,
+                            remainingDue = netAfter
+                        )
+                        if (settledNow.size > 1) {
+                            receiptMsg += "\n\n✅ Rent settled for: ${settledNow.joinToString(", ")}"
+                        }
+                        if (stillDue.isNotEmpty()) {
+                            receiptMsg += "\n\n⚠️ You still have rent due for: ${stillDue.joinToString(", ")}"
+                        }
+                        ReceiptFormatter.sendViaWhatsApp(context, tenant.phoneNumber, receiptMsg)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.WhatsAppGreen,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Save & Send WhatsApp Receipt", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+@Composable
+fun EditRoomDialog(
+    room: Room,
+    onDismiss: () -> Unit,
+    onConfirm: (roomNumber: String, baseRent: Double, rate: Double, initialReading: Double) -> Unit
+) {
+    var roomNumber by remember { mutableStateOf(room.roomNumber) }
+    var baseRent by remember { mutableStateOf(if (room.baseRent > 0) room.baseRent.toString() else "") }
+    var electricityRate by remember { mutableStateOf(room.electricityRate.toString()) }
+    var initialReading by remember { mutableStateOf(room.initialMeterReading.toString()) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(AppColors.AzureContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DoorFront,
+                                contentDescription = null,
+                                tint = AppColors.AzurePrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Edit Room ${room.roomNumber}",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = roomNumber,
+                    onValueChange = { roomNumber = it },
+                    label = { Text("Room / Flat Number") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = baseRent,
+                    onValueChange = { baseRent = it },
+                    label = { Text("Base Rent (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = electricityRate,
+                        onValueChange = { electricityRate = it },
+                        label = { Text("Elec Rate / Unit") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    OutlinedTextField(
+                        value = initialReading,
+                        onValueChange = { initialReading = it },
+                        label = { Text("Meter Start") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppColors.AzurePrimary,
+                            unfocusedBorderColor = AppColors.BorderSubtle,
+                            focusedLabelColor = AppColors.AzurePrimary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
+                    ) {
+                        Text("Cancel", color = AppColors.TextSecondary)
+                    }
+
+                    Button(
+                        onClick = {
+                            val rentVal = baseRent.toDoubleOrNull() ?: room.baseRent
+                            val rateVal = electricityRate.toDoubleOrNull() ?: room.electricityRate
+                            val startVal = initialReading.toDoubleOrNull() ?: room.initialMeterReading
+                            if (roomNumber.isNotBlank()) {
+                                onConfirm(roomNumber, rentVal, rateVal, startVal)
+                            }
+                        },
+                        enabled = roomNumber.isNotBlank() && baseRent.isNotBlank(),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.AzurePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Save Changes")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun EditTenantDialog(
+    tenant: Tenant,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, phone: String, deposit: Double, aadhaar: String, address: String, moveInDateMillis: Long) -> Unit
+) {
+    var name by remember { mutableStateOf(tenant.name) }
+    var phone by remember { mutableStateOf(tenant.phoneNumber) }
+    var aadhaar by remember { mutableStateOf(tenant.aadhaarNumber) }
+    var address by remember { mutableStateOf(tenant.permanentAddress) }
+     var deposit by remember { mutableStateOf(if (tenant.securityDeposit > 0.0) tenant.securityDeposit.toString() else "") }
+    var moveInDateMillis by remember { mutableStateOf(tenant.moveInDate) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = AppColors.SurfaceWhite,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(AppColors.AzureContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Person,
+                                contentDescription = null,
+                                tint = AppColors.AzurePrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Edit Tenant Details",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.TextPrimary
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close", tint = AppColors.TextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Tenant Name *") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Mobile Number (for WhatsApp) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Move-In Date field (read-only text field that opens a date picker)
+                OutlinedTextField(
+                    value = dateFormatter.format(java.util.Date(moveInDateMillis)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Move-In Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.CalendarMonth,
+                                contentDescription = "Pick move-in date",
+                                tint = AppColors.AzurePrimary
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = aadhaar,
+                    onValueChange = { if (it.length <= 12) aadhaar = it },
+                    label = { Text("Aadhaar Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Permanent Address") },
+                    singleLine = false,
+                    maxLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.AzurePrimary,
+                        unfocusedBorderColor = AppColors.BorderSubtle,
+                        focusedLabelColor = AppColors.AzurePrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                 
                              
