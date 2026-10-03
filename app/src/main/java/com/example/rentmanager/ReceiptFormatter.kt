@@ -144,12 +144,8 @@ object ReceiptFormatter {
         phoneNumber: String,
         message: String
     ) {
-        val cleanPhone = phoneNumber.replace(Regex("[^0-9+]"), "").let { phone ->
-            when {
-                phone.startsWith("+") -> phone.removePrefix("+")
-                phone.length == 10 -> "91$phone" // Default to India country code if 10 digits
-                else -> phone
-            }
+        val cleanPhone = phoneNumber.filter { it.isDigit() }.trimStart('0').let { digits ->
+            if (digits.length == 10) "91$digits" else digits
         }
 
         try {
