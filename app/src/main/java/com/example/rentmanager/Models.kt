@@ -82,7 +82,9 @@ data class Bill(
     /** When money was last actually received for this bill. 0 = nothing paid yet.
      *  (timestamp is the bill's creation/ordering time, so a backfilled bill keeps the
      *  1st of its month there; that is where the stuck "01 Sep" came from.) */
-    val paidOn: Long = 0L
+    val paidOn: Long = 0L,
+    /** Earlier advance that was used up by this bill */
+    val advanceApplied: Double = 0.0
 )
 
 /** The date to show as "Paid on": the real payment date, or the bill date for older records. */
