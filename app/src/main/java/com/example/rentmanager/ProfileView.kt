@@ -399,3 +399,408 @@ private fun TenantsDialog(vm: RentViewModel, onDismiss: () -> Unit) {
 }
 
 @Composable
+private fun PaymentMethodsDialog(vm: RentViewModel, onDismiss: () -> Unit) {
+    val bills by vm.bills.collectAsState()
+    val groups = bills
+        .groupBy { it.paymentMode.toString() }
+        .map { (mode, list) -> Triple(mode, list.size, list.sumOf { it.amountPaid }) }
+        .sortedByDescending { it.third }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Payment Methods", fontWeight = FontWeight.Bold) },
+        text = {
+            if (groups.isEmpty()) {
+                Text("No payments recorded yet.")
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("How payments were recorded so far:", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    groups.forEach { (mode, count, total) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(mode, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text("$count payments", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            }
+                            Text(money(total), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+private data class DocItem(val name: String, val uri: String)
+
+private object DocStore {
+    private const val PREFS = "rm_docs"
+    private const val KEY = "items"
+
+    fun load(c: Context): List<DocItem> {
+        val raw = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "[]") ?: "[]"
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map {
+                val o = arr.getJSONObject(it)
+                DocItem(o.getString("name"), o.getString("uri"))
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun save(c: Context, items: List<DocItem>) {
+        val arr = JSONArray()
+        items.forEach { arr.put(JSONObject().put("name", it.name).put("uri", it.uri)) }
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, arr.toString()).apply()
+    }
+}
+
+@Composable
+private fun DocumentsDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var items by remember { mutableStateOf(DocStore.load(context)) }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+            var name = "Document"
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && cursor.moveToFirst()) name = cursor.getString(idx) ?: name
+            }
+            items = items + DocItem(name, uri.toString())
+            DocStore.save(context, items)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Documents", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                if (items.isEmpty()) {
+                    Text("Add rent agreements, ID proofs or any file. They stay on this device.", fontSize = 13.sp)
+                }
+                items.forEach { d ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                try {
+                                    val u = Uri.parse(d.uri)
+                                    val type = context.contentResolver.getType(u) ?: "*/*"
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW)
+                                            .setDataAndType(u, type)
+                                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    )
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Cannot open this file", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(d.name, modifier = Modifier.weight(1f), fontSize = 14.sp, maxLines = 2)
+                        TextButton(onClick = {
+                            items = items.filter { it.uri != d.uri }
+                            DocStore.save(context, items)
+                        }) { Text("Remove", color = AppColors.CrimsonAlert, fontSize = 12.sp) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { picker.launch(arrayOf("*/*")) }) { Text("Add document") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+@Composable
+private fun AppearanceDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val options = listOf("Small" to 0.9f, "Default" to 1.0f, "Large" to 1.15f, "Extra large" to 1.3f)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Text size", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                options.forEach { (label, scale) ->
+                    val selected = kotlin.math.abs(AppPrefs.textScale - scale) < 0.01f
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { AppPrefs.setTextScale(context, scale) }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(label, modifier = Modifier.weight(1f), fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                        if (selected) Text("✓", color = AppColors.AzurePrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
+}
+
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val version = remember {
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "" } catch (e: Exception) { "" }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rent Manager", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Version $version", fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Manage properties, tenants, rent and bills in one place.", fontSize = 13.sp, color = AppColors.TextSecondary)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+private enum class PinStep { CURRENT, NEW, CONFIRM }
+
+@Composable
+private fun SecurityDialog(onChanged: () -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var enabled by remember { mutableStateOf(PinStore.isEnabled(context)) }
+    var flow by remember { mutableStateOf<String?>(null) }
+
+    if (flow == null) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Security & PIN", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        if (enabled) "PIN lock is ON. The app asks for your PIN when it opens or after it has been in the background for 30 seconds."
+                        else "Protect your tenants' data with a 4-digit PIN.",
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if (enabled) {
+                        TextButton(onClick = { flow = "change" }) { Text("Change PIN") }
+                        TextButton(onClick = { flow = "off" }) { Text("Turn off PIN", color = AppColors.CrimsonAlert) }
+                    } else {
+                        TextButton(onClick = { flow = "set" }) { Text("Set PIN") }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        )
+    } else {
+        val mode = flow ?: "set"
+        val steps = when (mode) {
+            "change" -> listOf(PinStep.CURRENT, PinStep.NEW, PinStep.CONFIRM)
+            "off" -> listOf(PinStep.CURRENT)
+            else -> listOf(PinStep.NEW, PinStep.CONFIRM)
+        }
+        var stepIndex by remember { mutableStateOf(0) }
+        var input by remember { mutableStateOf("") }
+        var newPin by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf<String?>(null) }
+        val step = steps[stepIndex]
+
+        fun submit() {
+            if (input.length != 4) {
+                error = "PIN must be 4 digits"
+                return
+            }
+            when (step) {
+                PinStep.CURRENT -> {
+                    if (!PinStore.verify(context, input)) {
+                        error = "Wrong PIN"
+                    } else if (mode == "off") {
+                        PinStore.clear(context)
+                        enabled = false
+                        Toast.makeText(context, "PIN turned off", Toast.LENGTH_SHORT).show()
+                        onChanged()
+                        flow = null
+                    } else {
+                        stepIndex += 1
+                        input = ""
+                    }
+                }
+                PinStep.NEW -> {
+                    newPin = input
+                    stepIndex += 1
+                    input = ""
+                }
+                PinStep.CONFIRM -> {
+                    if (input == newPin) {
+                        PinStore.set(context, newPin)
+                        enabled = true
+                        Toast.makeText(context, "PIN saved", Toast.LENGTH_SHORT).show()
+                        onChanged()
+                        flow = null
+                    } else {
+                        error = "PINs do not match"
+                        input = ""
+                    }
+                }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { flow = null },
+            title = {
+                Text(
+                    when (step) {
+                        PinStep.CURRENT -> "Enter current PIN"
+                        PinStep.NEW -> "Enter new 4-digit PIN"
+                        PinStep.CONFIRM -> "Confirm new PIN"
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { v -> if (v.length <= 4 && v.all { it.isDigit() }) { input = v; error = null } },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        isError = error != null
+                    )
+                    if (error != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(error ?: "", color = AppColors.CrimsonAlert, fontSize = 12.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { submit() }) { Text(if (stepIndex == steps.lastIndex) "Done" else "Next") }
+            },
+            dismissButton = { TextButton(onClick = { flow = null }) { Text("Cancel") } }
+        )
+    }
+}
+
+private const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+private const val XLSX_CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>"""
+
+private const val XLSX_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"""
+
+private const val XLSX_WORKBOOK = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Bills" sheetId="1" r:id="rId1"/></sheets></workbook>"""
+
+private const val XLSX_WORKBOOK_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>"""
+
+private const val XLSX_STYLES = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B5ECC"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="4" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>"""
+
+private fun xmlEscape(s: String): String =
+    s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+private fun excelCol(index: Int): String {
+    var n = index
+    var s = ""
+    while (true) {
+        s = ('A' + n % 26) + s
+        n = n / 26 - 1
+        if (n < 0) break
+    }
+    return s
+}
+
+/** Builds a real .xlsx file (header row, widths, frozen header, money format, totals row). */
+private fun buildXlsx(
+    headers: List<String>,
+    widths: List<Int>,
+    rows: List<List<Any?>>,
+    moneyCols: Set<Int>
+): ByteArray {
+    val sheet = StringBuilder()
+    sheet.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">""")
+    sheet.append("""<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>""")
+    widths.forEachIndexed { i, w ->
+        sheet.append("""<col min="${i + 1}" max="${i + 1}" width="$w" customWidth="1"/>""")
+    }
+    sheet.append("""</cols><sheetData><row r="1" ht="30" customHeight="1">""")
+    headers.forEachIndexed { i, h ->
+        sheet.append("""<c r="${excelCol(i)}1" s="1" t="inlineStr"><is><t>${xmlEscape(h)}</t></is></c>""")
+    }
+    sheet.append("</row>")
+    rows.forEachIndexed { r, row ->
+        val rn = r + 2
+        sheet.append("""<row r="$rn">""")
+        row.forEachIndexed { i, v ->
+            val ref = excelCol(i) + rn
+            when (v) {
+                is String -> sheet.append("""<c r="$ref" t="inlineStr"><is><t>${xmlEscape(v)}</t></is></c>""")
+                is Number -> {
+                    val st = if (i in moneyCols) " s=\"2\"" else ""
+                    sheet.append("""<c r="$ref"$st><v>${v.toDouble()}</v></c>""")
+                }
+                else -> { }
+            }
+        }
+        sheet.append("</row>")
+    }
+    if (rows.isNotEmpty()) {
+        val last = rows.size + 1
+        val tr = last + 1
+        sheet.append("""<row r="$tr"><c r="A$tr" s="3" t="inlineStr"><is><t>TOTAL</t></is></c>""")
+        moneyCols.sorted().forEach { i ->
+            val total = rows.sumOf { (it.getOrNull(i) as? Number)?.toDouble() ?: 0.0 }
+            val c = excelCol(i)
+            sheet.append("""<c r="$c$tr" s="4"><f>SUM(${c}2:$c$last)</f><v>$total</v></c>""")
+        }
+        sheet.append("</row>")
+    }
+    sheet.append("</sheetData></worksheet>")
+
+    val bos = ByteArrayOutputStream()
+    ZipOutputStream(bos).use { zip ->
+        fun put(name: String, content: String) {
+            zip.putNextEntry(ZipEntry(name))
+            zip.write(content.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+        put("[Content_Types].xml", XLSX_CONTENT_TYPES)
+        put("_rels/.rels", XLSX_RELS)
+        put("xl/workbook.xml", XLSX_WORKBOOK)
+        put("xl/_rels/workbook.xml.rels", XLSX_WORKBOOK_RELS)
+        put("xl/styles.xml", XLSX_STYLES)
+        put("xl/worksheets/sheet1.xml", sheet.toString())
+    }
+    return bos.toByteArray()
+}
+
+/** Saves the bills as an Excel file in Downloads, and optionally opens the share sheet. */
+private fun exportBillsXlsx(context: Context, vm: RentViewModel, thisYearOnly: Boolean, share: Boolean) {
+    var bills = vm.bills.value
+    if (thisYearOnly) {
+        val year = Calendar.getInstance().get(Calendar.YEAR)
+        val cal = Calendar.getInstance()
+        bills = bills.filter {
+            cal.timeInMillis = it.timestamp
+            cal.get(Calendar.YEAR) == year
+        }
+    }
+    if (bills.isEmpty()) {
+        Toast.makeText(context, "No billing records to export", Toast.LENGTH_SHORT).show()
+        return
+    }
+    if (Build.VERSION.SDK_INT < 29) {
+        Toast.makeText(context, "Excel export needs Android 10 or newer", Toast.LENGTH_LONG).show()
+        return
+    }
+
+    val monthFmt = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
