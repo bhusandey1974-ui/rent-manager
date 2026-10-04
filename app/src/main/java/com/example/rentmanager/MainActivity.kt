@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
         AppPrefs.load(this)
         locked = PinStore.isEnabled(this)
 
-        window.statusBarColor = android.graphics.Color.rgb(42, 107, 85) // matches AppColors.HeaderTop
+        window.statusBarColor = android.graphics.Color.rgb(3, 22, 54) // dark navy, matches the blue header
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
 
         MobileAds.initialize(this) {}
