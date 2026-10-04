@@ -722,15 +722,15 @@ fun getRoomWiseBreakdown(category: String, forCurrentYearOnly: Boolean): List<Ro
 }
 
     fun getLastRecordedMeterReading(roomId: String): Double {
-        val roomBills = _bills.value
-            .filter { it.roomId == roomId }
-            .sortedByDescending { it.timestamp }
+        // Only bills where a real meter reading was entered count.
+        // Auto-created (backfilled) unpaid months have reading 0 and are skipped.
+        val lastRealBill = _bills.value
+            .filter { it.roomId == roomId && it.currentReading > 0.0 }
+            .maxByOrNull { it.timestamp }
 
-        return if (roomBills.isNotEmpty()) {
-            roomBills.first().currentReading
-        } else {
-            _rooms.value.find { it.id == roomId }?.initialMeterReading ?: 0.0
-        }
+        return lastRealBill?.currentReading
+            ?: _rooms.value.find { it.id == roomId }?.initialMeterReading
+            ?: 0.0
     }
 
     /**
