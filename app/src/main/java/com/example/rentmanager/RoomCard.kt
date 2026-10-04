@@ -289,10 +289,9 @@ fun RoomCard(
                                     maxLines = 1
                                 )
                                 Text(
-                                    Text(
                                     text = if (pendingDue > 0)
-                                    "₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)} pending"
-                                    else "No dues", 
+                                        "₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)} pending"
+                                    else "No dues",
                                     fontSize = 12.sp,
                                     lineHeight = 14.sp,
                                     fontWeight = FontWeight.Bold,
@@ -684,7 +683,7 @@ private fun DetailRow(label: String, value: String) {
 
 
 /** "5th Oct 2026": next occurrence (today or later) of the tenant's move-in day of month. */
-private fun nextRentDueLabel(moveInMillis: Long): String {
+private fun nextRentDueLabel(moveInMillis: Long, payInArrears: Boolean = true): String {
     val moveIn = java.util.Calendar.getInstance().apply { timeInMillis = moveInMillis }
     val day = moveIn.get(java.util.Calendar.DAY_OF_MONTH)
     val today = java.util.Calendar.getInstance()
@@ -710,6 +709,19 @@ private fun nextRentDueLabel(moveInMillis: Long): String {
         due.set(java.util.Calendar.DAY_OF_MONTH, 1)
         due.add(java.util.Calendar.MONTH, 1)
         setDay()
+    }
+    // Rent is paid a month late: the move-in month's rent is first due in the NEXT month.
+    if (payInArrears) {
+        val firstDue = java.util.Calendar.getInstance().apply {
+            timeInMillis = moveInMillis
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            add(java.util.Calendar.MONTH, 1)
+            set(
+                java.util.Calendar.DAY_OF_MONTH,
+                day.coerceAtMost(getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+            )
+        }
+        if (due.before(firstDue)) due.timeInMillis = firstDue.timeInMillis
     }
     val d = due.get(java.util.Calendar.DAY_OF_MONTH)
     val suffix = if (d in 11..13) "th" else when (d % 10) {
