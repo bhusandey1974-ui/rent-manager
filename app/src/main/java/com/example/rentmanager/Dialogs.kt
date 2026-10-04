@@ -1732,6 +1732,17 @@ fun MoveInDateBackfillDialog(
         list
     }
 
+    // "Nothing paid yet" = paid through the month BEFORE move-in, so every month from move-in is billed.
+    val nothingPaidMillis = remember(moveInDateMillis) {
+        Calendar.getInstance().apply {
+            timeInMillis = moveInDateMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            add(Calendar.MONTH, -1)
+        }.timeInMillis
+    }
+    fun monthLabel(m: Long): String =
+        if (m == nothingPaidMillis) "Nothing paid yet" else dateFormatter.format(Date(m))
+
     var selectedMonthMillis by remember { mutableStateOf(monthOptions.lastOrNull() ?: moveInDateMillis) }
     var expanded by remember { mutableStateOf(false) }
 
