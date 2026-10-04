@@ -289,9 +289,10 @@ fun RoomCard(
                                     maxLines = 1
                                 )
                                 Text(
+                                    Text(
                                     text = if (pendingDue > 0)
-                                        "₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)} pending"
-                                    else nextRentDueLabel(tenant?.moveInDate ?: System.currentTimeMillis()),
+                                    "₹${String.format(Locale.ENGLISH, "%.0f", pendingDue)} pending"
+                                    else "No dues", 
                                     fontSize = 12.sp,
                                     lineHeight = 14.sp,
                                     fontWeight = FontWeight.Bold,
