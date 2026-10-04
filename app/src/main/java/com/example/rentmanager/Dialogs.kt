@@ -1811,9 +1811,9 @@ fun MoveInDateBackfillDialog(
                             expanded = expanded,
                             onDismissRequest = { expanded = false }
                         ) {
-                            monthOptions.forEach { monthMillis ->
-                                DropdownMenuItem(
-                                    text = { Text(dateFormatter.format(Date(monthMillis))) },
+                            (listOf(nothingPaidMillis) + monthOptions).forEach { monthMillis ->
+    DropdownMenuItem(
+        text = { Text(monthLabel(monthMillis)) },
                                     onClick = {
                                         selectedMonthMillis = monthMillis
                                         expanded = false
