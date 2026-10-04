@@ -867,7 +867,8 @@ return sdf.format(cal.time)
         currentReading: Double,
         maintenanceAmount: Double,
         amountPaid: Double,
-        paymentMode: String
+        paymentMode: String,
+        paymentDate: Long = System.currentTimeMillis()
     ): Bill {
         val room = _rooms.value.find { it.id == roomId } ?: throw IllegalStateException("Room not found")
         val tenantId = room.currentTenantId
