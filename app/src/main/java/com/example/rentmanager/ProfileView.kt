@@ -804,3 +804,161 @@ private fun exportBillsXlsx(context: Context, vm: RentViewModel, thisYearOnly: B
     }
 
     val monthFmt = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+    fun n(v: Any?): Double? = (v as? Number)?.toDouble()
+    val headers = listOf(
+        "Billing Month", "Room", "Tenant", "Rent", "Previous Reading", "Current Reading",
+        "Units Consumed", "Rate per Unit", "Electricity Cost", "Maintenance",
+        "Total Payable", "Paid", "Remaining Due", "Payment Mode"
+    )
+    val widths = listOf(16, 10, 18, 11, 12, 12, 12, 11, 13, 12, 13, 11, 13, 15)
+    val moneyCols = setOf(3, 8, 9, 10, 11, 12)
+    val rows = bills.sortedBy { it.timestamp }.map { b ->
+        val room = vm.getRoomForBill(b)
+        val tenant = vm.getTenantForBill(b)
+        listOf<Any?>(
+            monthFmt.format(Date(b.timestamp)),
+            room?.roomNumber?.toString() ?: "",
+            tenant?.name ?: "",
+            n(b.baseRent),
+            n(b.previousReading),
+            n(b.currentReading),
+            n(b.unitsConsumed),
+            n(b.electricityRate),
+            n(b.electricityAmount),
+            n(b.maintenanceAmount),
+            n(b.totalPayable),
+            n(b.amountPaid),
+            n(b.remainingDue),
+            b.paymentMode.toString()
+        )
+    }
+
+    try {
+        val bytes = buildXlsx(headers, widths, rows, moneyCols)
+        val fileName = "rent_manager_bills_" + SimpleDateFormat("yyyyMMdd_HHmm", Locale.ENGLISH).format(Date()) + ".xlsx"
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, XLSX_MIME)
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+        val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        if (uri == null) {
+            Toast.makeText(context, "Could not create the file", Toast.LENGTH_SHORT).show()
+            return
+        }
+        context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+        Toast.makeText(context, "Saved to Downloads: $fileName", Toast.LENGTH_LONG).show()
+        if (share) {
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = XLSX_MIME
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(send, "Share Excel file"))
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Export failed: " + (e.message ?: "unknown error"), Toast.LENGTH_LONG).show()
+    }
+}
+
+@Composable
+private fun ExportDialog(onExport: (thisYear: Boolean, share: Boolean) -> Unit, onDismiss: () -> Unit) {
+    var thisYear by remember { mutableStateOf(false) }
+    val year = remember { Calendar.getInstance().get(Calendar.YEAR) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export to Excel", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Choose what to include:", fontSize = 13.sp, color = AppColors.TextSecondary)
+                listOf(false to "All bills", true to "This year only ($year)").forEach { (value, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { thisYear = value }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            label,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 15.sp,
+                            fontWeight = if (thisYear == value) FontWeight.Bold else FontWeight.Normal
+                        )
+                        if (thisYear == value) Text("✓", color = AppColors.AzurePrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Saved as an .xlsx file in your Downloads folder, with billing month, meter readings, units, rate and electricity cost.",
+                    fontSize = 11.sp,
+                    color = AppColors.TextMuted
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = { onExport(thisYear, false); onDismiss() }) { Text("Save") }
+                TextButton(onClick = { onExport(thisYear, true); onDismiss() }) { Text("Save & share") }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun AccountDialog(
+    name: String,
+    email: String,
+    signedIn: Boolean,
+    vm: RentViewModel?,
+    onExport: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var confirmSignOut by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Account", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(email, fontSize = 13.sp, color = AppColors.TextSecondary)
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    if (signedIn) "Cloud sync is on. Your data is saved to your account."
+                    else "You are using local storage. Your data lives only on this phone, so export it to Excel regularly.",
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (signedIn && vm != null) {
+                    TextButton(onClick = {
+                        vm.refreshFromCloud()
+                        Toast.makeText(context, "Syncing with the cloud…", Toast.LENGTH_SHORT).show()
+                    }) { Text("Sync now") }
+                }
+                TextButton(onClick = { onExport() }) { Text("Export to Excel") }
+                if (signedIn) {
+                    TextButton(onClick = { confirmSignOut = true }) { Text("Sign out", color = AppColors.CrimsonAlert) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+    if (confirmSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            title = { Text("Sign out?", fontWeight = FontWeight.Bold) },
+            text = { Text("Your data stays in the cloud. You will need to sign in again to see it.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    FirebaseAuth.getInstance().signOut()
+                    (context as? Activity)?.recreate()
+                }) { Text("Sign out", color = AppColors.CrimsonAlert) }
+            },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } }
+        )
+    }
+}
+
