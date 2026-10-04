@@ -1799,7 +1799,7 @@ fun MoveInDateBackfillDialog(
                             border = BorderStroke(1.dp, AppColors.BorderSubtle)
                         ) {
                             Text(
-                                text = dateFormatter.format(Date(selectedMonthMillis)),
+                                text = monthLabel(selectedMonthMillis),
                                 color = AppColors.TextPrimary,
                                 modifier = Modifier.weight(1f),
                                 textAlign = TextAlign.Start
