@@ -279,45 +279,73 @@ private fun ProfileSection(title: String, rows: List<ProfileRow>) {
 private fun money(v: Double): String = "₹" + String.format(Locale.ENGLISH, "%,.2f", v)
 
 @Composable
-private fun PropertiesDialog(vm: RentViewModel, onPicked: () -> Unit, onDismiss: () -> Unit) {
-    val properties by vm.properties.collectAsState()
+private fun TenantsDialog(vm: RentViewModel, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val tenants by vm.tenants.collectAsState()
     val rooms by vm.rooms.collectAsState()
-    val selectedId by vm.selectedPropertyId.collectAsState()
+    val bills by vm.bills.collectAsState()
+    val dateFmt = remember { SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH) }
+    val sorted = tenants.sortedWith(
+        compareByDescending<com.example.rentmanager.Tenant> { it.isCurrent }
+            .thenByDescending { it.moveInDate }
+    )
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("My Properties", fontWeight = FontWeight.Bold) },
+        title = { Text("Tenants", fontWeight = FontWeight.Bold) },
         text = {
-            if (properties.isEmpty()) {
-                Text("No properties yet.")
+            if (sorted.isEmpty()) {
+                Text("No tenants yet. Add one from a vacant room.")
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    properties.forEach { prop ->
-                        val propRooms = rooms.filter { it.propertyId == prop.id }
-                        val occupied = propRooms.count { it.isOccupied }
-                        Row(
+                    sorted.forEach { t ->
+                        val room = rooms.find { it.id == t.roomId }
+                        val due = bills.filter { it.tenantId == t.id }.sumOf { it.remainingDue }
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    vm.setSelectedProperty(prop.id)
-                                    onPicked()
+                                .clickable(enabled = t.phoneNumber.isNotBlank()) {
+                                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + t.phoneNumber)))
                                 }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 8.dp, horizontal = 4.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(prop.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(t.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
                                 Text(
-                                    "${propRooms.size} rooms · $occupied occupied",
-                                    fontSize = 12.sp,
-                                    color = AppColors.TextSecondary
+                                    if (t.isCurrent) "Current" else "Past",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (t.isCurrent) AppColors.EmeraldSuccess else AppColors.TextMuted
                                 )
                             }
-                            if (prop.id == selectedId) {
-                                Text("Selected", fontSize = 11.sp, color = AppColors.AzurePrimary, fontWeight = FontWeight.SemiBold)
+                            Text("Room ${room?.roomNumber ?: "-"} · ${t.phoneNumber}", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            Text("Moved in: ${dateFmt.format(Date(t.moveInDate))}", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            Text(
+                                if (t.moveOutDate != null) "Moved out: ${dateFmt.format(Date(t.moveOutDate))}" else "Still staying",
+                                fontSize = 12.sp, color = AppColors.TextSecondary
+                            )
+                            if (t.permanentAddress.isNotBlank()) {
+                                Text("Address: ${t.permanentAddress}", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            }
+                            if (t.aadhaarNumber.isNotBlank()) {
+                                Text("Aadhaar: ${t.aadhaarNumber}", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            }
+                            if (t.securityDeposit > 0.0) {
+                                val refund = when (t.depositRefunded) {
+                                    true -> " (refunded)"
+                                    false -> " (not refunded)"
+                                    null -> ""
+                                }
+                                Text("Deposit: ${money(t.securityDeposit)}$refund", fontSize = 12.sp, color = AppColors.TextSecondary)
+                            }
+                            if (due > 0.0) {
+                                Text(money(due) + " due", fontSize = 12.sp, color = AppColors.CrimsonAlert, fontWeight = FontWeight.SemiBold)
                             }
                         }
+                        HorizontalDivider(color = AppColors.TextMuted.copy(alpha = 0.2f))
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Tap a tenant to call.", fontSize = 11.sp, color = AppColors.TextMuted)
                 }
             }
         },
