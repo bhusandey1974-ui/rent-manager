@@ -705,7 +705,7 @@ private fun exportBillsCsv(context: Context, vm: RentViewModel) {
         return
     }
     fun esc(s: String) = "\"" + s.replace("\"", "\"\"") + "\""
-    val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+    val dateFmt = SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH)
     val sb = StringBuilder()
     sb.append("Date,Room,Tenant,Rent,Electricity,Maintenance,Total Payable,Paid,Remaining Due,Payment Mode\n")
     bills.sortedBy { it.timestamp }.forEach { b ->
