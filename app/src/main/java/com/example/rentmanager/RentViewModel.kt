@@ -927,7 +927,8 @@ return sdf.format(cal.time)
                 electricityPaid = old.electricityPaid + elecApplied,
                 amountPaid = old.amountPaid + applied,
                 remainingDue = old.remainingDue - applied,
-                paidOn = now
+                paymentMode = paymentMode,
+                paidOn = paymentDate
             )
         }
 
