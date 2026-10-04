@@ -877,6 +877,24 @@ return sdf.format(cal.time)
         val existingBillForPeriod = _bills.value.find {
             it.roomId == roomId && it.tenantId == tenantId &&
                 it.billingPeriod.trim().equals(period, ignoreCase = true)
+        }?.let { ex ->
+            // An auto-created unpaid month has no meter reading yet: fill it in now.
+            if (ex.currentReading == 0.0 && currentReading > 0.0) {
+                val prev = getLastRecordedMeterReading(roomId)
+                val units = (currentReading - prev).coerceAtLeast(0.0)
+                val elec = kotlin.math.round(units * room.electricityRate)
+                val extraCharge = elec + maintenanceAmount
+                ex.copy(
+                    previousReading = prev,
+                    currentReading = currentReading,
+                    unitsConsumed = units,
+                    electricityRate = room.electricityRate,
+                    electricityAmount = elec,
+                    maintenanceAmount = maintenanceAmount,
+                    totalPayable = ex.totalPayable + extraCharge,
+                    remainingDue = ex.remainingDue + extraCharge
+                )
+            } else ex
         }
 
         val otherOutstanding = _bills.value
