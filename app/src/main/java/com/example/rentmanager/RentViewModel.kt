@@ -945,7 +945,7 @@ return sdf.format(cal.time)
                 amountPaid = existing.amountPaid + totalApplied,
                 remainingDue = existing.remainingDue - totalApplied,
                 paymentMode = paymentMode,
-                paidOn = if (totalApplied > 0.0) now else existing.paidOn
+                paidOn = if (totalApplied > 0.0) paymentDate else existing.paidOn
             )
         }
 
