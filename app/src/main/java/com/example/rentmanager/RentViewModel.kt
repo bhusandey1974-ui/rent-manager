@@ -996,7 +996,7 @@ return sdf.format(cal.time)
                 paymentMode = paymentMode,
                 remainingDue = currentMonthCharge - fundsForCharge,
                 timestamp = now,
-                paidOn = if (paymentLeft > 0.0) now else 0L,
+                paidOn = if (paymentLeft > 0.0) paymentDate else 0L,
                 advanceApplied = creditAvailable
             )
 
