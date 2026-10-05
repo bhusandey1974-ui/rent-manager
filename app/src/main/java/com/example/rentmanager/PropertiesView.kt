@@ -545,7 +545,8 @@ fun PropertiesView(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(filteredRooms, key = { it.id }) { room ->
+                                        itemsIndexed(filteredRooms, key = { _, r -> r.id }) { index, room ->
+                      Column {
                         val tenant = tenants.find { it.id == room.currentTenantId && it.isCurrent }
                         val pendingDue = vm.getPendingDueForCurrentTenant(room.id)
 
