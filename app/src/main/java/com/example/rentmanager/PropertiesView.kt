@@ -563,7 +563,12 @@ fun PropertiesView(
                             onViewHistory = { roomForHistory = room },
                             onEditTenant = { tenant?.let { tenantForEditing = room to it } }
                         )
-                    }
+                        if (index == 2 && nativeAd != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            NativeAdCard(ad = nativeAd)
+                        }
+                      }
+                                        }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
