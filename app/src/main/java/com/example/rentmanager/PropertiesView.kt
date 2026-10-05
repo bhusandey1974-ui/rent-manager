@@ -263,6 +263,7 @@ fun PropertiesView(
         matchesSearch && matchesFilter
     }
 
+    val nativeAd = rememberNativeAd(TEST_NATIVE_AD_UNIT)
     val occupiedCount = currentRooms.count { it.isOccupied }
     val vacantCount = currentRooms.count { !it.isOccupied }
     val duesCount = currentRooms.count { it.isOccupied && vm.getPendingDueForCurrentTenant(it.id) > 0.0 }
