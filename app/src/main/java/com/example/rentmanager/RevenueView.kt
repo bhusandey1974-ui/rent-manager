@@ -550,8 +550,11 @@ fun RevenueView(vm: RentViewModel, onAddRecord: () -> Unit = {}) {
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
-                    items(recentBillsByRoom, key = { "recent-${it.id}" }) { bill ->
+                                        items(recentBillsByRoom, key = { "recent-${it.id}" }) { bill ->
                         BillDetailRow(bill = bill, vm = vm, context = context, dateFormat = dateFormat)
+                    }
+                    if (nativeAd != null) {
+                        item(key = "native-ad") { NativeAdCard(ad = nativeAd) }
                     }
                     item {
                         Spacer(modifier = Modifier.height(6.dp))
