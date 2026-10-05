@@ -170,6 +170,7 @@ fun RevenueView(vm: RentViewModel, onAddRecord: () -> Unit = {}) {
     val context = LocalContext.current
     val bills by vm.bills.collectAsState()
     val rooms by vm.rooms.collectAsState()
+    val nativeAd = rememberNativeAd(TEST_NATIVE_AD_UNIT)
     var isCurrentYearOnly by remember { mutableStateOf(true) }
     var categoryFilter by remember { mutableStateOf("All") }
     var showSearch by remember { mutableStateOf(false) }
