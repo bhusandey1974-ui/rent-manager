@@ -25,6 +25,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import com.example.rentmanager.ui.components.NativeAdCard
+import com.example.rentmanager.ui.components.TEST_NATIVE_AD_UNIT
+import com.example.rentmanager.ui.components.rememberNativeAd
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
