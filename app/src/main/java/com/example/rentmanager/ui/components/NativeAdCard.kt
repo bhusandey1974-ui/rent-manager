@@ -34,7 +34,7 @@ import com.google.android.gms.ads.nativead.NativeAdOptions
 import com.google.android.gms.ads.nativead.NativeAdView
 
 /** Google's official TEST native ad unit. Replace with your own ID before publishing. */
-const val TEST_NATIVE_AD_UNIT = "ca-app-pub-3940256099942544/2247696110"
+const val TEST_NATIVE_AD_UNIT = "ca-app-pub-4334614941668154/1929716186"
 
 /** Loads one native ad for the lifetime of the calling screen. Returns null until it is ready (or if it fails). */
 @Composable
