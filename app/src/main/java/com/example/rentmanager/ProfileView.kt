@@ -239,6 +239,10 @@ fun ProfileView(
                     ProfileRow("₹", orange, orangeBg, "Currency & Financial Settings", "Set currency, tax and financial preferences") { soon("Currency settings") }
                 )
             )
+                        if (nativeAd != null) {
+                Spacer(modifier = Modifier.height(20.dp))
+                NativeAdCard(ad = nativeAd)
+                        }
             ProfileSection(
                 "Data & Backup",
                 listOf(
