@@ -222,6 +222,10 @@ fun ExpensesView(vm: RentViewModel) {
                 }
             }
             Spacer(modifier = Modifier.height(18.dp))
+                        if (nativeAd != null) {
+                NativeAdCard(ad = nativeAd)
+                Spacer(modifier = Modifier.height(18.dp))
+                        }
 
             // ---- Recent expenses
             SectionHeader("Recent Expenses", if (showAll) "Show Less" else "View All") { showAll = !showAll }
