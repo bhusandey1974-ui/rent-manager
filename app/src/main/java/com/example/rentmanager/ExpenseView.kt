@@ -58,6 +58,9 @@ import androidx.compose.ui.unit.sp
 import com.example.rentmanager.AppColors
 import com.example.rentmanager.Expense
 import com.example.rentmanager.RentViewModel
+import com.example.rentmanager.ui.components.NativeAdCard
+import com.example.rentmanager.ui.components.TEST_NATIVE_AD_UNIT
+import com.example.rentmanager.ui.components.rememberNativeAd
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
