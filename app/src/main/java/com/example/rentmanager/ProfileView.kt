@@ -22,6 +22,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.example.rentmanager.PinStore
+import com.example.rentmanager.ui.components.NativeAdCard
+import com.example.rentmanager.ui.components.TEST_NATIVE_AD_UNIT
+import com.example.rentmanager.ui.components.rememberNativeAd
 import com.example.rentmanager.AppPrefs
 import org.json.JSONArray
 import org.json.JSONObject
