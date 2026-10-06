@@ -102,6 +102,7 @@ fun ProfileView(
 ) {
     val context = LocalContext.current
     val soon = { name: String -> Toast.makeText(context, "$name is coming soon", Toast.LENGTH_SHORT).show() }
+    val nativeAd = rememberNativeAd(TEST_NATIVE_AD_UNIT)
     var dialog by remember { mutableStateOf<String?>(null) }
     var pinEnabled by remember { mutableStateOf(PinStore.isEnabled(context)) }
 
