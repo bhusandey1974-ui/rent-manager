@@ -101,6 +101,7 @@ private fun monthLabel(key: Int): String {
 fun ExpensesView(vm: RentViewModel) {
     // Net cash is a lifetime figure, so this uses lifetime collections.
     val summary = vm.getRevenueSummary(forCurrentYearOnly = false)
+    val nativeAd = rememberNativeAd(TEST_NATIVE_AD_UNIT)
     val allExpenses by vm.expenses.collectAsState()
 
     val nowKey = monthKey(System.currentTimeMillis())
